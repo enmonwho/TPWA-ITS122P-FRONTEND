@@ -8,6 +8,7 @@ import lakByeImg from '../assets/lakbye-logo.png';
  */
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -17,22 +18,34 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Close mobile menu on route navigation
+  const handleLinkClick = () => setMenuOpen(false);
+
   return (
     <header className={`site-header${scrolled ? ' scrolled' : ''}`}>
       <nav className="nav-container" aria-label="Main navigation">
         <Link to="/" className="logo">
-          <img
-            src={lakByeImg}
-            alt="LakBye Logo"
-            style={{ height: '65px', display: 'block' }}
-          />
+          <img src={lakByeImg} alt="LakBye Logo" className="header-logo-img" />
         </Link>
 
-        <div className="auth-links">
-          <Link to="/login" className="btn-login">
+        <button
+          className="mobile-menu-toggle"
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label="Toggle navigation menu"
+          aria-expanded={menuOpen}
+        >
+          <span className={`hamburger-icon${menuOpen ? ' open' : ''}`}>
+            <span></span>
+            <span></span>
+            <span></span>
+          </span>
+        </button>
+
+        <div className={`auth-links${menuOpen ? ' auth-links--open' : ''}`}>
+          <Link to="/login" className="btn-login" onClick={handleLinkClick}>
             Log In
           </Link>
-          <Link to="/signup" className="btn-signup">
+          <Link to="/signup" className="btn-signup" onClick={handleLinkClick}>
             Sign Up
           </Link>
         </div>

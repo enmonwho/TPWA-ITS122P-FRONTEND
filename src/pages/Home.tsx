@@ -29,17 +29,7 @@ export default function Home() {
         />
       </div>
 
-      <section
-        className="earth-header-section"
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          paddingTop: '15vh',
-          alignItems: 'center',
-          position: 'relative',
-        }}
-      >
+      <section className="earth-header-section earth-hero">
         {/* Clouds placed to match the reference image and float behind the Earth */}
         <CloudDoodle id={1} top="45%" left="5%" width="160px" opacity={0.8} />
         <CloudDoodle id={2} top="80%" left="8%" width="120px" opacity={0.7} />

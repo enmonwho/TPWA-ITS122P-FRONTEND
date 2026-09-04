@@ -221,7 +221,7 @@ body {
   align-items: center;
   justify-content: space-between;
   max-width: 80rem;
-  margin-inline: auto;
+  margin-inline: 150px;
   padding: var(--spacing-md) var(--spacing-lg);
 }
 
@@ -427,15 +427,64 @@ h6 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: 80rem;
+  max-width: 100rem;
   margin: 0 auto;
-  padding: 0.5rem 8vw;
+  padding: 0.5rem clamp(1rem, 5vw, 8vw);
+  flex-wrap: wrap;
+  position: relative;
+  padding-bottom: 20px;
+  padding-top: 25px;
 }
 
 .nav-container .logo {
   display: flex;
   align-items: center;
   text-decoration: none;
+}
+
+.header-logo-img {
+  height: 45px;
+  display: block;
+}
+
+/* Mobile menu toggle — hidden on desktop */
+.mobile-menu-toggle {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  z-index: 110;
+}
+
+.hamburger-icon {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 24px;
+}
+
+.hamburger-icon span {
+  display: block;
+  height: 2.5px;
+  width: 100%;
+  background-color: var(--color-brand-dark);
+  border-radius: 2px;
+  transition:
+    transform 0.3s ease,
+    opacity 0.3s ease;
+}
+
+.hamburger-icon.open span:nth-child(1) {
+  transform: translateY(7.5px) rotate(45deg);
+}
+
+.hamburger-icon.open span:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger-icon.open span:nth-child(3) {
+  transform: translateY(-7.5px) rotate(-45deg);
 }
 
 .auth-links {
@@ -501,8 +550,8 @@ h6 {
   position: fixed;
   left: 50%;
   bottom: -700px;
-  width: 1200px;
-  height: 1250px;
+  width: clamp(600px, 80vw, 1200px);
+  height: clamp(625px, 83vw, 1250px);
   transform: translateX(-50%);
   border-radius: 50%;
   overflow: hidden;
@@ -532,7 +581,7 @@ h6 {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 4rem 8vw;
+  padding: 4rem clamp(1rem, 5vw, 8vw);
 }
 
 .earth-section p {
@@ -543,24 +592,35 @@ h6 {
   position: relative;
   z-index: 1;
   text-align: center;
-  padding: 3rem 8vw 1rem;
+  padding: 3rem clamp(1rem, 5vw, 8vw) 1rem;
   font-family: 'Poppins', sans-serif;
   font-weight: 700;
 }
 
+/* Hero variant — was inline styles on Home.tsx */
+.earth-hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding-top: 15vh;
+  align-items: center;
+  position: relative;
+}
+
 .earth-header-section h1 {
-  font-size: clamp(2rem, 6vw, 4rem);
+  font-size: clamp(1.75rem, 5vw, 4rem);
   margin: 0 0 0.5rem;
 }
 
 .earth-header-section .subtitle {
   color: #555555;
   font-weight: 300;
-  font-size: 1.25rem;
+  font-size: clamp(0.95rem, 2vw, 1.25rem);
   margin: 0;
   max-width: 48rem;
   margin-inline: auto;
   line-height: 1.5;
+  padding: 0 1rem;
 }
 
 /* LakBye gradient text */
@@ -578,7 +638,7 @@ h6 {
 .landing-services {
   position: relative;
   z-index: 1;
-  padding: 4rem 8vw;
+  padding: 4rem clamp(1rem, 5vw, 8vw);
 }
 
 .landing-services-header {
@@ -588,13 +648,13 @@ h6 {
 .landing-services-header h2 {
   font-family: var(--font-sans);
   font-weight: 700;
-  font-size: 2.25rem;
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
   color: var(--color-brand-dark);
 }
 
 .landing-services-header p {
   font-weight: 300;
-  font-size: 1.25rem;
+  font-size: clamp(0.95rem, 2vw, 1.25rem);
   color: var(--color-brand-dark);
   max-width: 40rem;
   line-height: 1.5;
@@ -695,7 +755,7 @@ h6 {
 /* Feature Grid */
 .feature-section {
   position: relative;
-  padding: 4rem 8vw;
+  padding: 4rem clamp(1rem, 5vw, 8vw);
 }
 
 .feature-cards-grid {
@@ -756,7 +816,7 @@ h6 {
 .feature-card h3 {
   font-family: var(--font-sans);
   font-weight: 700;
-  font-size: 1.5rem;
+  font-size: clamp(1.15rem, 2.5vw, 1.5rem);
   color: #ffffff;
   text-shadow: 0px 0px 4px rgba(0, 0, 0, 0.25);
   position: relative;
@@ -780,7 +840,7 @@ h6 {
 /* Testimonials */
 .testimonials-section {
   position: relative;
-  padding: 4rem 8vw;
+  padding: 4rem clamp(1rem, 5vw, 8vw);
 }
 
 .testimonials-grid {
@@ -804,7 +864,7 @@ h6 {
   border: 1px solid rgba(0, 0, 0, 0.25);
   border-radius: 32px;
   box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
-  padding: 2rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -856,14 +916,14 @@ h6 {
 .testimonial-body {
   font-family: var(--font-sans);
   font-weight: 400;
-  font-size: 1.25rem;
+  font-size: clamp(0.95rem, 2vw, 1.25rem);
   color: var(--color-brand-dark);
 }
 
 /* CTA Section */
 .cta-section {
   position: relative;
-  padding: 6rem 8vw;
+  padding: clamp(3rem, 6vw, 6rem) clamp(1rem, 5vw, 8vw);
   display: flex;
   justify-content: center;
 }
@@ -875,13 +935,13 @@ h6 {
   text-align: center;
   gap: 1rem;
   border-radius: 60px;
-  padding: 2rem;
+  padding: clamp(1.5rem, 3vw, 2rem);
 }
 
 .cta-heading {
   font-family: var(--font-sans);
   font-weight: 500;
-  font-size: 2.25rem;
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
   color: var(--color-brand-red);
 }
 
@@ -889,7 +949,7 @@ h6 {
   font-family: var(--font-sans);
   font-style: italic;
   font-weight: 700;
-  font-size: 2.5rem;
+  font-size: clamp(1.5rem, 4.5vw, 2.5rem);
   color: var(--color-brand-dark);
   margin-bottom: 2rem;
 }
@@ -907,7 +967,7 @@ h6 {
   );
   backdrop-filter: blur(40px);
   -webkit-backdrop-filter: blur(40px);
-  padding: 3rem 8vw;
+  padding: 3rem clamp(1rem, 5vw, 8vw);
   color: #fffefb;
 }
 
@@ -1031,118 +1091,66 @@ h6 {
 
 /* ============================== */
 /* ============================== */
-/*        Login Page Styles       */
+/*     Auth Pages (Login/SignUp)  */
+/*     Mobile-first responsive    */
 /* ============================== */
 
-.login-root {
+/* ===== BASE / MOBILE (<768px) ===== */
+
+.auth-root {
   position: relative;
   width: 100%;
   min-height: 100dvh;
   display: flex;
+  flex-direction: column;
   margin: 0;
   padding: 0;
-  overflow: hidden;
-  background-color: var(--color-brand-cream);
+  overflow-x: hidden;
+  overflow-y: auto;
+  background-color: #fffaf2;
   background-image: url('./assets/texture-filter.png');
   background-repeat: repeat;
   background-size: auto;
 }
 
-/* Layer 3: Stamps Collage Container */
-.login-background-layer {
-  position: absolute;
-  inset: 0;
+/* Collage section — not rendered on mobile via React conditional */
+.auth-collage-section {
+  display: none;
+}
+
+/* Desktop-only logo overlay — hidden on mobile/tablet */
+.auth-collage-logo-link {
+  display: none;
+}
+
+/* Standalone logo — shown on mobile and tablet */
+.auth-standalone-logo-link {
   display: flex;
-  align-items: center;
   justify-content: center;
-  overflow: hidden;
-  z-index: 0;
-  pointer-events: none;
-}
-
-.login-visual-assets {
-  position: relative;
-  pointer-events: auto;
-  aspect-ratio: 1920 / 1080;
-  min-width: 100vw;
-  min-height: 100dvh;
-}
-
-.login-stamps {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-/* Layer 4: Logo */
-.login-logo-link {
-  position: absolute;
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  z-index: 10;
-  left: 12%;
-  top: 43%;
-  width: 13%;
+  margin-bottom: 1.25rem;
   text-decoration: none;
-  container-type: inline-size;
 }
 
-.login-logo-image {
-  width: 100%;
-  height: auto;
+.auth-standalone-logo-img {
+  height: 60px;
+  width: auto;
   object-fit: contain;
 }
 
-.login-tagline {
-  margin-top: 4%;
-  color: #000000;
-  font-size: 6.5cqw;
-  font-weight: 400;
-  font-family: var(--font-sans);
-  font-style: italic;
-  white-space: nowrap;
-}
-
-/* Foreground Split Layout */
-.login-interactive-layer {
-  position: relative;
+/* Form section */
+.auth-form-section {
+  flex: 1;
   width: 100%;
-  height: 100dvh;
-  display: flex;
-  flex-direction: row;
-  z-index: 10;
-  pointer-events: none;
-}
-
-.login-left-column {
-  display: none;
-  width: 50%;
-  height: 100%;
-}
-@media (min-width: 768px) {
-  .login-left-column {
-    display: block;
-  }
-}
-
-.login-right-column {
-  width: 100%;
-  height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 0 1.5rem;
-  pointer-events: auto;
-}
-@media (min-width: 768px) {
-  .login-right-column {
-    width: 50%;
-  }
+  padding: 2rem 24px;
+  min-height: 100dvh;
 }
 
+/* Shared form container (reused from existing) */
 .login-form-container {
   width: 100%;
   max-width: 384px;
@@ -1360,22 +1368,147 @@ h6 {
   text-decoration: underline;
 }
 
-.signup-prompt-text {
-  color: #000000;
-  font-size: 0.875rem; /* 14px */
-  font-weight: 400;
-  font-family: var(--font-sans);
+/* ===== TABLET (768px – 1023px) ===== */
+
+@media (min-width: 768px) {
+  .auth-root {
+    flex-direction: column;
+  }
+
+  /* Show collage as a strip at top */
+  .auth-collage-section {
+    display: block;
+    position: relative;
+    width: 100%;
+    height: 35vh;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .auth-collage-inner {
+    width: 100%;
+    height: 100%;
+    position: relative;
+  }
+
+  .auth-collage-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top;
+    display: block;
+  }
+
+  /* Desktop logo overlay — still hidden on tablet */
+  .auth-collage-logo-link {
+    display: none;
+  }
+
+  /* Standalone logo — still shown on tablet */
+  .auth-standalone-logo-link {
+    display: flex;
+  }
+
+  /* Form section takes remaining height */
+  .auth-form-section {
+    min-height: 0;
+    flex: 1;
+    padding: 2rem 2rem;
+  }
 }
 
-.signup-link {
-  color: var(--color-brand-red);
-  font-size: 0.875rem; /* 14px */
-  font-weight: 600;
-  font-family: var(--font-sans);
-  text-decoration: none;
-}
-.signup-link:hover {
-  text-decoration: underline;
+/* ===== DESKTOP (≥1024px) ===== */
+
+@media (min-width: 1024px) {
+  .auth-root {
+    flex-direction: row;
+    min-height: 100dvh;
+    overflow: hidden;
+    overflow-y: auto;
+  }
+
+  /* Collage fills the entire left half — original split-screen behavior */
+  .auth-collage-section {
+    display: block;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    z-index: 0;
+    pointer-events: none;
+    width: auto;
+    height: auto;
+  }
+
+  .auth-collage-inner {
+    position: relative;
+    pointer-events: auto;
+    aspect-ratio: 1920 / 1080;
+    min-width: 100vw;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    height: auto;
+  }
+
+  .auth-collage-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+  }
+
+  /* Desktop logo overlay — show and position absolutely */
+  .auth-collage-logo-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: absolute;
+    z-index: 10;
+    left: 12%;
+    top: 43%;
+    width: 13%;
+    text-decoration: none;
+    container-type: inline-size;
+  }
+
+  .auth-collage-logo-img {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+  }
+
+  .auth-collage-tagline {
+    margin-top: 4%;
+    color: #000000;
+    font-size: 6.5cqw;
+    font-weight: 400;
+    font-family: var(--font-sans);
+    font-style: italic;
+    white-space: nowrap;
+  }
+
+  /* Hide standalone logo on desktop */
+  .auth-standalone-logo-link {
+    display: none;
+  }
+
+  /* Form section becomes the right half */
+  .auth-form-section {
+    position: relative;
+    z-index: 10;
+    width: 50%;
+    height: 100dvh;
+    min-height: 100dvh;
+    margin-left: 50%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 0 1.5rem;
+  }
 }
 
 /* Fix Stacking Context for Cloud Doodles */
@@ -1385,4 +1518,388 @@ h6 {
 .cta-container {
   position: relative;
   z-index: 2;
+}
+
+/* ============================== */
+/*    Global Image Safety          */
+/* ============================== */
+img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
+    .feature-card-icon
+  ):not(.auth-collage-img):not(.auth-collage-logo-img):not(.auth-standalone-logo-img) {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ============================== */
+/*    Responsive Media Queries     */
+/* ============================== */
+
+/* --- Smaller laptops (≤1366px) --- */
+@media (max-width: 1366px) {
+  .earth-wrap {
+    bottom: -600px;
+  }
+
+  .earth-hero {
+    padding-top: 12vh;
+  }
+
+  .landing-footer-bar {
+    min-height: 140px;
+  }
+}
+
+/* --- Small laptops / Large tablets (≤1024px) --- */
+@media (max-width: 1024px) {
+  .earth-wrap {
+    bottom: -500px;
+  }
+
+  .earth-hero {
+    padding-top: 11vh;
+  }
+
+  .feature-card {
+    min-height: 190px;
+    padding: 1.5rem;
+  }
+}
+
+/* --- Tablets / Mobile nav breakpoint (≤768px) --- */
+@media (max-width: 768px) {
+  /* Mobile navigation */
+  .mobile-menu-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .auth-links {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+    gap: 0.5rem;
+    padding: 1rem 0 0.5rem;
+    order: 3;
+  }
+
+  .auth-links--open {
+    display: flex;
+  }
+
+  .auth-links .btn-login,
+  .auth-links .btn-signup {
+    width: 100%;
+    text-align: center;
+    padding: 0.75rem 1.25rem;
+  }
+
+  .header-logo-img {
+    height: 50px;
+  }
+
+  /* Earth hero adjustments */
+  .earth-wrap {
+    bottom: -400px;
+  }
+
+  .earth-hero {
+    padding-top: 10vh;
+    min-height: 80vh;
+  }
+
+  /* Feature cards */
+  .feature-card {
+    min-height: 170px;
+    padding: 1.25rem;
+  }
+
+  /* Testimonials — full width cards */
+  .testimonials-grid {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .testimonial-card {
+    max-width: 100%;
+  }
+
+  .testimonial-name {
+    font-size: 1.1rem;
+  }
+
+  .testimonial-title {
+    font-size: 1.1rem;
+  }
+
+  /* Footer grid — 2 columns on tablet */
+  .footer-links-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+
+  .footer-col-title {
+    font-size: 1.1rem;
+  }
+
+  .footer-col a,
+  .footer-social-link {
+    font-size: 0.9rem;
+  }
+
+  /* Landing footer bar */
+  .landing-footer-bar {
+    min-height: 120px;
+  }
+
+  /* Cloud doodles — scale down on tablets */
+  .cloud-doodle {
+    max-width: 120px;
+    opacity: 0.3 !important;
+  }
+
+  /* Auth pages — tablet title size */
+  .login-title {
+    font-size: 1.75rem;
+  }
+}
+
+/* --- Large phones / Small tablets (≤600px) --- */
+@media (max-width: 600px) {
+  /* Footer grid — single column */
+  .footer-links-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .footer-top-row {
+    gap: 2rem;
+  }
+
+  /* Feature cards — single column */
+  .feature-cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .feature-card {
+    min-height: 160px;
+    padding: 1.5rem;
+    -webkit-mask-image: none;
+    mask-image: none;
+    border-radius: 24px;
+  }
+
+  /* Stack name inputs on mobile */
+  .name-inputs-row {
+    flex-direction: column;
+  }
+
+  /* Earth */
+  .earth-hero {
+    min-height: 70vh;
+    padding-top: 12vh;
+  }
+
+  .earth-wrap {
+    bottom: -350px;
+  }
+
+  /* Landing cards */
+  .landing-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-card {
+    min-height: 200px;
+  }
+
+  /* CTA */
+  .cta-section {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+  }
+
+  .cta-container {
+    border-radius: 30px;
+  }
+}
+
+/* --- Mobile phones (≤480px) --- */
+@media (max-width: 480px) {
+  .header-logo-img {
+    height: 42px;
+  }
+
+  .nav-container {
+    padding: 0.5rem 1rem;
+  }
+
+  /* Hero */
+  .earth-hero {
+    min-height: 65vh;
+    padding-top: 10vh;
+  }
+
+  .earth-wrap {
+    bottom: -280px;
+  }
+
+  /* Feature cards */
+  .feature-card {
+    min-height: 150px;
+    padding: 1rem;
+  }
+
+  .feature-card-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  /* Testimonials */
+  .testimonial-card {
+    padding: 1.25rem;
+    border-radius: 24px;
+  }
+
+  .testimonial-name {
+    font-size: 1rem;
+  }
+
+  .testimonial-location {
+    font-size: 0.875rem;
+  }
+
+  .testimonial-title {
+    font-size: 1rem;
+    margin-top: 0.5rem;
+  }
+
+  /* Footer */
+  .site-footer {
+    padding: 2rem 1rem;
+  }
+
+  .footer-logo-img {
+    height: 48px;
+  }
+
+  .footer-copyright {
+    font-size: 0.65rem;
+  }
+
+  /* Login / SignUp */
+  .login-form-container {
+    max-width: 100%;
+    padding: 0 0.25rem;
+  }
+
+  .login-title {
+    font-size: 1.5rem;
+  }
+
+  .login-subtitle {
+    font-size: 0.875rem;
+  }
+
+  .submit-button {
+    font-size: 0.9rem;
+    padding: 0 1.5rem;
+  }
+
+  /* Cloud doodles — hide on small screens */
+  .cloud-doodle {
+    display: none;
+  }
+
+  /* Landing footer bar */
+  .landing-footer-bar {
+    min-height: 80px;
+  }
+
+  .landing-card {
+    min-height: 180px;
+    border-radius: 24px;
+    padding: 1.25rem;
+  }
+
+  .landing-card h3 {
+    font-size: 1.25rem;
+  }
+}
+
+/* --- Very small phones (≤375px) --- */
+@media (max-width: 375px) {
+  .header-logo-img {
+    height: 38px;
+  }
+
+  .btn-login {
+    font-size: 0.85rem;
+    padding: 0.5rem 1rem;
+  }
+
+  .btn-signup {
+    font-size: 0.85rem;
+    padding: 0.5rem 1rem;
+  }
+
+  .earth-hero {
+    min-height: 60vh;
+    padding-top: 9vh;
+  }
+
+  .earth-wrap {
+    bottom: -230px;
+  }
+
+  .feature-card {
+    min-height: 130px;
+  }
+
+  .testimonials-grid {
+    gap: 1rem;
+  }
+
+  .testimonial-card {
+    padding: 1rem;
+    border-radius: 20px;
+  }
+
+  .login-title {
+    font-size: 1.35rem;
+  }
+
+  .auth-form-section {
+    padding: 1.5rem 1rem;
+  }
+
+  .email-input-container,
+  .password-input-container,
+  .name-input-container {
+    height: 2.5rem;
+  }
+
+  .submit-button {
+    height: 2.5rem;
+  }
+}
+
+/* --- Landscape phone orientation --- */
+@media (max-height: 500px) and (orientation: landscape) {
+  .earth-hero {
+    min-height: auto;
+    padding-top: 5vh;
+    padding-bottom: 2rem;
+  }
+
+  .earth-wrap {
+    bottom: -500px;
+  }
+
+  .auth-form-section {
+    min-height: auto;
+    justify-content: flex-start;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
 }
