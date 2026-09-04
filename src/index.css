@@ -71,6 +71,12 @@
   --color-card-teal: #51768f;
   --color-card-rose: #c85060;
 
+  /* Translucent feature card colors */
+  --color-feature-gold: rgba(255, 200, 87, 0.85);
+  --color-feature-orange: rgba(233, 114, 76, 0.85);
+  --color-feature-red: rgba(214, 74, 93, 0.85);
+  --color-feature-blue: rgba(37, 95, 133, 0.85);
+
   /* Fonts */
   --font-sans:
     'Poppins', 'SF Pro Rounded', ui-rounded, 'Inter', ui-sans-serif, system-ui, sans-serif;
@@ -356,25 +362,152 @@ body {
   border-width: 0;
 }
 
-/* Earth Scroll Demo Styles */
+/* Earth Scroll Demo */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden; /* Fix horizontal scaling/scrolling */
+}
+
+html {
+  font-family: var(--font-sans);
+  font-size: 100%;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100dvh;
+  color: var(--color-brand-dark);
+  background: var(--color-brand-warm-cream);
+}
+
+/* ============================== */
+/*          Typography            */
+/* ============================== */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+  line-height: 1.2;
+}
+
+/* ============================== */
+/*        Sticky Navbar            */
+/* ============================== */
+
+.site-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 100;
+  background-color: var(--color-brand-cream);
+  background-image: url('./assets/texture-filter.png');
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
+  background-position: center;
+  box-shadow: none;
+  transition: box-shadow 0.3s ease;
+}
+
+.site-header.scrolled {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.nav-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 0.5rem 8vw;
+}
+
+.nav-container .logo {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.auth-links {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.btn-login {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--color-brand-dark);
+  text-decoration: none;
+  padding: 0.5rem 1.25rem;
+  border-radius: 60px;
+  transition:
+    background-color var(--transition-base),
+    color var(--transition-base);
+}
+
+.btn-login:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+.btn-signup {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #fffefb;
+  background-color: var(--color-brand-red);
+  text-decoration: none;
+  padding: 0.5rem 1.5rem;
+  border-radius: 60px;
+  transition:
+    background-color var(--transition-base),
+    filter var(--transition-base);
+}
+
+.btn-signup:hover {
+  filter: brightness(1.1);
+}
+
+/* ============================== */
+/*       Earth Home Page          */
+/* ============================== */
+
 .earth-home-page {
   color: #1a1a1a;
   background-color: var(--color-brand-cream);
   background-image: url('./assets/texture-filter.png');
-  background-repeat: repeat;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
+  background-position: center;
+  position: relative;
+  z-index: 0; /* Creates a stacking context so z-index: -1 clouds render ABOVE this background but BELOW the earth */
+  overflow-x: hidden;
+  min-height: 100vh;
 }
 
 .earth-wrap {
   position: fixed;
   left: 50%;
   bottom: -700px;
-  width: 1300px;
-  height: 1350px;
+  width: 1200px;
+  height: 1250px;
   transform: translateX(-50%);
   border-radius: 50%;
   overflow: hidden;
   background: transparent;
-  z-index: 0;
+  z-index: 0; /* Stays above the -1 clouds */
   pointer-events: none;
   will-change: filter, opacity;
   transition:
@@ -400,10 +533,6 @@ body {
   flex-direction: column;
   justify-content: center;
   padding: 4rem 8vw;
-}
-
-.earth-section h4 {
-  font-weight: 600;
 }
 
 .earth-section p {
@@ -550,6 +679,354 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* ============================== */
+/*    Home Page New Components    */
+/* ============================== */
+
+/* Cloud Doodles */
+.cloud-doodle {
+  position: absolute;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Feature Grid */
+.feature-section {
+  position: relative;
+  padding: 4rem 8vw;
+}
+
+.feature-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  max-width: 60rem;
+  margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+  .feature-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.feature-card {
+  position: relative;
+  border-radius: 35px; /* wait, clip-path will cut off the border-radius? I'll keep it just in case, but clip-path overrides the visual bounding box */
+  padding: 2rem;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  /* box-shadow doesn't work well directly on a clipped element, but the pseudo element handles texture */
+  -webkit-mask-image: url('./assets/card-texture.svg');
+  -webkit-mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-image: url('./assets/card-texture.svg');
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform var(--transition-base),
+    filter var(--transition-base);
+  filter: drop-shadow(0px 0px 4px rgba(35, 29, 6, 0.58));
+}
+
+.feature-card:hover {
+  transform: translateY(-4px);
+  filter: drop-shadow(0px 8px 12px rgba(35, 29, 6, 0.4));
+}
+
+/* Texture overlay for the torn paper card */
+.feature-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url('./assets/card-texture.png');
+  background-size: cover;
+  opacity: 12%;
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+  z-index: 1; /* Keep it above the background color, but below text if we position text correctly */
+}
+
+.feature-card h3 {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: #ffffff;
+  text-shadow: 0px 0px 4px rgba(0, 0, 0, 0.25);
+  position: relative;
+  z-index: 2;
+  margin-bottom: 0.5rem;
+}
+
+.feature-card-icon {
+  position: relative;
+  margin-top: auto; /* Pushes the text down */
+  margin-bottom: 5px;
+  color: #ffffff;
+  z-index: 2;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+/* Testimonials */
+.testimonials-section {
+  position: relative;
+  padding: 4rem 8vw;
+}
+
+.testimonials-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-width: 80rem;
+  margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+  .testimonials-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+.testimonial-card {
+  background-color: rgba(255, 254, 253, 0.75);
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 32px;
+  box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  width: 100%;
+  max-width: 365px;
+}
+
+.testimonial-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.testimonial-customer {
+  display: flex;
+  flex-direction: column;
+}
+
+.testimonial-name {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--color-brand-dark);
+}
+
+.testimonial-location {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 1rem;
+  color: var(--color-brand-dark);
+}
+
+.testimonial-stars {
+  display: flex;
+  gap: 0.25rem;
+  color: var(--color-brand-gold);
+}
+
+.testimonial-title {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--color-brand-dark);
+  margin-top: 1rem;
+}
+
+.testimonial-body {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 1.25rem;
+  color: var(--color-brand-dark);
+}
+
+/* CTA Section */
+.cta-section {
+  position: relative;
+  padding: 6rem 8vw;
+  display: flex;
+  justify-content: center;
+}
+
+.cta-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1rem;
+  border-radius: 60px;
+  padding: 2rem;
+}
+
+.cta-heading {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 2.25rem;
+  color: var(--color-brand-red);
+}
+
+.cta-subheading {
+  font-family: var(--font-sans);
+  font-style: italic;
+  font-weight: 700;
+  font-size: 2.5rem;
+  color: var(--color-brand-dark);
+  margin-bottom: 2rem;
+}
+
+/* Updated Footer */
+.site-footer {
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(
+    90deg,
+    rgba(233, 114, 76, 0.83) 9%,
+    rgba(37, 95, 133, 0.83) 31%,
+    rgba(197, 40, 61, 0.83) 57%,
+    rgba(255, 200, 87, 0.83) 92%
+  );
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  padding: 3rem 8vw;
+  color: #fffefb;
+}
+
+.footer-content {
+  max-width: 80rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+}
+
+.footer-top-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+}
+
+@media (min-width: 768px) {
+  .footer-top-row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+}
+
+.footer-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.footer-logo-img {
+  height: 60px;
+  width: auto;
+}
+
+.footer-tagline {
+  font-family: var(--font-sans);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 0.75rem;
+  color: #fffefb;
+  margin-top: -12px; /* Pull the text up closer to counter any transparent padding in the image */
+}
+
+.footer-bottom-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.footer-divider {
+  width: 100%;
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
+  margin: 0;
+}
+
+.footer-copyright {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 0.75rem;
+}
+
+.footer-links-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+}
+
+.footer-col-title {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.footer-col ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.footer-col a {
+  color: #fffefb;
+  text-decoration: none;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 1rem;
+  transition: opacity var(--transition-fast);
+}
+
+.footer-col a:hover {
+  opacity: 0.8;
+}
+
+.footer-socials {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.footer-social-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #fffefb;
+  text-decoration: none;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 1rem;
+}
+
+.footer-social-link img {
+  width: 24px;
+  height: 24px;
 }
 
 /* ============================== */
@@ -899,4 +1376,13 @@ body {
 }
 .signup-link:hover {
   text-decoration: underline;
+}
+
+/* Fix Stacking Context for Cloud Doodles */
+.landing-services-header,
+.feature-cards-grid,
+.testimonials-masonry,
+.cta-container {
+  position: relative;
+  z-index: 2;
 }
