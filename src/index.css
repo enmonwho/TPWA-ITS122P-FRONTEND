@@ -359,6 +359,9 @@ body {
 /* Earth Scroll Demo Styles */
 .earth-home-page {
   color: #1a1a1a;
+  background-color: var(--color-brand-cream);
+  background-image: url('./assets/texture-filter.png');
+  background-repeat: repeat;
 }
 
 .earth-wrap {
@@ -683,6 +686,7 @@ body {
   font-family: var(--font-sans);
   line-height: 1.25;
   margin-bottom: 0.25rem;
+  filter: url('#text-inner-shadow');
 }
 
 .login-subtitle {
@@ -778,7 +782,7 @@ body {
 }
 
 .submit-button {
-  width: 6rem; /* 96px */
+  padding: 0 2rem;
   height: 2.75rem; /* 44px */
   background-color: var(--color-brand-red);
   border-radius: 67px;
@@ -790,10 +794,11 @@ body {
   font-family: var(--font-sans);
   border: none;
   cursor: pointer;
+  white-space: nowrap;
   transition: background-color var(--transition-fast);
 }
 .submit-button:hover {
-  background-color: #a01f30;
+  background-color: #c5283d;
 }
 
 .signup-prompt-container {
@@ -802,6 +807,80 @@ body {
   justify-content: center;
   gap: 0.375rem;
   align-items: center;
+}
+
+.signup-prompt-text {
+  color: #000000;
+  font-size: 0.875rem; /* 14px */
+  font-weight: 400;
+  font-family: var(--font-sans);
+}
+
+.signup-link {
+  color: var(--color-brand-red);
+  font-size: 0.875rem; /* 14px */
+  font-weight: 600;
+  font-family: var(--font-sans);
+  text-decoration: none;
+}
+.signup-link:hover {
+  text-decoration: underline;
+}
+
+/* SignUp Specific Additions */
+.name-inputs-row {
+  display: flex;
+  width: 100%;
+  gap: 1rem;
+}
+
+.name-input-container {
+  flex: 1;
+  height: 2.75rem; /* 44px */
+  background-color: #ffffff;
+  border-radius: 3px;
+  box-shadow: 0px 0px 6px rgba(0, 0, 0, 0.44);
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  position: relative;
+}
+
+.name-input {
+  width: 100%;
+  height: 100%;
+  outline: none;
+  border: none;
+  color: #000000;
+  font-size: 1rem; /* 16px */
+  font-weight: 500;
+  font-family: var(--font-sans);
+  background: transparent;
+}
+.name-input::placeholder {
+  color: #6b7280;
+}
+
+.signup-terms-container {
+  margin-top: 1.25rem;
+  text-align: center;
+}
+
+.signup-terms-text {
+  color: #000000;
+  font-size: 0.75rem; /* 12px */
+  font-weight: 400;
+  font-family: var(--font-sans);
+  line-height: 1.4;
+}
+
+.signup-terms-link {
+  font-weight: 600;
+  color: #000000;
+  text-decoration: none;
+}
+.signup-terms-link:hover {
+  text-decoration: underline;
 }
 
 .signup-prompt-text {
