@@ -37,7 +37,11 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
             <img src={stampsCollage} alt="Stamps Collage" className="auth-collage-img" />
 
             {/* Desktop-only logo overlay (positioned absolutely within collage) */}
-            <Link to="/" aria-label="Go to homepage" className="auth-collage-logo-link">
+            <Link
+              to="/"
+              aria-label="Go to homepage"
+              className="auth-collage-logo-link animate-fade-in-up"
+            >
               <img src={lakbyeLogo} alt="LakBye Logo" className="auth-collage-logo-img" />
               <p className="auth-collage-tagline">Saan aabot ang Lakbye mo?</p>
             </Link>
@@ -48,7 +52,11 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
       {/* Form section */}
       <div className="auth-form-section">
         {/* Standalone logo — visible on tablet and mobile only */}
-        <Link to="/" aria-label="Go to homepage" className="auth-standalone-logo-link">
+        <Link
+          to="/"
+          aria-label="Go to homepage"
+          className="auth-standalone-logo-link animate-fade-in-up"
+        >
           <img src={lakbyeLogo} alt="LakBye Logo" className="auth-standalone-logo-img" />
         </Link>
 

@@ -18,54 +18,54 @@ export default function SignUp() {
 
   return (
     <AuthLayout>
-      <div className="login-headings">
-        <h1 className="login-title">Join us today</h1>
-        <p className="login-subtitle">Create your account to get started</p>
+      <div className="auth-headings animate-fade-in-up delay-100">
+        <h1 className="auth-title">Join us today</h1>
+        <p className="auth-subtitle">Create your account to get started</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="login-form">
-        <div className="name-inputs-row">
-          <div className="name-input-container">
+      <form onSubmit={handleSubmit} className="auth-form">
+        <div className="auth-inputs-row animate-fade-in-up delay-150">
+          <div className="auth-input-container">
             <input
               type="text"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               placeholder="First Name"
               required
-              className="name-input"
+              className="auth-input"
             />
           </div>
-          <div className="name-input-container">
+          <div className="auth-input-container">
             <input
               type="text"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               placeholder="Last Name"
               required
-              className="name-input"
+              className="auth-input"
             />
           </div>
         </div>
 
-        <div className="email-input-container">
+        <div className="auth-input-container animate-fade-in-up delay-150">
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email address"
             required
-            className="email-input"
+            className="auth-input"
           />
         </div>
 
-        <div className="password-input-container">
+        <div className="auth-input-container animate-fade-in-up delay-150">
           <input
             type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
             required
-            className="password-input"
+            className="auth-input"
           />
           <button
             type="button"
@@ -105,20 +105,20 @@ export default function SignUp() {
           </button>
         </div>
 
-        <div className="submit-button-container">
-          <button type="submit" className="submit-button">
+        <div className="auth-submit-container animate-fade-in-up delay-150">
+          <button type="submit" className="auth-submit">
             Create Account
           </button>
         </div>
 
-        <div className="signup-terms-container">
-          <p className="signup-terms-text">
+        <div className="auth-terms-container animate-fade-in-up delay-200">
+          <p className="auth-terms-text">
             By signing up, you agree to Lakbye's{' '}
-            <Link to="#" className="signup-terms-link">
+            <Link to="#" className="auth-terms-link">
               Terms and Conditions
             </Link>{' '}
             &{' '}
-            <Link to="#" className="signup-terms-link">
+            <Link to="#" className="auth-terms-link">
               Privacy Policy
             </Link>
           </p>

@@ -36,12 +36,15 @@ export default function Home() {
         <CloudDoodle id={3} top="50%" right="12%" width="140px" opacity={0.8} />
         <CloudDoodle id={4} top="75%" right="5%" width="180px" opacity={0.7} />
 
-        <h1 style={{ textAlign: 'center' }}>
+        <h1 className="animate-fade-in-up delay-100" style={{ textAlign: 'center' }}>
           <span>Saan aabot ang </span>
           <span className="text-gradient-brand">LakBye</span>
           <span> mo?</span>
         </h1>
-        <p className="subtitle" style={{ textAlign: 'center' }}>
+        <p
+          className="subtitle animate-fade-in-up delay-150"
+          style={{ textAlign: 'center' }}
+        >
           Plan your next adventure with ease. Create itineraries, discover exciting
           destinations, manage your budget, and keep all your travel plans in one place.
         </p>

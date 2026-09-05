@@ -55,6 +55,14 @@
         <!-- Composite the shadow on top of the original text -->
         <feComposite operator="over" in="shadow" in2="SourceGraphic" />
       </filter>
+      <filter id="card-inner-shadow">
+        <feOffset dx="0" dy="4" in="SourceAlpha" result="offset" />
+        <feGaussianBlur stdDeviation="3" in="offset" result="blur" />
+        <feComposite operator="out" in="SourceAlpha" in2="blur" result="inverse" />
+        <feFlood flood-color="#401C02" flood-opacity="0.51" result="color" />
+        <feComposite operator="in" in="color" in2="inverse" result="shadow" />
+        <feComposite operator="over" in="shadow" in2="SourceGraphic" />
+      </filter>
     </svg>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

@@ -1,6 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom';
-import { BaseLayout } from './layouts';
-import { Home, Login, SignUp } from './pages';
+import { BaseLayout, DashboardLayout } from './layouts';
+import { Home, Login, Onboarding, SignUp, Dashboard } from './pages';
 
 /**
  * Application router configuration.
@@ -19,12 +19,26 @@ const router = createBrowserRouter([
     ],
   },
   {
+    path: '/dashboard',
+    element: <DashboardLayout />,
+    children: [
+      {
+        path: '',
+        element: <Dashboard />,
+      },
+    ],
+  },
+  {
     path: '/login',
     element: <Login />,
   },
   {
     path: '/signup',
     element: <SignUp />,
+  },
+  {
+    path: '/onboarding',
+    element: <Onboarding />,
   },
 ]);
 

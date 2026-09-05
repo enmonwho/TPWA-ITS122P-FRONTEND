@@ -26,7 +26,7 @@ const FeatureGrid: React.FC = () => {
 
       <div className="feature-cards-grid">
         <div
-          className="feature-card"
+          className="feature-card animate-fade-in-up delay-200"
           style={{ backgroundColor: 'var(--color-feature-gold)' }}
         >
           <img src={budgetIcon} alt="Budget Tracker" className="feature-card-icon" />
@@ -34,7 +34,7 @@ const FeatureGrid: React.FC = () => {
         </div>
 
         <div
-          className="feature-card"
+          className="feature-card animate-fade-in-up delay-250"
           style={{ backgroundColor: 'var(--color-feature-orange)' }}
         >
           <img src={builderIcon} alt="Itinerary Builder" className="feature-card-icon" />
@@ -42,7 +42,7 @@ const FeatureGrid: React.FC = () => {
         </div>
 
         <div
-          className="feature-card"
+          className="feature-card animate-fade-in-up delay-300"
           style={{ backgroundColor: 'var(--color-feature-red)' }}
         >
           <img src={journalIcon} alt="Trip Journal" className="feature-card-icon" />
@@ -50,7 +50,7 @@ const FeatureGrid: React.FC = () => {
         </div>
 
         <div
-          className="feature-card"
+          className="feature-card animate-fade-in-up delay-350"
           style={{ backgroundColor: 'var(--color-feature-blue)' }}
         >
           <img src={mapIcon} alt="Interactive Travel Map" className="feature-card-icon" />

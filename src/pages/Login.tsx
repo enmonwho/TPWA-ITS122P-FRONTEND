@@ -16,31 +16,31 @@ export default function Login() {
 
   return (
     <AuthLayout>
-      <div className="login-headings">
-        <h1 className="login-title">Welcome back</h1>
-        <p className="login-subtitle">Log in to your account</p>
+      <div className="auth-headings animate-fade-in-up delay-100">
+        <h1 className="auth-title">Welcome back</h1>
+        <p className="auth-subtitle">Log in to your account</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="login-form">
-        <div className="email-input-container">
+      <form onSubmit={handleSubmit} className="auth-form">
+        <div className="auth-input-container animate-fade-in-up delay-150">
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email address"
             required
-            className="email-input"
+            className="auth-input"
           />
         </div>
 
-        <div className="password-input-container">
+        <div className="auth-input-container animate-fade-in-up delay-150">
           <input
             type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
             required
-            className="password-input"
+            className="auth-input"
           />
           <button
             type="button"
@@ -80,21 +80,21 @@ export default function Login() {
           </button>
         </div>
 
-        <div className="forgot-password-container">
+        <div className="forgot-password-container animate-fade-in-up delay-200">
           <Link to="#" className="forgot-password-link">
             Forgot password?
           </Link>
         </div>
 
-        <div className="submit-button-container">
-          <button type="submit" className="submit-button">
+        <div className="auth-submit-container animate-fade-in-up delay-150">
+          <button type="submit" className="auth-submit">
             Log In
           </button>
         </div>
 
-        <div className="signup-prompt-container">
-          <span className="signup-prompt-text">New to Lakbye?</span>
-          <Link to="/signup" className="signup-link">
+        <div className="auth-prompt-container animate-fade-in-up delay-200">
+          <span className="auth-prompt-text">New to Lakbye?</span>
+          <Link to="/signup" className="auth-link">
             Sign Up
           </Link>
         </div>
