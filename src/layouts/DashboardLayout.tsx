@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Home, CalendarCheck, Compass, Map, Settings, LogOut } from 'lucide-react';
-import lakbyeLogo from '../assets/lakbye-dashboard.svg';
+import lakbyeLogo from '../assets/lakbye-dashboard.png';
 
 export default function DashboardLayout() {
   const location = useLocation();

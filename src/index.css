@@ -2485,6 +2485,11 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 
 .dashboard-trips-section {
   width: 910px;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-trips-card {
   background-color: #fff;
   border-radius: 13px;
   border: 1px solid var(--color-dash-border);
@@ -2493,10 +2498,11 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   flex-direction: column;
   min-height: 489px;
 }
+
 .dashboard-trips-filters {
   display: flex;
   gap: 16px;
-  margin-bottom: 54px;
+  margin-bottom: 20px;
 }
 .dashboard-filter-btn {
   background: #fff;
@@ -2624,6 +2630,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   flex: 1;
   display: flex;
   align-items: center;
+  overflow: hidden;
 }
 .dash-stat-card-value {
   font-family: 'Poppins', var(--font-sans);
@@ -2631,11 +2638,12 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   font-size: 54px;
   line-height: 1.1;
   text-shadow: 0px 0px 3px rgba(0, 0, 0, 0.42);
+  white-space: nowrap;
 }
 .dash-stat-card-footer {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
 }
 .dash-stat-card-subtitle {
   font-family: 'Poppins', var(--font-sans);
@@ -2645,8 +2653,9 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   text-shadow: 0px 0px 3px rgba(0, 0, 0, 0.42);
 }
 .dash-stat-card-chevron {
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
   border-radius: 50%;
   background-color: #fff;
   display: flex;
@@ -2659,8 +2668,16 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 .dash-stat-card-chevron-svg {
   cursor: pointer;
   pointer-events: auto;
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dash-stat-card-chevron-svg img {
+  width: 100%;
+  height: 100%;
   object-fit: contain;
 }
 
@@ -2802,5 +2819,138 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   }
   .date-inputs-row > span {
     display: none;
+  }
+}
+
+/* ============================== */
+/*    Trip List Populated State   */
+/* ============================== */
+
+.dashboard-trip-list {
+  display: grid;
+  grid-template-columns: minmax(140px, auto) repeat(4, auto) 50px;
+  column-gap: 13px;
+  width: 100%;
+  background-color: #fff;
+  border-radius: 10px;
+  margin: 0;
+}
+
+.dashboard-trip-row {
+  display: contents;
+}
+
+.dashboard-trip-row > * {
+  border-bottom: 1px solid var(--color-dash-divider);
+  display: flex;
+  align-items: center;
+  height: 55px;
+}
+
+.dashboard-trip-row:last-child > * {
+  border-bottom: none;
+}
+
+.trip-row-name {
+  font-family: 'Poppins', var(--font-sans);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--color-dash-sidebar-text);
+  padding-left: 65px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trip-badge-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.trip-badge {
+  border: 1px solid rgba(72, 42, 19, 0.2);
+  border-radius: 80px;
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-weight: 700;
+  font-size: 11px;
+  color: #fff;
+  padding: 0 12px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.trip-badge-spacer {
+  display: block;
+}
+
+.trip-badge--upcoming {
+  background: linear-gradient(180deg, #ffc245 0%, #bc8006 98%);
+}
+
+.trip-badge--completed {
+  background: linear-gradient(180deg, #8e8e93 0%, #525252 98%);
+}
+
+.trip-badge--countdown {
+  background: linear-gradient(180deg, #c5283d 0%, #7b0414 98%);
+}
+
+.trip-badge--nights {
+  background: linear-gradient(180deg, #e9724c 0%, #a72800 98%);
+}
+
+.trip-badge--date {
+  background: linear-gradient(180deg, #255f85 0%, #002945 100%);
+}
+
+.trip-row-options {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-dash-sidebar-text);
+  padding-right: 15px;
+}
+
+/* Responsive constraints */
+@media (max-width: 1024px) {
+  .dashboard-trip-list {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-trip-list {
+    display: flex;
+    flex-direction: column;
+  }
+  .dashboard-trip-row {
+    display: flex;
+    flex-wrap: wrap;
+    position: relative;
+    padding: 16px;
+    border-bottom: 1px solid var(--color-dash-divider);
+    gap: 8px;
+  }
+  .dashboard-trip-row > * {
+    border-bottom: none;
+    height: auto;
+  }
+  .trip-row-name {
+    padding-left: 0;
+    width: 100%;
+  }
+  .trip-row-options {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    padding-right: 0;
   }
 }

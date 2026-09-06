@@ -7,4 +7,5 @@ export interface Trip {
   travelType: string;
   status: 'upcoming' | 'completed';
   nights: number;
+  daysUntil?: number;
 }
