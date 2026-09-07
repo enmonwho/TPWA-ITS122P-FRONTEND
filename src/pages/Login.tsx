@@ -6,6 +6,7 @@ import axios from 'axios';
 import AuthLayout from '../components/AuthLayout';
 import { useAuth } from '../context/AuthContext';
 import { authApi } from '../services/api';
+import { ROUTES } from '../lib/constants';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -25,7 +26,7 @@ export default function Login() {
     try {
       const response = await authApi.login({ email, password });
       setUser(response.user);
-      navigate('/dashboard');
+      navigate(ROUTES.DASHBOARD);
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.data?.message) {
         setErrorMessage(err.response.data.message);

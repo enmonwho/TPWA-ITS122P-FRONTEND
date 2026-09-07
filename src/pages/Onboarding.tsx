@@ -125,7 +125,7 @@ export default function Onboarding() {
         /* ──────── Step 2: Preferences ──────── */
         <div className="onboarding-card animate-fade-in-up delay-100">
           <h1 className="onboarding-heading">Set your Preferences</h1>
-          <p className="onboarding-subtext onboarding-subtext--preferences">
+          <p className="onboarding-subtext onboarding-subtext-alt">
             Don&apos;t worry, you can always change these later in your profile settings!
           </p>
 
@@ -201,7 +201,7 @@ function SelectField({ label, value, onChange, options }: SelectFieldProps) {
   return (
     <div className="onboarding-select-container">
       <select
-        className={`onboarding-select${value ? ' onboarding-select--selected' : ''}`}
+        className={`onboarding-select${value ? ' has-value' : ''}`}
         value={value}
         onChange={(e) => onChange(e.target.value)}
       >

@@ -470,7 +470,7 @@ h6 {
   background-attachment: fixed;
   background-position: center;
   box-shadow: none;
-  transition: box-shadow 0.3s ease;
+  transition: box-shadow var(--transition-base);
 }
 
 .site-header.scrolled {
@@ -1634,7 +1634,7 @@ h6 {
   max-width: 280px;
 }
 
-.onboarding-subtext--preferences {
+.onboarding-subtext-alt {
   font-family: 'Poppins', var(--font-sans);
   font-size: 0.875rem; /* 14px */
   max-width: 400px;
@@ -1751,7 +1751,7 @@ h6 {
 }
 
 /* When a real value is selected, show full opacity */
-.onboarding-select--selected {
+.onboarding-select.has-value {
   color: #000000;
 }
 
@@ -1809,10 +1809,6 @@ h6 {
     opacity: 0.3 !important;
   }
 
-  .onboarding-heading--preferences {
-    font-size: 1.625rem;
-  }
-
   .onboarding-input-container {
     width: 100%;
   }
@@ -1833,14 +1829,6 @@ h6 {
 
   .onboarding-logo {
     margin-top: 1.5rem;
-  }
-
-  .onboarding-heading--username {
-    font-size: 1.25rem;
-  }
-
-  .onboarding-heading--preferences {
-    font-size: 1.375rem;
   }
 
   .onboarding-subtext {
@@ -2364,7 +2352,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   width: 20px;
   height: 20px;
   object-fit: contain;
-  transition: filter 0.2s;
+  transition: filter var(--transition-fast);
 }
 .sidebar-nav-item.active img {
   filter: brightness(0) saturate(100%) invert(27%) sepia(80%) saturate(3000%)
@@ -3081,7 +3069,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   background-color: var(--color-dash-bg);
   flex-shrink: 0;
   z-index: 45;
-  transition: transform 0.3s ease-in-out;
+  transition: transform var(--transition-base);
 }
 
 .workspace-sidebar-top-divider,
@@ -3658,4 +3646,119 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 }
 .delay-300 {
   animation-delay: 300ms;
+}
+
+.calendar-day-btn:hover:not(:disabled) {
+  background-color: var(--color-neutral-100);
+}
+
+.calendar-day-btn.selected:hover:not(:disabled) {
+  background-color: var(--color-brand-red);
+  filter: brightness(1.1);
+}
+
+.popover-container {
+  animation: popoverFadeIn 150ms ease-out forwards;
+  transform-origin: top left;
+}
+
+@keyframes popoverFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.country-suggestion-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  color: var(--color-neutral-800);
+  font-size: 14px;
+  transition: background-color var(--transition-fast);
+}
+
+.country-suggestion-item:hover {
+  background-color: var(--color-neutral-100);
+}
+
+/* Workspace Destination Table Rows */
+.workspace-destination-rows {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.workspace-destination-row {
+  display: grid;
+  grid-template-columns: 125px 119px 165px 127px 1fr;
+  padding: 12px 0 12px 26px;
+  border-bottom: 1px solid var(--color-dash-divider);
+  align-items: center;
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.workspace-destination-row:hover {
+  background-color: rgba(197, 40, 61, 0.03);
+}
+
+.workspace-destination-row.active {
+  background-color: rgba(197, 40, 61, 0.07);
+  border-left: 3px solid var(--color-brand-red);
+}
+
+.dest-index-badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-brand-red);
+  color: #ffffff;
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-weight: 700;
+  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.workspace-delete-dest-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 12px;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition:
+    color var(--transition-fast),
+    background-color var(--transition-fast);
+}
+
+.workspace-delete-dest-btn:hover {
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.workspace-add-btn {
+  background: var(--color-brand-red);
+  color: #ffffff;
+  border: none;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-weight: 700;
+  font-size: 11px;
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+}
+
+.workspace-add-btn:hover {
+  transform: scale(1.05);
 }

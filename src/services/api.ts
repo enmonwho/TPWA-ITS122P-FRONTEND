@@ -49,7 +49,9 @@ api.interceptors.response.use(
 /*  Auth API Module                                                    */
 /* ------------------------------------------------------------------ */
 
-export const authApi = {
+import { mockAuthApi } from './mockAuthApi';
+
+const realAuthApi = {
   register: async (payload: RegisterPayload): Promise<AuthResponse> => {
     const response = await api.post<AuthResponse>('/auth/register', payload);
     return response.data;
@@ -70,5 +72,15 @@ export const authApi = {
     return response.data;
   },
 };
+
+const useMockAuth = import.meta.env.VITE_USE_MOCK_AUTH === 'true';
+
+if (useMockAuth) {
+  console.warn(
+    '⚠️ MOCK AUTH MODE ENABLED. Real backend auth endpoints are being bypassed.',
+  );
+}
+
+export const authApi = useMockAuth ? mockAuthApi : realAuthApi;
 
 export default api;

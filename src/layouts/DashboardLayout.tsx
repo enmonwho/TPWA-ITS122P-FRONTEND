@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import lakbyeLogo from '../assets/lakbye-dashboard.png';
 import sidebarHome from '../assets/sidebar-home.png';
 import sidebarBookings from '../assets/sidebar-bookings.png';
@@ -6,9 +6,22 @@ import sidebarExplore from '../assets/sidebar-explore.png';
 import sidebarMap from '../assets/sidebar-map.png';
 import sidebarSettings from '../assets/sidebar-settings.png';
 import sidebarLogout from '../assets/sidebar-logout.png';
+import { useAuth } from '../context/AuthContext';
+import { ROUTES } from '../lib/constants';
 
 export default function DashboardLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate(ROUTES.LOGIN);
+    } catch (err) {
+      console.error('Logout failed:', err);
+    }
+  };
 
   const navItems = [
     { name: 'Home', path: '/dashboard', icon: sidebarHome },
@@ -51,7 +64,7 @@ export default function DashboardLayout() {
             <img src={sidebarSettings} alt="Settings" />
             <span className="sidebar-nav-text">Settings</span>
           </button>
-          <button className="sidebar-nav-item">
+          <button className="sidebar-nav-item" onClick={handleLogout}>
             <img src={sidebarLogout} alt="Log out" />
             <span className="sidebar-nav-text">Log out</span>
           </button>

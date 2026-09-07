@@ -32,9 +32,9 @@ export default function TripWorkspaceLayout() {
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         >
           {isMobileMenuOpen ? (
-            <X size={24} color="#000" />
+            <X size={24} color="var(--color-neutral-950)" />
           ) : (
-            <Menu size={24} color="#000" />
+            <Menu size={24} color="var(--color-neutral-950)" />
           )}
         </button>
         <span className="workspace-mobile-title">LakBye Workspace</span>

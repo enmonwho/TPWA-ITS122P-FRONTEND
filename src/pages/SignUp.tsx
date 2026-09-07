@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 import AuthLayout from '../components/AuthLayout';
+import { ROUTES } from '../lib/constants';
 import { useAuth } from '../context/AuthContext';
 import { authApi } from '../services/api';
 
@@ -47,7 +48,7 @@ export default function SignUp() {
         password,
       });
       setUser(response.user);
-      navigate('/dashboard');
+      navigate(ROUTES.DASHBOARD);
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         const status = err.response?.status;

@@ -75,7 +75,7 @@ export default function StatCard({
           ) : (
             showChevron && (
               <div className="dash-stat-card-chevron">
-                <ChevronRight size={19} color="#000" />
+                <ChevronRight size={19} color="var(--color-neutral-950)" />
               </div>
             )
           )}
