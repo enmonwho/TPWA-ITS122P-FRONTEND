@@ -3,15 +3,19 @@ import axios, {
   type InternalAxiosRequestConfig,
   type AxiosResponse,
 } from 'axios';
+import type { RegisterPayload, LoginPayload, AuthResponse, MeResponse } from '../types';
 
 /**
  * Centralized Axios instance for all API calls.
  *
- * Reads `VITE_API_URL` from environment variables so every
- * request targets the correct backend without hard-coding URLs.
+ * Reads `VITE_API_URL` from environment variables with fallback to hosted backend.
+ * Includes withCredentials: true for cross-origin cookie authentication.
  */
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL as string,
+  baseURL:
+    (import.meta.env.VITE_API_URL as string) ||
+    'https://tpwa-its122p-backend.onrender.com/api',
+  withCredentials: true,
   timeout: 15_000,
   headers: {
     'Content-Type': 'application/json',
@@ -25,11 +29,6 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // TODO: Inject auth token when authentication is implemented
-    // const token = getAuthToken();
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
     return config;
   },
   (error: AxiosError) => Promise.reject(error),
@@ -42,36 +41,34 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError) => {
-    // Centralized error handling — extend as needed
-    if (error.response) {
-      const { status } = error.response;
-
-      switch (status) {
-        case 401:
-          // TODO: Handle unauthorized — redirect to login, clear tokens, etc.
-          console.error('[API] Unauthorized — 401');
-          break;
-        case 403:
-          console.error('[API] Forbidden — 403');
-          break;
-        case 404:
-          console.error('[API] Not Found — 404');
-          break;
-        case 500:
-          console.error('[API] Internal Server Error — 500');
-          break;
-        default:
-          console.error(`[API] Error — ${status}`);
-      }
-    } else if (error.request) {
-      // Request was made but no response received (network error)
-      console.error('[API] Network error — no response received');
-    } else {
-      console.error('[API] Request setup error:', error.message);
-    }
-
     return Promise.reject(error);
   },
 );
+
+/* ------------------------------------------------------------------ */
+/*  Auth API Module                                                    */
+/* ------------------------------------------------------------------ */
+
+export const authApi = {
+  register: async (payload: RegisterPayload): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/register', payload);
+    return response.data;
+  },
+
+  login: async (payload: LoginPayload): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/login', payload);
+    return response.data;
+  },
+
+  logout: async (): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>('/auth/logout');
+    return response.data;
+  },
+
+  getMe: async (): Promise<MeResponse> => {
+    const response = await api.get<MeResponse>('/auth/me');
+    return response.data;
+  },
+};
 
 export default api;

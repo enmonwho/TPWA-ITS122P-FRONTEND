@@ -24,16 +24,16 @@ export default function Footer() {
               <h4 className="footer-col-title">Services</h4>
               <ul>
                 <li>
-                  <Link to="#">Itinerary Builder</Link>
-                </li>
-                <li>
                   <Link to="#">Budget Tracker</Link>
                 </li>
                 <li>
-                  <Link to="#">Other Services</Link>
+                  <Link to="#">Itinerary Builder</Link>
                 </li>
                 <li>
-                  <Link to="#">Other Services</Link>
+                  <Link to="#">Trip Journal</Link>
+                </li>
+                <li>
+                  <Link to="#">Interactive Travel Map </Link>
                 </li>
               </ul>
             </div>

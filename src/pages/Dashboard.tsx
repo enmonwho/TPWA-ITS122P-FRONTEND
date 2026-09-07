@@ -58,7 +58,12 @@ export default function Dashboard() {
         {/* Greeting Header */}
         <div className="dashboard-greeting">
           <span>Greetings,</span>
-          <span className="dashboard-greeting-name">Juan!</span>
+          <span
+            className="dashboard-greeting-name"
+            style={{ filter: "url('#text-inner-shadow')" }}
+          >
+            Juan!
+          </span>
         </div>
 
         {/* Stat Cards */}
@@ -104,27 +109,36 @@ export default function Dashboard() {
 
         <div className="dashboard-bottom-row">
           {/* Profile Section */}
-          <div className="dashboard-profile-section">
-            <div className="dashboard-profile-header">
-              <div className="dashboard-profile-avatar">
-                <User size={32} color="#666" />
+          <div className="dashboard-profile-column">
+            <div className="dashboard-profile-section">
+              <div className="dashboard-profile-header">
+                <div className="dashboard-profile-avatar">
+                  <User size={32} color="#666" />
+                </div>
+                <div>
+                  <div className="dashboard-profile-name">Juan Dela Cruz</div>
+                  <div className="dashboard-profile-location">Philippines</div>
+                </div>
               </div>
-              <div>
-                <div className="dashboard-profile-name">Juan Dela Cruz</div>
-                <div className="dashboard-profile-location">Philippines</div>
+              <div className="dashboard-profile-stats">
+                <div className="dashboard-profile-stat-item">
+                  <div className="dashboard-profile-stat-value">0</div>
+                  <div className="dashboard-profile-stat-label">Trips</div>
+                </div>
+                <div className="dashboard-profile-stat-divider"></div>
+                <div className="dashboard-profile-stat-item">
+                  <div className="dashboard-profile-stat-value">0</div>
+                  <div className="dashboard-profile-stat-label">Journal Entry</div>
+                </div>
               </div>
             </div>
-            <div className="dashboard-profile-stats">
-              <div className="dashboard-profile-stat-item">
-                <div className="dashboard-profile-stat-value">0</div>
-                <div className="dashboard-profile-stat-label">Trips</div>
-              </div>
-              <div className="dashboard-profile-stat-divider"></div>
-              <div className="dashboard-profile-stat-item">
-                <div className="dashboard-profile-stat-value">0</div>
-                <div className="dashboard-profile-stat-label">Journal Entry</div>
-              </div>
-            </div>
+            <button
+              onClick={() => setIsCreateTripModalOpen(true)}
+              className="btn-create-trip dashboard-profile-btn-create"
+            >
+              <img src={createTripBtnIcon} alt="" />
+              Create a Trip
+            </button>
           </div>
 
           {/* Trips Section */}
@@ -161,7 +175,7 @@ export default function Dashboard() {
                   <div className="dashboard-empty-actions">
                     <button
                       onClick={() => setIsCreateTripModalOpen(true)}
-                      className="dashboard-btn-create"
+                      className="btn-create-trip dashboard-btn-create"
                     >
                       <img src={createTripBtnIcon} alt="" />
                       Create a Trip

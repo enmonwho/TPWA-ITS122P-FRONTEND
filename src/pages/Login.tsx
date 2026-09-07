@@ -1,17 +1,42 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 import AuthLayout from '../components/AuthLayout';
+import { useAuth } from '../context/AuthContext';
+import { authApi } from '../services/api';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const { setUser } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log('Login submitted:', { email, password });
+    setErrorMessage('');
+    setIsLoading(true);
+
+    try {
+      const response = await authApi.login({ email, password });
+      setUser(response.user);
+      navigate('/dashboard');
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.data?.message) {
+        setErrorMessage(err.response.data.message);
+      } else if (err instanceof Error) {
+        setErrorMessage(err.message);
+      } else {
+        setErrorMessage('An unexpected error occurred. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -26,7 +51,10 @@ export default function Login() {
           <input
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              if (errorMessage) setErrorMessage('');
+            }}
             placeholder="Email address"
             required
             className="auth-input"
@@ -37,7 +65,10 @@ export default function Login() {
           <input
             type={showPassword ? 'text' : 'password'}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              if (errorMessage) setErrorMessage('');
+            }}
             placeholder="Password"
             required
             className="auth-input"
@@ -87,10 +118,16 @@ export default function Login() {
         </div>
 
         <div className="auth-submit-container animate-fade-in-up delay-150">
-          <button type="submit" className="auth-submit">
-            Log In
+          <button type="submit" className="auth-submit" disabled={isLoading}>
+            {isLoading ? 'Logging In...' : 'Log In'}
           </button>
         </div>
+
+        {errorMessage && (
+          <div className="auth-error-banner animate-fade-in-up" role="alert">
+            {errorMessage}
+          </div>
+        )}
 
         <div className="auth-prompt-container animate-fade-in-up delay-200">
           <span className="auth-prompt-text">New to Lakbye?</span>

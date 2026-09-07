@@ -38,7 +38,12 @@ export default function Home() {
 
         <h1 className="animate-fade-in-up delay-100" style={{ textAlign: 'center' }}>
           <span>Saan aabot ang </span>
-          <span className="text-gradient-brand">LakBye</span>
+          <span
+            className="text-gradient-brand"
+            style={{ filter: "url('#text-inner-shadow')" }}
+          >
+            LakBye
+          </span>
           <span> mo?</span>
         </h1>
         <p

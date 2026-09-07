@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 import AuthLayout from '../components/AuthLayout';
+import { useAuth } from '../context/AuthContext';
+import { authApi } from '../services/api';
 
 export default function SignUp() {
   const [firstName, setFirstName] = useState('');
@@ -10,10 +13,64 @@ export default function SignUp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [generalError, setGeneralError] = useState('');
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const { setUser } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log('Signup submitted:', { firstName, lastName, email, password });
+    setEmailError('');
+    setPasswordError('');
+    setGeneralError('');
+
+    if (password.length < 8) {
+      setPasswordError('Password must be at least 8 characters long.');
+      return;
+    }
+
+    const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
+    if (!fullName) {
+      setGeneralError('Please enter your first and last name.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await authApi.register({
+        full_name: fullName,
+        email,
+        password,
+      });
+      setUser(response.user);
+      navigate('/dashboard');
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status;
+        const msg =
+          err.response?.data?.message || 'Registration failed. Please try again.';
+
+        if (status === 409) {
+          setEmailError('Email is already registered.');
+        } else if (status === 400 && msg.toLowerCase().includes('password')) {
+          setPasswordError(msg);
+        } else if (status === 400 && msg.toLowerCase().includes('email')) {
+          setEmailError(msg);
+        } else {
+          setGeneralError(msg);
+        }
+      } else if (err instanceof Error) {
+        setGeneralError(err.message);
+      } else {
+        setGeneralError('An unexpected error occurred. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -51,18 +108,29 @@ export default function SignUp() {
           <input
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              if (emailError) setEmailError('');
+            }}
             placeholder="Email address"
             required
             className="auth-input"
           />
         </div>
+        {emailError && (
+          <p className="auth-field-error animate-fade-in-up" role="alert">
+            {emailError}
+          </p>
+        )}
 
         <div className="auth-input-container animate-fade-in-up delay-150">
           <input
             type={showPassword ? 'text' : 'password'}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              if (passwordError) setPasswordError('');
+            }}
             placeholder="Password"
             required
             className="auth-input"
@@ -104,12 +172,23 @@ export default function SignUp() {
             )}
           </button>
         </div>
+        {passwordError && (
+          <p className="auth-field-error animate-fade-in-up" role="alert">
+            {passwordError}
+          </p>
+        )}
 
         <div className="auth-submit-container animate-fade-in-up delay-150">
-          <button type="submit" className="auth-submit">
-            Create Account
+          <button type="submit" className="auth-submit" disabled={isLoading}>
+            {isLoading ? 'Creating Account...' : 'Create Account'}
           </button>
         </div>
+
+        {generalError && (
+          <div className="auth-error-banner animate-fade-in-up" role="alert">
+            {generalError}
+          </div>
+        )}
 
         <div className="auth-terms-container animate-fade-in-up delay-200">
           <p className="auth-terms-text">

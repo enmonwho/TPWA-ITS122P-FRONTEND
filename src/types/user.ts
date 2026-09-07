@@ -2,15 +2,36 @@
  * User roles for the Travel Planner application.
  * Used for role-based access control throughout the UI.
  */
-export type UserRole = 'admin' | 'staff' | 'customer' | 'vendor';
+export type UserRole = 'admin' | 'staff' | 'customer' | 'vendor' | string;
 
 /**
- * Base user interface — represents the minimal user shape
- * returned from the API. Extend this for feature-specific needs.
+ * Base user interface matching the backend response.
  */
 export interface User {
-  id: string;
-  name: string;
+  id: number;
+  full_name: string;
   email: string;
   role: UserRole;
+  created_at?: string;
+}
+
+export interface RegisterPayload {
+  full_name: string;
+  email: string;
+  password: string;
+}
+
+export interface LoginPayload {
+  email: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  message: string;
+  user: User;
+  token?: string;
+}
+
+export interface MeResponse {
+  user: User;
 }

@@ -1,15 +1,20 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Home, CalendarCheck, Compass, Map, Settings, LogOut } from 'lucide-react';
 import lakbyeLogo from '../assets/lakbye-dashboard.png';
+import sidebarHome from '../assets/sidebar-home.png';
+import sidebarBookings from '../assets/sidebar-bookings.png';
+import sidebarExplore from '../assets/sidebar-explore.png';
+import sidebarMap from '../assets/sidebar-map.png';
+import sidebarSettings from '../assets/sidebar-settings.png';
+import sidebarLogout from '../assets/sidebar-logout.png';
 
 export default function DashboardLayout() {
   const location = useLocation();
 
   const navItems = [
-    { name: 'Home', path: '/dashboard', icon: Home },
-    { name: 'Bookings', path: '/dashboard/bookings', icon: CalendarCheck },
-    { name: 'Explore', path: '/dashboard/explore', icon: Compass },
-    { name: 'Map', path: '/dashboard/map', icon: Map },
+    { name: 'Home', path: '/dashboard', icon: sidebarHome },
+    { name: 'Bookings', path: '/dashboard/bookings', icon: sidebarBookings },
+    { name: 'Explore', path: '/dashboard/explore', icon: sidebarExplore },
+    { name: 'Map', path: '/dashboard/map', icon: sidebarMap },
   ];
 
   return (
@@ -26,15 +31,14 @@ export default function DashboardLayout() {
             const isActive =
               location.pathname === item.path ||
               (location.pathname === '/dashboard' && item.path === '/dashboard');
-            const Icon = item.icon;
             return (
               <Link
                 key={item.name}
                 to={item.path}
-                className={`dashboard-nav-item ${isActive ? 'active' : ''}`}
+                className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
               >
-                <Icon size={20} />
-                <span className="dashboard-nav-text">{item.name}</span>
+                <img src={item.icon} alt={item.name} />
+                <span className="sidebar-nav-text">{item.name}</span>
               </Link>
             );
           })}
@@ -43,13 +47,13 @@ export default function DashboardLayout() {
         <div className="dashboard-divider dashboard-divider-margin"></div>
 
         <div className="dashboard-bottom-actions">
-          <button className="dashboard-action-btn">
-            <Settings size={20} />
-            <span className="dashboard-nav-text">Settings</span>
+          <button className="sidebar-nav-item">
+            <img src={sidebarSettings} alt="Settings" />
+            <span className="sidebar-nav-text">Settings</span>
           </button>
-          <button className="dashboard-action-btn">
-            <LogOut size={20} />
-            <span className="dashboard-nav-text">Log out</span>
+          <button className="sidebar-nav-item">
+            <img src={sidebarLogout} alt="Log out" />
+            <span className="sidebar-nav-text">Log out</span>
           </button>
         </div>
       </aside>

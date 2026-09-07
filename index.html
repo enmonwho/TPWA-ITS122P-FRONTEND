@@ -63,6 +63,14 @@
         <feComposite operator="in" in="color" in2="inverse" result="shadow" />
         <feComposite operator="over" in="shadow" in2="SourceGraphic" />
       </filter>
+      <filter id="icon-dark-inner-shadow">
+        <feOffset dx="0" dy="2" in="SourceAlpha" result="offset" />
+        <feGaussianBlur stdDeviation="1.5" in="offset" result="blur" />
+        <feComposite operator="out" in="SourceAlpha" in2="blur" result="inverse" />
+        <feFlood flood-color="#000000" flood-opacity="0.85" result="color" />
+        <feComposite operator="in" in="color" in2="inverse" result="shadow" />
+        <feComposite operator="over" in="shadow" in2="SourceGraphic" />
+      </filter>
     </svg>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

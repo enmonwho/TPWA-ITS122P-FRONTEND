@@ -1,6 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom';
-import { BaseLayout, DashboardLayout } from './layouts';
-import { Home, Login, Onboarding, SignUp, Dashboard } from './pages';
+import { BaseLayout, DashboardLayout, TripWorkspaceLayout } from './layouts';
+import { Home, Login, Onboarding, SignUp, Dashboard, TripWorkspace } from './pages';
 
 /**
  * Application router configuration.
@@ -39,6 +39,17 @@ const router = createBrowserRouter([
   {
     path: '/onboarding',
     element: <Onboarding />,
+  },
+  {
+    path: '/trip/:tripId',
+    element: <TripWorkspaceLayout />,
+    children: [
+      {
+        path: '',
+        element: <TripWorkspace />,
+      },
+      // Note: other sub-routes like bookings, budget, settings would go here in the future
+    ],
   },
 ]);
 
