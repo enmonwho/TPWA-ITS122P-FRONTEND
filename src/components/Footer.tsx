@@ -24,16 +24,24 @@ export default function Footer() {
               <h4 className="footer-col-title">Services</h4>
               <ul>
                 <li>
-                  <Link to="#">Budget Tracker</Link>
+                  <Link to="#" className="hover-underline">
+                    Budget Tracker
+                  </Link>
                 </li>
                 <li>
-                  <Link to="#">Itinerary Builder</Link>
+                  <Link to="#" className="hover-underline">
+                    Itinerary Builder
+                  </Link>
                 </li>
                 <li>
-                  <Link to="#">Trip Journal</Link>
+                  <Link to="#" className="hover-underline">
+                    Trip Journal
+                  </Link>
                 </li>
                 <li>
-                  <Link to="#">Interactive Travel Map </Link>
+                  <Link to="#" className="hover-underline">
+                    Interactive Travel Map{' '}
+                  </Link>
                 </li>
               </ul>
             </div>
@@ -42,13 +50,19 @@ export default function Footer() {
               <h4 className="footer-col-title">Resources</h4>
               <ul>
                 <li>
-                  <Link to="#">About Us</Link>
+                  <Link to="#" className="hover-underline">
+                    About Us
+                  </Link>
                 </li>
                 <li>
-                  <Link to="#">Give Us Feedback</Link>
+                  <Link to="#" className="hover-underline">
+                    Give Us Feedback
+                  </Link>
                 </li>
                 <li>
-                  <Link to="#">Contact Us</Link>
+                  <Link to="#" className="hover-underline">
+                    Contact Us
+                  </Link>
                 </li>
               </ul>
             </div>

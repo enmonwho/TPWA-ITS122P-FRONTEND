@@ -14,9 +14,11 @@ const CTASection: React.FC = () => {
       <div className="cta-container">
         <h2 className="cta-heading">Join us now!</h2>
         <p className="cta-subheading">Start your travel journey</p>
-        <Link to="#" className="btn-signup">
-          Start Planning
-        </Link>
+        <div>
+          <Link to="#" className="btn-signup hover-lift">
+            Start Planning
+          </Link>
+        </div>
       </div>
     </section>
   );

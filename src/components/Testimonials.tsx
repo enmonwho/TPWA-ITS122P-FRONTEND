@@ -62,7 +62,7 @@ const Testimonials: React.FC = () => {
       <CloudDoodle id={1} top="25%" right="-3%" width="130px" opacity={0.5} />
       <CloudDoodle id={3} bottom="30%" left="10%" width="140px" opacity={0.4} />
 
-      <div className="landing-services-header">
+      <div className="landing-services-header centered">
         <h2>
           See where <span className="text-gradient-brand"> LakBye </span> has taken them
         </h2>
@@ -73,7 +73,7 @@ const Testimonials: React.FC = () => {
 
       <div className="testimonials-grid">
         {reviews.map((review) => (
-          <div key={review.id} className="testimonial-card">
+          <div key={review.id} className="testimonial-card hover-lift">
             <div className="testimonial-card-header">
               <div className="testimonial-customer">
                 <span className="testimonial-name">{review.name}</span>

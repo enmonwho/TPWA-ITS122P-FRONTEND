@@ -42,10 +42,14 @@ export default function Header() {
         </button>
 
         <div className={`auth-links${menuOpen ? ' auth-links--open' : ''}`}>
-          <Link to="/login" className="btn-login" onClick={handleLinkClick}>
+          <Link
+            to="/login"
+            className="btn-login hover-underline"
+            onClick={handleLinkClick}
+          >
             Log In
           </Link>
-          <Link to="/signup" className="btn-signup" onClick={handleLinkClick}>
+          <Link to="/signup" className="btn-signup hover-lift" onClick={handleLinkClick}>
             Sign Up
           </Link>
         </div>
