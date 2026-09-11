@@ -2801,7 +2801,9 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 50;
+  z-index: 1000;
+  padding: 20px;
+  animation: modalOverlayFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .modal-content {
@@ -2810,22 +2812,39 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   height: 526px;
   background-color: #fff;
   border-radius: 10px;
-  box-shadow: 0px 4px 3.8px rgba(0, 0, 0, 0.25);
+  box-shadow:
+    0px 4px 16px rgba(0, 0, 0, 0.25),
+    0px 1px 4px rgba(0, 0, 0, 0.12);
   position: relative;
   padding: 38px 41px 36px 41px;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  animation: modalCardPopIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
 }
 
 .modal-close-btn {
   position: absolute;
-  top: 20px;
-  right: 20px;
-  background: none;
+  top: 16px;
+  right: 18px;
+  background: transparent;
   border: none;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 4px;
+  border-radius: 50%;
+  color: rgba(0, 0, 0, 0.7);
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.modal-close-btn:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+  color: #000000;
 }
 
 /* Form Styles */
@@ -2893,32 +2912,62 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all var(--transition-fast);
+  box-sizing: border-box;
+}
+
+.chip-button:hover {
+  background-color: #fbf8f4;
 }
 
 .chip-button.selected {
   background: var(--gradient-brand-reverse);
   color: #fff;
   border: none;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
 }
 
-/* CTA */
+/* CTA — canonical gradient, border, and interaction matching share pill */
 .modal-cta-btn {
   width: 134px;
   height: 38.75px;
   border-radius: 80px;
   border: 2px solid transparent;
   background-image:
-    linear-gradient(90deg, #ffc245 3%, #c5283d 32%, #e9724c 62%, #255f85 91%),
-    linear-gradient(90deg, #ffc245 3%, #c5283d 32%, #e9724c 62%, #255f85 91%);
+    linear-gradient(90deg, #255f85 3%, #c5283d 32%, #e9724c 62%, #ffc245 91%),
+    var(--gradient-brand-reverse);
+  background-origin: border-box;
   background-clip: padding-box, border-box;
-  background-origin: border-box, border-box;
-  color: #fff;
+  color: var(--color-dash-offwhite);
   font-family: 'SF Pro Rounded', var(--font-sans);
   font-weight: 700;
   font-size: 15px;
   cursor: pointer;
   align-self: center;
   margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0px 2px 6px rgba(197, 40, 61, 0.18);
+  transition:
+    transform var(--transition-fast),
+    filter var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.modal-cta-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: scale(1.02) translateY(-1px);
+  box-shadow: 0 4px 12px rgba(197, 40, 61, 0.25);
+}
+
+.modal-cta-btn:focus-visible {
+  outline: none;
+}
+
+.modal-cta-btn:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .date-inputs-row {

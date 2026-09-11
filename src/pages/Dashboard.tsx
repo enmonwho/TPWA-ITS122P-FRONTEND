@@ -86,8 +86,6 @@ export default function Dashboard() {
   const nextTrip = trips
     .filter((t) => getDisplayStatus(t) === 'upcoming')
     .sort((a, b) => (a.daysUntil || 9999) - (b.daysUntil || 9999))[0];
-  const daysUntilNextTrip =
-    nextTrip?.daysUntil !== undefined ? nextTrip.daysUntil.toString() : 'N/A';
   const totalSpent = trips.reduce((sum, t) => sum + (t.totalBudget || 0), 0);
 
   /** Called by CreateTripModal after successful API creation to refresh the list. */
@@ -121,7 +119,16 @@ export default function Dashboard() {
             icon={
               <Globe size={175} strokeWidth={1} className="dash-stat-icon-countries" />
             }
-            value={countriesExplored.toString()}
+            value={countriesExplored > 0 ? countriesExplored.toString() : undefined}
+            title={
+              countriesExplored === 0 ? (
+                <>
+                  Start
+                  <br />
+                  exploring
+                </>
+              ) : undefined
+            }
             subtitle="Countries Explored"
           />
           <StatCard
@@ -129,9 +136,19 @@ export default function Dashboard() {
             icon={
               <Ticket size={148} strokeWidth={1} className="dash-stat-icon-bookings" />
             }
-            value={totalBookings.toString()}
+            value={totalBookings > 0 ? totalBookings.toString() : undefined}
+            title={
+              totalBookings === 0 ? (
+                <>
+                  Plan one
+                  <br />
+                  now
+                </>
+              ) : undefined
+            }
             subtitle="Bookings"
             iconButton={planNowIcon}
+            onClick={() => setIsCreateTripModalOpen(true)}
           />
           <StatCard
             gradient="--gradient-stat-countdown"
@@ -142,14 +159,35 @@ export default function Dashboard() {
                 className="dash-stat-icon-countdown"
               />
             }
-            value={daysUntilNextTrip}
+            value={
+              nextTrip?.daysUntil !== undefined
+                ? nextTrip.daysUntil.toString()
+                : undefined
+            }
+            title={
+              nextTrip?.daysUntil === undefined ? (
+                <>
+                  None
+                  <br />
+                  scheduled
+                </>
+              ) : undefined
+            }
             subtitle="Until Next Trip"
             iconButton={tripSchedIcon}
+            onClick={() => setIsCreateTripModalOpen(true)}
           />
           <StatCard
             gradient="--gradient-stat-spent"
             icon={<Wallet size={161} strokeWidth={1} className="dash-stat-icon-spent" />}
-            value={totalSpent > 0 ? totalSpent.toLocaleString() : '0.00'}
+            value={
+              totalSpent > 0
+                ? totalSpent.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })
+                : '0.00'
+            }
             subtitle="Total Spent"
             iconButton={totalSpentIcon}
           />
