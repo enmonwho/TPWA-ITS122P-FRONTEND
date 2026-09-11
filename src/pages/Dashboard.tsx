@@ -12,7 +12,7 @@ import browseDestIcon from '../assets/browse-destination.svg';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../lib/constants';
 import { tripsApi } from '../services/api';
-import { mergeTripsWithExtras } from '../lib/tripExtras';
+import { mergeTripsWithExtras, formatDateOnly } from '../lib/tripExtras';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -295,7 +295,8 @@ export default function Dashboard() {
 
                         <div className="trip-badge-container">
                           <div className="trip-badge trip-badge--date">
-                            {trip.startDate} - {trip.endDate}
+                            {formatDateOnly(trip.startDate)} -{' '}
+                            {formatDateOnly(trip.endDate)}
                           </div>
                         </div>
                         <div className="trip-badge-container">

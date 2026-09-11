@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../lib/constants';
 import type { Trip } from '../types/trip';
 import { tripsApi } from '../services/api';
-import { mergeTripWithExtras } from '../lib/tripExtras';
+import { mergeTripWithExtras, formatDateOnly } from '../lib/tripExtras';
 import axios from 'axios';
 
 export interface Destination {
@@ -167,7 +167,7 @@ export default function TripWorkspace() {
             Add Members
           </button>
           <button className="workspace-pill-date">
-            {trip.startDate} - {trip.endDate}
+            {formatDateOnly(trip.startDate)} - {formatDateOnly(trip.endDate)}
           </button>
           <button className="workspace-share-btn">Share</button>
         </div>

@@ -42,6 +42,15 @@ export function deleteTripExtras(tripId: string | number): void {
 }
 
 /**
+ * Strips time component from a date string, returning only 'YYYY-MM-DD'.
+ * Handles ISO strings like "2026-09-22T00:00:00.000Z" -> "2026-09-22".
+ */
+export function formatDateOnly(dateStr?: string | null): string {
+  if (!dateStr) return '';
+  return dateStr.split(/[T ]/)[0];
+}
+
+/**
  * Compute derived fields (nights, daysUntil) from a trip's dates.
  */
 function computeDerived(trip: { startDate: string; endDate: string }): {

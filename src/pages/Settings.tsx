@@ -7,7 +7,12 @@ import type { Trip } from '../types/trip';
 import { CountryAutocomplete, DateRangePicker } from '../components';
 import addMembersIcon from '../assets/add-members.png';
 import { tripsApi } from '../services/api';
-import { mergeTripWithExtras, saveTripExtras, deleteTripExtras } from '../lib/tripExtras';
+import {
+  mergeTripWithExtras,
+  saveTripExtras,
+  deleteTripExtras,
+  formatDateOnly,
+} from '../lib/tripExtras';
 import axios from 'axios';
 
 type TravelType = 'Solo' | 'Couple' | 'Friends' | 'Family' | '';
@@ -43,8 +48,8 @@ export function Settings() {
         setTrip(merged);
         setTripName(merged.name);
         setSelectedCountries(merged.countries);
-        setStartDate(merged.startDate);
-        setEndDate(merged.endDate);
+        setStartDate(formatDateOnly(merged.startDate));
+        setEndDate(formatDateOnly(merged.endDate));
         setTravelType((merged.travelType as TravelType) || '');
       } catch (err) {
         if (!cancelled) {
@@ -155,7 +160,7 @@ export function Settings() {
             Add Members
           </button>
           <button className="workspace-pill-date">
-            {trip.startDate} - {trip.endDate}
+            {formatDateOnly(trip.startDate)} - {formatDateOnly(trip.endDate)}
           </button>
           <button className="workspace-share-btn">Share</button>
         </div>
