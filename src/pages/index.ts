@@ -4,3 +4,5 @@ export { default as Onboarding } from './Onboarding';
 export { default as SignUp } from './SignUp';
 export { default as Dashboard } from './Dashboard';
 export { default as TripWorkspace } from './TripWorkspace';
+export { Budget } from './Budget';
+export { Settings } from './Settings';

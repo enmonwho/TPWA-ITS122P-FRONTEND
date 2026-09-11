@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import lakbyeLogo from '../assets/lakbye-white-logo.png';
 import sidebarPlanner from '../assets/sidebar-planner.png';
-import sidebarBookings from '../assets/sidebar-bookings.png';
 import sidebarBudget from '../assets/sidebar-budget.png';
 import sidebarSettings from '../assets/sidebar-settings.png';
 import leftArrow from '../assets/left-arrow.png';
@@ -18,7 +17,6 @@ export default function TripWorkspaceLayout() {
 
   const navItems = [
     { name: 'Planner', path: `/trip/${tripId}`, icon: sidebarPlanner },
-    { name: 'Bookings', path: `/trip/${tripId}/bookings`, icon: sidebarBookings },
     { name: 'Budget', path: `/trip/${tripId}/budget`, icon: sidebarBudget },
     { name: 'Settings', path: `/trip/${tripId}/settings`, icon: sidebarSettings },
   ];

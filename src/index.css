@@ -3403,7 +3403,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 }
 .workspace-itinerary-zone {
   flex: 1;
-  max-width: 737px;
+  max-width: 1000px;
   padding: 18px 0 0 0;
   display: flex;
   flex-direction: column;
@@ -3416,6 +3416,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 .workspace-map-zone {
   flex: 1;
   padding: 11px 16px 18px 15px;
+  width: 300px;
 }
 
 /* Tabs */
