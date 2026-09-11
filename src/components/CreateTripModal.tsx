@@ -3,17 +3,25 @@ import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { CountryAutocomplete, DateRangePicker } from './';
 import { useAuth } from '../context/AuthContext';
-import { ROUTES, STORAGE_KEYS } from '../lib/constants';
-import type { Trip } from '../types/trip';
+import { ROUTES } from '../lib/constants';
+import { tripsApi } from '../services/api';
+import { saveTripExtras } from '../lib/tripExtras';
+import axios from 'axios';
 
 interface CreateTripModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Called after a trip is successfully created via the API. */
+  onTripCreated?: () => void;
 }
 
 type TravelType = 'Solo' | 'Couple' | 'Friends' | 'Family' | '';
 
-export default function CreateTripModal({ isOpen, onClose }: CreateTripModalProps) {
+export default function CreateTripModal({
+  isOpen,
+  onClose,
+  onTripCreated,
+}: CreateTripModalProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -23,6 +31,8 @@ export default function CreateTripModal({ isOpen, onClose }: CreateTripModalProp
   const [endDate, setEndDate] = useState('');
   const [travelType, setTravelType] = useState<TravelType>('');
   const [errors, setErrors] = useState<Record<string, boolean>>({});
+  const [apiError, setApiError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
   if (isOpen !== prevIsOpen) {
@@ -34,6 +44,8 @@ export default function CreateTripModal({ isOpen, onClose }: CreateTripModalProp
       setEndDate('');
       setTravelType('');
       setErrors({});
+      setApiError('');
+      setSubmitting(false);
     }
   }
 
@@ -47,7 +59,8 @@ export default function CreateTripModal({ isOpen, onClose }: CreateTripModalProp
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose]);
-  const handleStartPlanning = () => {
+
+  const handleStartPlanning = async () => {
     const newErrors: Record<string, boolean> = {};
     if (!tripName.trim()) newErrors.tripName = true;
     if (selectedCountries.length === 0) newErrors.countries = true;
@@ -60,34 +73,41 @@ export default function CreateTripModal({ isOpen, onClose }: CreateTripModalProp
       return;
     }
 
-    // Calculate nights
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    const nights = Math.max(0, diffDays);
+    if (!user) return;
 
-    const newTrip: Trip = {
-      id: Date.now().toString(),
-      name: tripName.trim(),
-      countries: selectedCountries,
-      startDate,
-      endDate,
-      travelType,
-      status: 'upcoming',
-      nights,
-    };
+    setSubmitting(true);
+    setApiError('');
 
-    if (user) {
-      const tripKey = STORAGE_KEYS.TRIPS(user.id);
-      const existingStr = localStorage.getItem(tripKey);
-      const existingTrips: Trip[] = existingStr ? JSON.parse(existingStr) : [];
-      existingTrips.push(newTrip);
-      localStorage.setItem(tripKey, JSON.stringify(existingTrips));
+    try {
+      const newTrip = await tripsApi.createTrip({
+        title: tripName.trim(),
+        start_date: startDate,
+        end_date: endDate,
+        total_budget: 0,
+        status: 'planning',
+      });
+
+      // Save local-only fields to side-table keyed by backend-issued ID
+      saveTripExtras(newTrip.id, {
+        countries: selectedCountries,
+        travelType,
+      });
+
+      onTripCreated?.();
+      onClose();
+      navigate(ROUTES.TRIP(newTrip.id));
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        const msg =
+          (err.response?.data as { message?: string })?.message ||
+          'Something went wrong. Please try again.';
+        setApiError(msg);
+      } else {
+        setApiError('An unexpected error occurred.');
+      }
+    } finally {
+      setSubmitting(false);
     }
-
-    onClose();
-    navigate(ROUTES.TRIP(newTrip.id));
   };
 
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -198,8 +218,26 @@ export default function CreateTripModal({ isOpen, onClose }: CreateTripModalProp
           </div>
         </div>
 
-        <button className="modal-cta-btn" onClick={handleStartPlanning}>
-          Start Planning
+        {apiError && (
+          <div
+            style={{
+              color: 'var(--color-brand-red)',
+              fontSize: '14px',
+              textAlign: 'center',
+              marginBottom: '12px',
+            }}
+          >
+            {apiError}
+          </div>
+        )}
+
+        <button
+          className="modal-cta-btn"
+          onClick={handleStartPlanning}
+          disabled={submitting}
+          style={{ opacity: submitting ? 0.6 : 1 }}
+        >
+          {submitting ? 'Creating...' : 'Start Planning'}
         </button>
       </div>
     </div>

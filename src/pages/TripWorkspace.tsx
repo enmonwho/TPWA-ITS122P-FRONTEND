@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import addMembersIcon from '../assets/add-members.png';
 import routeIcon from '../assets/route.png';
@@ -6,8 +6,11 @@ import dayByDayIcon from '../assets/day-by-day.png';
 import magnifierIcon from '../assets/magnifier.png';
 import { MapPlaceholder } from '../components';
 import { useAuth } from '../context/AuthContext';
-import { ROUTES, STORAGE_KEYS } from '../lib/constants';
+import { ROUTES } from '../lib/constants';
 import type { Trip } from '../types/trip';
+import { tripsApi } from '../services/api';
+import { mergeTripWithExtras } from '../lib/tripExtras';
+import axios from 'axios';
 
 export interface Destination {
   id: string;
@@ -27,53 +30,64 @@ export default function TripWorkspace() {
   const [activeTab, setActiveTab] = useState('route');
   const [trip, setTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
-  const [prevUserId, setPrevUserId] = useState<number | undefined>(undefined);
-  const [prevTripId, setPrevTripId] = useState<string | undefined>(undefined);
+  const [notFound, setNotFound] = useState(false);
 
   // Destinations state
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [newDestInput, setNewDestInput] = useState('');
   const [activeDestinationId, setActiveDestinationId] = useState<string | null>(null);
 
-  // Recommended React pattern: update state during render when derived from props/context
-  if (user?.id !== prevUserId || tripId !== prevTripId) {
-    setPrevUserId(user?.id);
-    setPrevTripId(tripId);
-    if (user && tripId) {
-      const tripKey = STORAGE_KEYS.TRIPS(user.id);
-      const savedTrips = localStorage.getItem(tripKey);
-      if (savedTrips) {
-        const trips: Trip[] = JSON.parse(savedTrips);
-        const foundTrip = trips.find((t) => t.id === tripId);
-        setTrip(foundTrip || null);
+  // Fetch trip from backend
+  useEffect(() => {
+    if (!user || !tripId) return;
 
-        if (foundTrip) {
-          // Initialize initial destinations from trip countries or default
-          const initialDests: Destination[] = foundTrip.countries.map((c, i) => ({
-            id: `dest-${i + 1}`,
-            name: c,
-            country: c,
-            nights: Math.max(
-              1,
-              Math.floor(foundTrip.nights / (foundTrip.countries.length || 1)),
-            ),
-            accommodation: 'Selected Hotel',
-            activities: 'Sightseeing & Culture',
-            transportation: 'Flight / Express Train',
-          }));
-          setDestinations(initialDests);
-          if (initialDests.length > 0) {
-            setActiveDestinationId(initialDests[0].id);
-          }
+    let cancelled = false;
+
+    const fetchTrip = async () => {
+      setLoading(true);
+      setNotFound(false);
+      try {
+        const apiTrip = await tripsApi.getTrip(tripId);
+        if (cancelled) return;
+
+        const merged = mergeTripWithExtras(apiTrip);
+        setTrip(merged);
+
+        // Initialize destinations from extras countries
+        const initialDests: Destination[] = (merged.countries || []).map((c, i) => ({
+          id: `dest-${i + 1}`,
+          name: c,
+          country: c,
+          nights: Math.max(1, Math.floor(merged.nights / (merged.countries.length || 1))),
+          accommodation: 'Selected Hotel',
+          activities: 'Sightseeing & Culture',
+          transportation: 'Flight / Express Train',
+        }));
+        setDestinations(initialDests);
+        if (initialDests.length > 0) {
+          setActiveDestinationId(initialDests[0].id);
         }
-      } else {
-        setTrip(null);
+      } catch (err) {
+        if (cancelled) return;
+        if (
+          axios.isAxiosError(err) &&
+          (err.response?.status === 403 || err.response?.status === 404)
+        ) {
+          setNotFound(true);
+        } else {
+          setNotFound(true);
+          console.error('Failed to fetch trip:', err);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    } else {
-      setTrip(null);
-    }
-    setLoading(false);
-  }
+    };
+
+    fetchTrip();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, tripId]);
 
   const handleAddDestination = (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,7 +125,7 @@ export default function TripWorkspace() {
     );
   }
 
-  if (!trip) {
+  if (!trip || notFound) {
     return (
       <div
         className="workspace-page"

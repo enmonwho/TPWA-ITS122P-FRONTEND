@@ -83,4 +83,67 @@ if (useMockAuth) {
 
 export const authApi = useMockAuth ? mockAuthApi : realAuthApi;
 
+/* ------------------------------------------------------------------ */
+/*  Trips API Module                                                   */
+/* ------------------------------------------------------------------ */
+
+import type { Trip, TripApiPayload, TripApiResponse } from '../types/trip';
+
+/** Map a raw backend trip to the frontend Trip shape. */
+function mapTripFromApi(raw: TripApiResponse): Trip {
+  return {
+    id: raw.id,
+    name: raw.title,
+    startDate: raw.start_date,
+    endDate: raw.end_date,
+    totalBudget: raw.total_budget ?? 0,
+    status: raw.status,
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+    // Local-only fields — merged separately from side-table
+    countries: [],
+    travelType: '',
+    // Derived — computed separately
+    nights: 0,
+  };
+}
+
+export const tripsApi = {
+  /** GET /trips — returns all trips for the authenticated user. */
+  getTrips: async (): Promise<Trip[]> => {
+    const response = await api.get<{ trips: TripApiResponse[] }>('/trips');
+    return response.data.trips.map(mapTripFromApi);
+  },
+
+  /** GET /trips/:id — returns a single trip. */
+  getTrip: async (id: string | number): Promise<Trip> => {
+    const response = await api.get<{ trip: TripApiResponse }>(`/trips/${id}`);
+    return mapTripFromApi(response.data.trip);
+  },
+
+  /** POST /trips — create a new trip. */
+  createTrip: async (payload: TripApiPayload): Promise<Trip> => {
+    const response = await api.post<{ message: string; trip: TripApiResponse }>(
+      '/trips',
+      payload,
+    );
+    return mapTripFromApi(response.data.trip);
+  },
+
+  /** PUT /trips/:id — update an existing trip (partial). */
+  updateTrip: async (id: string | number, payload: TripApiPayload): Promise<Trip> => {
+    const response = await api.put<{ message: string; trip: TripApiResponse }>(
+      `/trips/${id}`,
+      payload,
+    );
+    return mapTripFromApi(response.data.trip);
+  },
+
+  /** DELETE /trips/:id — delete a trip. */
+  deleteTrip: async (id: string | number): Promise<{ message: string }> => {
+    const response = await api.delete<{ message: string }>(`/trips/${id}`);
+    return response.data;
+  },
+};
+
 export default api;

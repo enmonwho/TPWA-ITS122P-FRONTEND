@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Pencil } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { STORAGE_KEYS, ROUTES } from '../lib/constants';
+import { ROUTES } from '../lib/constants';
 import type { Trip } from '../types/trip';
 import { CountryAutocomplete, DateRangePicker } from '../components';
 import addMembersIcon from '../assets/add-members.png';
+import { tripsApi } from '../services/api';
+import { mergeTripWithExtras, saveTripExtras, deleteTripExtras } from '../lib/tripExtras';
+import axios from 'axios';
 
 type TravelType = 'Solo' | 'Couple' | 'Friends' | 'Family' | '';
 
@@ -14,9 +17,8 @@ export function Settings() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [prevUserId, setPrevUserId] = useState<number | undefined>(undefined);
-  const [prevTripId, setPrevTripId] = useState<string | undefined>(undefined);
   const [trip, setTrip] = useState<Trip | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Form states
   const [tripName, setTripName] = useState('');
@@ -25,68 +27,117 @@ export function Settings() {
   const [endDate, setEndDate] = useState('');
   const [travelType, setTravelType] = useState<TravelType>('');
 
-  if (user?.id !== prevUserId || tripId !== prevTripId) {
-    setPrevUserId(user?.id);
-    setPrevTripId(tripId);
-    if (user && tripId) {
-      const tripKey = STORAGE_KEYS.TRIPS(user.id);
-      const existingStr = localStorage.getItem(tripKey);
-      if (existingStr) {
-        const trips: Trip[] = JSON.parse(existingStr);
-        const found = trips.find((t) => t.id === tripId);
-        if (found) {
-          setTrip(found);
-          setTripName(found.name);
-          setSelectedCountries(found.countries);
-          setStartDate(found.startDate);
-          setEndDate(found.endDate);
-          setTravelType(found.travelType as TravelType);
-        } else {
-          setTrip(null);
-        }
-      }
-    }
-  }
+  // Fetch trip from backend
+  useEffect(() => {
+    if (!user || !tripId) return;
 
-  const saveChanges = (updates: Partial<Trip>) => {
-    if (!user || !trip) return;
-    const tripKey = STORAGE_KEYS.TRIPS(user.id);
-    const existingStr = localStorage.getItem(tripKey);
-    if (existingStr) {
-      const trips: Trip[] = JSON.parse(existingStr);
-      const updatedTrips = trips.map((t) =>
-        t.id === trip.id ? { ...t, ...updates } : t,
-      );
-      localStorage.setItem(tripKey, JSON.stringify(updatedTrips));
+    let cancelled = false;
+
+    const fetchTrip = async () => {
+      setLoading(true);
+      try {
+        const apiTrip = await tripsApi.getTrip(tripId);
+        if (cancelled) return;
+
+        const merged = mergeTripWithExtras(apiTrip);
+        setTrip(merged);
+        setTripName(merged.name);
+        setSelectedCountries(merged.countries);
+        setStartDate(merged.startDate);
+        setEndDate(merged.endDate);
+        setTravelType((merged.travelType as TravelType) || '');
+      } catch (err) {
+        if (!cancelled) {
+          setTrip(null);
+          console.error('Failed to fetch trip for settings:', err);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetchTrip();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, tripId]);
+
+  /**
+   * Save changes — splits core fields (API) from local-only fields (side-table).
+   */
+  const saveChanges = async (updates: Partial<Trip>) => {
+    if (!trip || !tripId) return;
+
+    // Separate core backend fields from local-only extras
+    const apiPayload: Record<string, unknown> = {};
+    if (updates.name !== undefined) apiPayload.title = updates.name;
+    if (updates.startDate !== undefined) apiPayload.start_date = updates.startDate;
+    if (updates.endDate !== undefined) apiPayload.end_date = updates.endDate;
+    if (updates.status !== undefined) apiPayload.status = updates.status;
+    if (updates.totalBudget !== undefined) apiPayload.total_budget = updates.totalBudget;
+
+    // Local-only extras
+    if (updates.countries !== undefined || updates.travelType !== undefined) {
+      const extrasUpdate: Record<string, unknown> = {};
+      if (updates.countries !== undefined) extrasUpdate.countries = updates.countries;
+      if (updates.travelType !== undefined) extrasUpdate.travelType = updates.travelType;
+      saveTripExtras(tripId, extrasUpdate);
+    }
+
+    // Only call API if there are backend-relevant changes
+    if (Object.keys(apiPayload).length > 0) {
+      try {
+        const updatedTrip = await tripsApi.updateTrip(tripId, apiPayload);
+        const merged = mergeTripWithExtras(updatedTrip);
+        setTrip(merged);
+      } catch (err) {
+        console.error('Failed to update trip:', err);
+      }
+    } else {
+      // Update local state for extras-only changes
       setTrip({ ...trip, ...updates });
     }
   };
 
-  const handleDelete = () => {
-    if (!user || !trip) return;
+  const handleDelete = async () => {
+    if (!trip || !tripId) return;
     const confirmDelete = window.confirm(
       'Are you sure you want to delete this trip? This action cannot be undone.',
     );
     if (!confirmDelete) return;
 
-    const tripKey = STORAGE_KEYS.TRIPS(user.id);
-    const existingStr = localStorage.getItem(tripKey);
-    if (existingStr) {
-      const trips: Trip[] = JSON.parse(existingStr);
-      const updatedTrips = trips.filter((t) => t.id !== trip.id);
-      localStorage.setItem(tripKey, JSON.stringify(updatedTrips));
+    try {
+      await tripsApi.deleteTrip(tripId);
 
-      // Also clean up budget data
-      localStorage.removeItem(`lakbye_budget_${trip.id}`);
+      // Clean up localStorage side-tables
+      deleteTripExtras(tripId);
+      localStorage.removeItem(`lakbye_budget_${tripId}`);
 
       navigate(ROUTES.DASHBOARD);
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        const msg =
+          (err.response?.data as { message?: string })?.message ||
+          'Failed to delete trip.';
+        alert(msg);
+      } else {
+        alert('An unexpected error occurred while deleting the trip.');
+      }
     }
   };
+
+  if (loading) {
+    return (
+      <div className="workspace-page">
+        <div className="workspace-main-card">Loading settings...</div>
+      </div>
+    );
+  }
 
   if (!trip) {
     return (
       <div className="workspace-page">
-        <div className="workspace-main-card">Loading settings...</div>
+        <div className="workspace-main-card">Trip not found.</div>
       </div>
     );
   }
@@ -185,32 +236,17 @@ export function Settings() {
               onStartDateChange={(date) => {
                 setStartDate(date);
 
-                // Recalculate nights
                 const end = endDate ? new Date(endDate) : null;
                 if (end && end < new Date(date)) {
                   setEndDate('');
-                  saveChanges({ startDate: date, endDate: '', nights: 0 });
-                } else if (end) {
-                  const start = new Date(date);
-                  const diffTime = Math.abs(end.getTime() - start.getTime());
-                  const nights = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-                  saveChanges({ startDate: date, nights });
+                  saveChanges({ startDate: date, endDate: '' });
                 } else {
                   saveChanges({ startDate: date });
                 }
               }}
               onEndDateChange={(date) => {
                 setEndDate(date);
-
-                if (startDate) {
-                  const start = new Date(startDate);
-                  const end = new Date(date);
-                  const diffTime = Math.abs(end.getTime() - start.getTime());
-                  const nights = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-                  saveChanges({ endDate: date, nights });
-                } else {
-                  saveChanges({ endDate: date });
-                }
+                saveChanges({ endDate: date });
               }}
             />
           </div>

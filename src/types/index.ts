@@ -6,4 +6,4 @@ export type {
   AuthResponse,
   MeResponse,
 } from './user';
-export type { Trip } from './trip';
+export type { Trip, TripStatus, TripApiPayload, TripApiResponse } from './trip';

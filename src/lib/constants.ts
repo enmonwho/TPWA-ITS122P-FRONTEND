@@ -8,5 +8,12 @@ export const ROUTES = {
 };
 
 export const STORAGE_KEYS = {
-  TRIPS: (userId: string | number) => `lakbye_trips_${userId}`,
+  /**
+   * Side-table for trip fields not yet in the backend schema
+   * (countries, travelType). Keyed by backend-issued trip ID.
+   *
+   * ⚠️ STOPGAP: This data is NOT synced to the backend and will be
+   * lost if the user clears browser data or uses another device.
+   */
+  TRIP_EXTRAS: (tripId: string | number) => `lakbye_trip_extras_${tripId}`,
 };

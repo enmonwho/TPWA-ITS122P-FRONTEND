@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import {
@@ -12,9 +12,10 @@ import {
   Info,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { STORAGE_KEYS } from '../lib/constants';
 import type { Trip } from '../types/trip';
 import addMembersIcon from '../assets/add-members.png';
+import { tripsApi } from '../services/api';
+import { mergeTripWithExtras } from '../lib/tripExtras';
 
 interface Expense {
   id: string;
@@ -53,38 +54,43 @@ export function Budget() {
   const budgetKey = `lakbye_budget_${tripId}`;
   const { user } = useAuth();
 
-  const [prevUserId, setPrevUserId] = useState<number | undefined>(undefined);
-  const [prevTripId, setPrevTripId] = useState<string | undefined>(undefined);
   const [trip, setTrip] = useState<Trip | null>(null);
-  const [budget, setBudget] = useState<BudgetData>({ balance: 0, expenses: [] });
-
-  // Update state during render when tripId or user changes (React recommended pattern)
-  if (user?.id !== prevUserId || tripId !== prevTripId) {
-    setPrevUserId(user?.id);
-    setPrevTripId(tripId);
-    if (user && tripId) {
-      const tripKey = STORAGE_KEYS.TRIPS(user.id);
-      const existingStr = localStorage.getItem(tripKey);
-      if (existingStr) {
-        const trips: Trip[] = JSON.parse(existingStr);
-        const found = trips.find((t) => t.id === tripId);
-        setTrip(found || null);
-      } else {
-        setTrip(null);
-      }
-
+  const [budget, setBudget] = useState<BudgetData>(() => {
+    // Load budget data from localStorage on initial render (stays local — no backend)
+    try {
       const stored = localStorage.getItem(budgetKey);
-      if (stored) {
-        try {
-          setBudget(JSON.parse(stored));
-        } catch {
-          setBudget({ balance: 0, expenses: [] });
-        }
-      } else {
-        setBudget({ balance: 0, expenses: [] });
-      }
+      if (stored) return JSON.parse(stored) as BudgetData;
+    } catch {
+      // Corrupted data — use defaults
     }
-  }
+    return { balance: 0, expenses: [] };
+  });
+
+  // Fetch trip from backend (header display only — budget data stays localStorage)
+  useEffect(() => {
+    if (!user || !tripId) return;
+
+    let cancelled = false;
+
+    const fetchTrip = async () => {
+      try {
+        const apiTrip = await tripsApi.getTrip(tripId);
+        if (!cancelled) {
+          setTrip(mergeTripWithExtras(apiTrip));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Failed to fetch trip for budget:', err);
+        }
+      }
+    };
+
+    fetchTrip();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, tripId]);
 
   const saveBudget = (newData: BudgetData) => {
     setBudget(newData);
