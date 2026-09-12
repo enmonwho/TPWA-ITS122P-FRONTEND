@@ -29,3 +29,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Docs
+LAKBYE_PROJECT_CONTEXT.md
