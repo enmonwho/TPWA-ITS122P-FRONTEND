@@ -10,6 +10,7 @@ interface StatCardProps {
   subtitle: string;
   showChevron?: boolean;
   iconButton?: string;
+  onClick?: () => void;
 }
 
 export default function StatCard({
@@ -20,6 +21,7 @@ export default function StatCard({
   subtitle,
   showChevron = false,
   iconButton,
+  onClick,
 }: StatCardProps) {
   const textRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -69,14 +71,26 @@ export default function StatCard({
         <div className="dash-stat-card-footer">
           <div className="dash-stat-card-subtitle">{subtitle}</div>
           {iconButton ? (
-            <div className="dash-stat-card-chevron-svg">
-              <img src={iconButton} alt="Action" />
-            </div>
+            <button
+              type="button"
+              className="dash-stat-card-chevron-svg"
+              onClick={onClick}
+              aria-label={`Action for ${subtitle}`}
+              style={{ background: 'none', border: 'none', padding: 0 }}
+            >
+              <img src={iconButton} alt="" />
+            </button>
           ) : (
             showChevron && (
-              <div className="dash-stat-card-chevron">
+              <button
+                type="button"
+                className="dash-stat-card-chevron"
+                onClick={onClick}
+                aria-label={`Action for ${subtitle}`}
+                style={{ border: 'none' }}
+              >
                 <ChevronRight size={19} color="var(--color-neutral-950)" />
-              </div>
+              </button>
             )
           )}
         </div>

@@ -110,22 +110,28 @@ export default function CreateTripModal({
     }
   };
 
-  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
   const travelTypes: TravelType[] = ['Solo', 'Couple', 'Friends', 'Family'];
 
   if (!isOpen) return null;
 
   return (
-    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
-    <div className="modal-overlay" onClick={handleOverlayClick}>
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-create-trip-title"
+    >
       <div className="modal-content">
-        <button className="modal-close-btn" onClick={onClose}>
-          <X size={11} color="var(--color-neutral-950)" />
+        <h2 id="modal-create-trip-title" className="sr-only">
+          Create Trip
+        </h2>
+        <button
+          type="button"
+          className="modal-close-btn"
+          aria-label="Close modal"
+          onClick={onClose}
+        >
+          <X size={18} />
         </button>
 
         <div className="form-group">

@@ -5,7 +5,7 @@ import axios, {
 } from 'axios';
 import type { RegisterPayload, LoginPayload, AuthResponse, MeResponse } from '../types';
 import type { Destination, Category } from '../types/destination';
-import type { Trip, TripApiPayload, TripApiResponse } from '../types/trip';
+import type { Trip, TripApiPayload, TripApiResponse, TripStatus } from '../types/trip';
 import { mockAuthApi } from './mockAuthApi';
 
 /**
@@ -77,16 +77,15 @@ export const authApi = useMockAuth ? mockAuthApi : realAuthApi;
 /* ------------------------------------------------------------------ */
 /*  Trips API Module                                                  */
 /* ------------------------------------------------------------------ */
-
 /** Map a raw backend trip to the frontend Trip shape. */
 function mapTripFromApi(raw: TripApiResponse): Trip {
   return {
     id: raw.id,
     name: raw.title,
-    startDate: raw.start_date,
-    endDate: raw.end_date,
+    startDate: raw.start_date ? raw.start_date.split(/[T ]/)[0] : '',
+    endDate: raw.end_date ? raw.end_date.split(/[T ]/)[0] : '',
     totalBudget: raw.total_budget ?? 0,
-    status: raw.status,
+    status: raw.status ? (raw.status.toLowerCase() as TripStatus) : 'planning',
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
     countries: [],
@@ -176,6 +175,71 @@ export const destinationsApi = {
     } catch {
       return [];
     }
+  },
+};
+export interface ExpenseApiResponse {
+  id: number | string;
+  trip_id?: number | string;
+  name: string;
+  items: number;
+  category: string;
+  cost: number;
+  date: string;
+  created_at?: string;
+}
+
+export interface BudgetApiResponse {
+  balance: number;
+  expenses: ExpenseApiResponse[];
+}
+
+export const budgetApi = {
+  /** GET /trips/:tripId/budget — get trip balance and expense items */
+  getBudget: async (tripId: string | number): Promise<BudgetApiResponse> => {
+    const response = await api.get<BudgetApiResponse>(`/trips/${tripId}/budget`);
+    return response.data;
+  },
+
+  /** POST /trips/:tripId/budget/balance — add balance to trip total_budget */
+  addBalance: async (
+    tripId: string | number,
+    amount: number,
+  ): Promise<{ message: string; balance: number }> => {
+    const response = await api.post<{ message: string; balance: number }>(
+      `/trips/${tripId}/budget/balance`,
+      { amount },
+    );
+    return response.data;
+  },
+
+  /** POST /trips/:tripId/budget/expenses — add expense item and deduct from budget */
+  addExpense: async (
+    tripId: string | number,
+    payload: {
+      name: string;
+      items: number;
+      category: string;
+      cost: number;
+      date?: string;
+    },
+  ): Promise<{ message: string; expense: ExpenseApiResponse; balance: number }> => {
+    const response = await api.post<{
+      message: string;
+      expense: ExpenseApiResponse;
+      balance: number;
+    }>(`/trips/${tripId}/budget/expenses`, payload);
+    return response.data;
+  },
+
+  /** DELETE /trips/:tripId/budget/expenses/:expenseId — delete expense item and refund to budget */
+  deleteExpense: async (
+    tripId: string | number,
+    expenseId: string | number,
+  ): Promise<{ message: string; balance: number }> => {
+    const response = await api.delete<{ message: string; balance: number }>(
+      `/trips/${tripId}/budget/expenses/${expenseId}`,
+    );
+    return response.data;
   },
 };
 
