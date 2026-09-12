@@ -82,10 +82,10 @@ src/
 ├── lib/                # Route constants, storage keys, and client side-tables
 ├── pages/              # Home, Login, SignUp, Onboarding, Dashboard, Explore, MapView, TripWorkspace, Budget, Settings
 ├── services/           # Axios instance and API modules (authApi, tripsApi, destinationsApi, budgetApi)
-├── styles/             # Modular CSS files for Explore and Map views
 ├── types/              # TypeScript definitions (User, Trip, Destination, Category)
 ├── router.tsx          # Application router configuration
 ├── App.tsx             # Root application component
+├── index.css           # Global design system tokens and application styles
 └── main.tsx            # Entry point
 ```
 

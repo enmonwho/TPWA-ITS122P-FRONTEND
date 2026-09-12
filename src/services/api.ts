@@ -6,6 +6,12 @@ import axios, {
 import type { RegisterPayload, LoginPayload, AuthResponse, MeResponse } from '../types';
 import type { Destination, Category } from '../types/destination';
 import type { Trip, TripApiPayload, TripApiResponse, TripStatus } from '../types/trip';
+import type {
+  Booking,
+  BookingStatus,
+  Activity,
+  BookingCreatePayload,
+} from '../types/booking';
 import { mockAuthApi } from './mockAuthApi';
 
 /**
@@ -162,6 +168,22 @@ export const destinationsApi = {
     }
   },
 
+  /** GET /destinations?trip_id=:tripId — returns destinations for a specific trip. */
+  getByTripId: async (tripId: string | number): Promise<Destination[]> => {
+    try {
+      const response = await api.get<{ destinations?: Destination[] } | Destination[]>(
+        '/destinations',
+        { params: { trip_id: tripId } },
+      );
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
+      return response.data.destinations || [];
+    } catch {
+      return [];
+    }
+  },
+
   /** GET /categories — returns master travel categories/tags. */
   getCategories: async (): Promise<Category[]> => {
     try {
@@ -240,6 +262,82 @@ export const budgetApi = {
       `/trips/${tripId}/budget/expenses/${expenseId}`,
     );
     return response.data;
+  },
+};
+
+/* ------------------------------------------------------------------ */
+/*  Activities API Module                                             */
+/* ------------------------------------------------------------------ */
+
+export const activitiesApi = {
+  /** GET /activities — returns bookable activities catalog */
+  getAll: async (params?: {
+    destination_id?: number | string;
+    category_id?: number | string;
+    vendor_id?: number | string;
+  }): Promise<Activity[]> => {
+    try {
+      const response = await api.get<{ activities?: Activity[] } | Activity[]>(
+        '/activities',
+        { params },
+      );
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
+      return response.data.activities || [];
+    } catch {
+      return [];
+    }
+  },
+
+  /** GET /activities/:id — returns a single activity */
+  getById: async (id: number | string): Promise<Activity | null> => {
+    try {
+      const response = await api.get<{ activity: Activity }>(`/activities/${id}`);
+      return response.data.activity;
+    } catch {
+      return null;
+    }
+  },
+};
+
+/* ------------------------------------------------------------------ */
+/*  Bookings API Module                                               */
+/* ------------------------------------------------------------------ */
+
+export const bookingsApi = {
+  /** GET /bookings?status= — returns user's bookings with server error resilience */
+  getAll: async (status?: BookingStatus): Promise<Booking[]> => {
+    try {
+      const response = await api.get<{ bookings?: Booking[] } | Booking[]>('/bookings', {
+        params: status ? { status } : undefined,
+      });
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
+      return response.data.bookings || [];
+    } catch (err) {
+      console.warn('Backend /bookings endpoint notice, returning empty list:', err);
+      return [];
+    }
+  },
+
+  /** POST /bookings — submit a new booking */
+  create: async (payload: BookingCreatePayload): Promise<Booking> => {
+    const response = await api.post<{ message: string; booking: Booking }>(
+      '/bookings',
+      payload,
+    );
+    return response.data.booking;
+  },
+
+  /** PUT /bookings/:id — update booking status */
+  updateStatus: async (id: number | string, status: BookingStatus): Promise<Booking> => {
+    const response = await api.put<{ message: string; booking: Booking }>(
+      `/bookings/${id}`,
+      { status },
+    );
+    return response.data.booking;
   },
 };
 

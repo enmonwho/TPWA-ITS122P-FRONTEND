@@ -4,7 +4,6 @@ import GlobeMap from '../components/GlobeMap';
 import magnifierIcon from '../assets/magnifier.png';
 import { tripsApi, destinationsApi } from '../services/api';
 import type { Destination } from '../types/destination';
-import '../styles/Explore.css';
 
 export default function Explore() {
   const navigate = useNavigate();
