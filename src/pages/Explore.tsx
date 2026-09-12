@@ -29,13 +29,13 @@ export default function Explore() {
       const data = await destinationsApi.getAll();
       if (data && data.length > 0) {
         setDestinations(data);
-        setSelectedLocation(data[0].locationname);
+        setSelectedLocation(data[0].location_name);
       } else {
         setDestinations([
           {
             id: 1,
             trip_id: null,
-            locationname: 'Japan',
+            location_name: 'Japan',
             latitude: 35.6895,
             longitude: 139.6917,
             order_sequence: 1,
@@ -43,7 +43,7 @@ export default function Explore() {
           {
             id: 2,
             trip_id: null,
-            locationname: 'Palawan',
+            location_name: 'Palawan',
             latitude: 9.8349,
             longitude: 118.7384,
             order_sequence: 2,
@@ -51,7 +51,7 @@ export default function Explore() {
           {
             id: 3,
             trip_id: null,
-            locationname: 'Boracay',
+            location_name: 'Boracay',
             latitude: 11.9674,
             longitude: 121.9248,
             order_sequence: 3,
@@ -59,7 +59,7 @@ export default function Explore() {
           {
             id: 4,
             trip_id: null,
-            locationname: 'Italy',
+            location_name: 'Italy',
             latitude: 41.9028,
             longitude: 12.4964,
             order_sequence: 4,
@@ -67,7 +67,7 @@ export default function Explore() {
           {
             id: 5,
             trip_id: null,
-            locationname: 'Maldives',
+            location_name: 'Maldives',
             latitude: 3.2028,
             longitude: 73.2207,
             order_sequence: 5,
@@ -92,11 +92,11 @@ export default function Explore() {
     id: String(d.id),
     lng: Number(d.longitude),
     lat: Number(d.latitude),
-    title: d.locationname,
+    title: d.location_name,
   }));
 
   const filteredDestinations = destinations.filter((d) =>
-    d.locationname.toLowerCase().includes(searchQuery.toLowerCase()),
+    d.location_name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const handleStartPlanning = async (e: React.FormEvent) => {
@@ -217,13 +217,13 @@ export default function Explore() {
                     key={item.id}
                     className="carousel-card text-left"
                     onClick={() => {
-                      setSelectedLocation(item.locationname);
-                      setTripName(`Trip to ${item.locationname}`);
+                      setSelectedLocation(item.location_name);
+                      setTripName(`Trip to ${item.location_name}`);
                       setIsStartTripOpen(true);
                     }}
                   >
                     <div className="carousel-thumb" />
-                    <span className="carousel-label">{item.locationname}</span>
+                    <span className="carousel-label">{item.location_name}</span>
                   </button>
                 ))}
               </div>
@@ -261,13 +261,13 @@ export default function Explore() {
                     key={`island-${island.id}`}
                     className="carousel-card text-left"
                     onClick={() => {
-                      setSelectedLocation(island.locationname);
-                      setTripName(`Escape to ${island.locationname}`);
+                      setSelectedLocation(island.location_name);
+                      setTripName(`Escape to ${island.location_name}`);
                       setIsStartTripOpen(true);
                     }}
                   >
                     <div className="carousel-thumb" />
-                    <span className="carousel-label">{island.locationname}</span>
+                    <span className="carousel-label">{island.location_name}</span>
                   </button>
                 ))}
               </div>
@@ -355,8 +355,8 @@ export default function Explore() {
                     onChange={(e) => setSelectedLocation(e.target.value)}
                   >
                     {destinations.map((d) => (
-                      <option key={d.id} value={d.locationname}>
-                        {d.locationname}
+                      <option key={d.id} value={d.location_name}>
+                        {d.location_name}
                       </option>
                     ))}
                   </select>

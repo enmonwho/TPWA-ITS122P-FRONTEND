@@ -1,7 +1,7 @@
 export interface Destination {
   id: number;
   trip_id: number | null;
-  locationname: string;
+  location_name: string;
   latitude: number;
   longitude: number;
   order_sequence: number;
