@@ -243,4 +243,99 @@ export const budgetApi = {
   },
 };
 
+/* ------------------------------------------------------------------ */
+/*  Admin Dashboard API                                               */
+/* ------------------------------------------------------------------ */
+
+// Add these types and export adminApi in src/services/api.ts
+
+export interface AdminUser {
+  id: number;
+  name: string;
+  email: string;
+  role: 'ADMIN' | 'STAFF' | 'CUSTOMER';
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface AdminCategory {
+  id: number;
+  name: string;
+  type: string;
+  activity_count?: number;
+}
+
+export interface AdminActivity {
+  id: number;
+  title: string;
+  destination: string;
+  category: string;
+  cost: number;
+  status: string;
+}
+
+export interface SystemAuditLog {
+  id: number;
+  user_name: string;
+  action_type: string;
+  record_id: string;
+  description: string;
+  created_at: string;
+}
+
+export const adminApi = {
+  // Systems Report Analytics (FR-ADM-03)
+  getReports: async () => {
+    const res = await api.get('/api/admin/reports');
+    return res.data;
+  },
+
+  // User Management (FR-ADM-01)
+  getUsers: async (): Promise<AdminUser[]> => {
+    const res = await api.get('/api/admin/users');
+    return res.data;
+  },
+  toggleUserStatus: async (userId: number, isActive: boolean) => {
+    const res = await api.patch(`/api/admin/users/${userId}/status`, {
+      is_active: isActive,
+    });
+    return res.data;
+  },
+
+  // Categories & Activities (FR-ADM-02)
+  getCategories: async (): Promise<AdminCategory[]> => {
+    const res = await api.get('/api/categories');
+    return res.data;
+  },
+  createCategory: async (payload: { name: string; type: string }) => {
+    const res = await api.post('/api/categories', payload);
+    return res.data;
+  },
+  getActivities: async (): Promise<AdminActivity[]> => {
+    const res = await api.get('/api/activities');
+    return res.data;
+  },
+  createActivity: async (payload: {
+    title: string;
+    destination_id?: number;
+    category_id?: number;
+    cost: number;
+  }) => {
+    const res = await api.post('/api/activities', payload);
+    return res.data;
+  },
+
+  // Master Override & Audit Logs (FR-ADM-05)
+  getAuditLogs: async (): Promise<SystemAuditLog[]> => {
+    const res = await api.get('/api/admin/audit-logs');
+    return res.data;
+  },
+  overrideDeleteTrip: async (tripId: number, reason: string) => {
+    const res = await api.delete(`/api/admin/trips/${tripId}/override`, {
+      data: { reason },
+    });
+    return res.data;
+  },
+};
+
 export default api;

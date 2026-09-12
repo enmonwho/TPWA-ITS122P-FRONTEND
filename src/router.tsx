@@ -1,4 +1,5 @@
 import { createBrowserRouter } from 'react-router-dom';
+import AdminDashboard from './pages/admin/AdminDashboard';
 import { BaseLayout, DashboardLayout, TripWorkspaceLayout } from './layouts';
 import {
   Home,
@@ -45,6 +46,10 @@ const router = createBrowserRouter([
         element: <MapView />,
       },
     ],
+  },
+  {
+    path: '/admin',
+    element: <AdminDashboard />,
   },
   {
     path: '/login',

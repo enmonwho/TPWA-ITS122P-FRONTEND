@@ -1,0 +1,523 @@
+/* ==========================================================================
+   LakBye Admin Dashboard — Aligned to Customer Dashboard Design Tokens
+   ========================================================================== */
+
+.admin-layout-root {
+  background-color: var(--color-dash-bg);
+  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  padding: 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+  font-family: var(--font-sans);
+}
+
+/* Sidebar (Exact 145px width matching Customer Dashboard) */
+.admin-sidebar {
+  width: 145px;
+  min-width: 145px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0;
+  box-sizing: border-box;
+}
+
+.admin-logo-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.admin-logo-img {
+  width: 85px;
+  height: auto;
+  object-fit: contain;
+}
+
+.admin-divider {
+  width: 85%;
+  height: 1px;
+  background-color: var(--color-dash-divider);
+  margin: 12px auto;
+}
+
+.admin-profile-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 4px 8px;
+}
+
+.admin-profile-name {
+  font-family: 'Poppins', var(--font-sans);
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.15;
+  color: #000000;
+}
+
+.admin-role-badge {
+  background: var(--gradient-brand);
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 20px;
+  margin-top: 6px;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.admin-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  padding: 8px 12px;
+  flex: 1;
+  box-sizing: border-box;
+}
+
+.admin-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--color-dash-sidebar-text);
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-weight: 600;
+  font-size: 11px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  line-height: 1.2;
+  transition: all var(--transition-fast);
+}
+
+.admin-nav-item:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.admin-nav-item.active {
+  color: var(--color-brand-orange);
+}
+
+.admin-nav-item svg {
+  flex-shrink: 0;
+}
+
+.admin-nav-item.active svg {
+  stroke: var(--color-brand-orange);
+}
+
+.admin-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  color: var(--color-dash-sidebar-text);
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-weight: 600;
+  font-size: 11px;
+  cursor: pointer;
+  width: 100%;
+  justify-content: flex-start;
+  padding-left: 20px;
+  transition: opacity var(--transition-fast);
+}
+
+.admin-logout-btn:hover {
+  opacity: 0.75;
+}
+
+/* Main Content Outer Frame */
+.admin-main-canvas {
+  flex: 1;
+  background-color: var(--color-dash-panel);
+  border-radius: 16px;
+  box-shadow: 0px 0px 4px 0px rgba(0, 0, 0, 0.25);
+  border: 0.5px solid var(--color-dash-divider);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: calc(100vh - 16px);
+  box-sizing: border-box;
+}
+
+/* Inner White Cards */
+.admin-card-panel {
+  background-color: #ffffff;
+  border-radius: 12px;
+  border: 1px solid var(--color-dash-border);
+  box-shadow: 0px 1.5px 3.8px rgba(0, 0, 0, 0.2);
+  padding: 20px 24px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.admin-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.admin-panel-title {
+  font-family: 'Poppins', var(--font-sans);
+  font-weight: 700;
+  font-size: 20px;
+  color: #000000;
+}
+
+.admin-header-rule {
+  height: 1px;
+  background-color: var(--color-dash-divider);
+  margin: 0 -24px 16px -24px;
+}
+
+/* Button Pill with Gradient Border */
+.btn-admin-pill-gradient {
+  background-color: #ffffff;
+  border: 1px solid transparent;
+  background-image: linear-gradient(#ffffff, #ffffff), var(--gradient-brand);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  border-radius: 20px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px;
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--color-dash-muted);
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+}
+
+.btn-admin-pill-gradient:hover {
+  transform: scale(1.02);
+}
+
+/* Search Bar */
+.admin-pill-search {
+  background: #ffffff;
+  border: 1px solid rgba(69, 69, 69, 0.5);
+  border-radius: 20px;
+  height: 32px;
+  width: 240px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 8px;
+  box-sizing: border-box;
+  margin-bottom: 16px;
+}
+
+.admin-pill-search input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: 'Poppins', var(--font-sans);
+  font-size: 12px;
+  width: 100%;
+}
+
+/* Watermark */
+.admin-watermark {
+  position: absolute;
+  top: 55%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.05;
+  width: 65%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ==========================================================================
+   TAB 1: Systems Report Grid
+   ========================================================================== */
+
+.systems-report-grid {
+  display: grid;
+  grid-template-columns: 240px 1fr 1fr;
+  gap: 16px;
+  height: calc(100% - 50px);
+}
+
+.systems-stat-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+}
+
+.sys-stat-card {
+  flex: 1;
+  border-radius: 12px;
+  padding: 12px 16px;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.sys-stat-card--gold {
+  background: linear-gradient(135deg, #ffc857 0%, #e9724c 100%);
+}
+
+.sys-stat-card--red {
+  background: linear-gradient(135deg, #c5283d 0%, #7b0414 100%);
+}
+
+.sys-stat-label {
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+  opacity: 0.9;
+  letter-spacing: 0.5px;
+}
+
+.sys-stat-val {
+  font-family: 'Poppins', var(--font-sans);
+  font-weight: 700;
+  font-size: 32px;
+  line-height: 1.1;
+}
+
+.sys-stat-sub {
+  font-family: 'Poppins', var(--font-sans);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.15;
+  margin-top: 4px;
+}
+
+.systems-center-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+}
+
+.systems-right-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+}
+
+.sys-placeholder-box {
+  background-color: #d1d5db;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-family: 'Poppins', var(--font-sans);
+  font-weight: 600;
+  font-size: 13px;
+  text-align: center;
+  padding: 12px;
+}
+
+/* ==========================================================================
+   TAB 2 & 3: Tables
+   ========================================================================== */
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  position: relative;
+  z-index: 1;
+}
+
+.admin-table th {
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-weight: 700;
+  font-size: 11px;
+  color: #000000;
+  padding: 10px 8px;
+  border-bottom: 1px solid #454545;
+  text-align: center;
+}
+
+.admin-table td {
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-size: 11px;
+  color: #000000;
+  padding: 14px 8px;
+  border-bottom: 1px solid #ececec;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.admin-badge-active {
+  background-color: #428525;
+  color: #ffffff;
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: 8px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.admin-badge-inactive {
+  background-color: #7e7e7e;
+  color: #ffffff;
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: 8px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Filter bar for User Management */
+.admin-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.admin-filter-pill {
+  height: 28px;
+  border-radius: 20px;
+  border: 1px solid rgba(72, 42, 19, 0.2);
+  background: #ffffff;
+  padding: 0 14px;
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-dash-muted);
+  cursor: pointer;
+}
+
+/* Split View for Categories & Activities */
+.admin-split-view {
+  display: flex;
+  gap: 14px;
+  height: 100%;
+}
+
+/* ==========================================================================
+   TAB 4: Master Records Override
+   ========================================================================== */
+
+.master-records-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.master-forms-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.master-field-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.master-field-label {
+  width: 70px;
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-weight: 700;
+  font-size: 12px;
+  text-align: right;
+  color: #000000;
+}
+
+.master-field-input {
+  flex: 1;
+  height: 32px;
+  border-radius: 20px;
+  border: 1px solid rgba(72, 42, 19, 0.2);
+  background-color: #fafafa;
+  padding: 0 14px;
+  font-size: 12px;
+  outline: none;
+}
+
+.btn-master-danger {
+  background-color: var(--color-brand-red);
+  color: #ffffff;
+  border: none;
+  border-radius: 20px;
+  height: 32px;
+  padding: 0 24px;
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-weight: 700;
+  font-size: 11px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  margin-top: 6px;
+}
+
+/* Modals */
+.admin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.admin-modal-box {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 24px 28px;
+  width: 420px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.admin-modal-title {
+  font-family: 'Poppins', var(--font-sans);
+  font-weight: 700;
+  font-size: 16px;
+  margin-bottom: 16px;
+}
+
+.admin-modal-input-field {
+  width: 100%;
+  border: 1px solid rgba(72, 42, 19, 0.25);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  margin-bottom: 12px;
+  box-sizing: border-box;
+  outline: none;
+}

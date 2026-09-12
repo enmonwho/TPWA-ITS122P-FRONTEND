@@ -25,8 +25,25 @@ export default function Login() {
 
     try {
       const response = await authApi.login({ email, password });
+
+      // Update global auth state
       setUser(response.user);
-      navigate(ROUTES.DASHBOARD);
+
+      // Store credentials & user session locally
+      if (response.token) {
+        localStorage.setItem('token', response.token);
+      }
+      localStorage.setItem('user', JSON.stringify(response.user));
+
+      // Dynamic role-based redirection
+      const userRole = response.user?.role?.toUpperCase();
+      if (userRole === 'ADMIN' || userRole === 'ADMINISTRATOR') {
+        navigate('/admin');
+      } else if (userRole === 'STAFF') {
+        navigate('/staff');
+      } else {
+        navigate(ROUTES.DASHBOARD);
+      }
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.data?.message) {
         setErrorMessage(err.response.data.message);
