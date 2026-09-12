@@ -6,6 +6,8 @@ import {
   Onboarding,
   SignUp,
   Dashboard,
+  Explore,
+  MapView,
   TripWorkspace,
   Budget,
   Settings,
@@ -14,8 +16,7 @@ import {
 /**
  * Application router configuration.
  *
- * All routes are nested inside BaseLayout so they share
- * the common Header/Footer chrome. Add new routes here.
+ * Sub-routes under /dashboard share DashboardLayout (sidebar/navigation).
  */
 const router = createBrowserRouter([
   {
@@ -34,6 +35,14 @@ const router = createBrowserRouter([
       {
         path: '',
         element: <Dashboard />,
+      },
+      {
+        path: 'explore',
+        element: <Explore />,
+      },
+      {
+        path: 'map',
+        element: <MapView />,
       },
     ],
   },

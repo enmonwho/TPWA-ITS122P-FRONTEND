@@ -6,3 +6,5 @@ export { default as Dashboard } from './Dashboard';
 export { default as TripWorkspace } from './TripWorkspace';
 export { Budget } from './Budget';
 export { Settings } from './Settings';
+export { default as MapView } from './MapView';
+export { default as Explore } from './Explore';
