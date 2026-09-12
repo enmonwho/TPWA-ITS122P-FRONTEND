@@ -1,6 +1,6 @@
 # ✈️ LakBye: Travel Planner Web Application — Frontend Client
 
-**Course:** ITS122P - Web-Based Smart Service Management System  
+**Course:** ITS122P - WEB SYSTEMS AND TECHNOLOGIES 2
 **Section:** AM2 | Group 2  
 **Date:** September 2026  
 **Status:** Phase 2 (User Interface & API Integration) — Active Sprint
