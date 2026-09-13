@@ -3,7 +3,6 @@ import GlobeMap from '../components/GlobeMap';
 import magnifierIcon from '../assets/magnifier.png';
 import { tripsApi } from '../services/api';
 import type { Trip } from '../types/trip';
-import '../styles/Map.css';
 
 interface PlaceItem {
   id: string;

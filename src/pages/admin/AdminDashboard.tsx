@@ -24,17 +24,11 @@ import type {
   SystemAuditLog,
 } from '../../services/api';
 import type { Trip } from '../../types/trip';
+import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import '../../styles/Admin.css';
 
 type Tab = 'systems' | 'users' | 'categories' | 'master';
-
-interface SystemsMetrics {
-  monthlyBookings: number;
-  mostRequestedDestination: string;
-  totalPlannedBudgets: number;
-  totalActiveUsers: number;
-}
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('categories');
@@ -120,123 +114,95 @@ export default function AdminDashboard() {
 // TAB 1: Systems Report (FR-ADM-03, FR-ADM-04)
 // ============================================================================
 function SystemsReportTab() {
-  const [metrics, setMetrics] = useState<SystemsMetrics>({
-    monthlyBookings: 0,
-    mostRequestedDestination: 'No data',
-    totalPlannedBudgets: 0,
-    totalActiveUsers: 0,
-  });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-    const loadReportData = async () => {
-      try {
-        const data = await adminApi.getReports();
-        if (isMounted && data) {
-          setMetrics({
-            monthlyBookings: data.monthlyBookings ?? 0,
-            mostRequestedDestination:
-              data.mostRequestedDestination || 'No destination data',
-            totalPlannedBudgets: data.totalPlannedBudgets ?? 0,
-            totalActiveUsers: data.totalActiveUsers ?? 0,
-          });
-        }
-      } catch (err) {
-        console.error('Failed to load systems report:', err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-    loadReportData();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const handleExport = () => {
-    const csvContent =
-      'data:text/csv;charset=utf-8,' +
-      [
-        'Metric,Value',
-        `Total Monthly Bookings,${metrics.monthlyBookings}`,
-        `Most Requested Destination,"${metrics.mostRequestedDestination}"`,
-        `Total Planned Budgets,${metrics.totalPlannedBudgets}`,
-        `Total Active Users,${metrics.totalActiveUsers}`,
-      ].join('\n');
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute(
-      'download',
-      `LakBye_Systems_Report_${new Date().toISOString().split('T')[0]}.csv`,
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   return (
     <div className="admin-card-panel">
       <div className="admin-panel-header">
         <h1 className="admin-panel-title">LakBye Systems Report</h1>
-        <button type="button" className="btn-admin-pill-gradient" onClick={handleExport}>
+        <button
+          type="button"
+          className="btn-admin-pill-gradient"
+          disabled
+          style={{ opacity: 0.5, cursor: 'not-allowed' }}
+          title="Export unavailable until backend reporting routes are deployed"
+        >
           <Download size={13} /> Export Report
         </button>
       </div>
 
       <div className="admin-header-rule" />
 
-      {loading ? (
-        <div className="flex items-center justify-center h-full text-stone-500 text-sm">
-          Loading live systems analytics...
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '60px 24px',
+          textAlign: 'center',
+          height: 'calc(100% - 60px)',
+          boxSizing: 'border-box',
+        }}
+      >
+        <div
+          style={{
+            width: '64px',
+            height: '64px',
+            borderRadius: '50%',
+            backgroundColor: '#FFF7ED',
+            border: '1px solid #FFEDD5',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '20px',
+            color: '#EA580C',
+          }}
+        >
+          <AlertTriangle size={32} />
         </div>
-      ) : (
-        <div className="systems-report-grid">
-          <div className="systems-stat-stack">
-            <div className="sys-stat-card sys-stat-card--gold">
-              <div className="sys-stat-label">TOTAL Monthly Bookings</div>
-              <div className="sys-stat-val">
-                {metrics.monthlyBookings.toLocaleString()}
-              </div>
-            </div>
-            <div className="sys-stat-card sys-stat-card--red">
-              <div className="sys-stat-label">MOST Requested Destination</div>
-              <div className="sys-stat-sub">{metrics.mostRequestedDestination}</div>
-            </div>
-            <div className="sys-stat-card sys-stat-card--gold">
-              <div className="sys-stat-label">TOTAL Planned Budgets</div>
-              <div className="sys-stat-val">
-                ₱{(metrics.totalPlannedBudgets / 1000).toFixed(1)}K
-              </div>
-            </div>
-            <div className="sys-stat-card sys-stat-card--gold">
-              <div className="sys-stat-label">TOTAL Active Users</div>
-              <div className="sys-stat-val">
-                {metrics.totalActiveUsers.toLocaleString()}
-              </div>
-            </div>
-          </div>
-
-          <div className="systems-center-stack">
-            <div className="sys-placeholder-box flex-1">
-              Users (New, Active, Inactive)
-            </div>
-            <div className="sys-placeholder-box flex-1">Monthly Bookings</div>
-            <div className="sys-placeholder-box flex-1">Avg. Session Duration</div>
-          </div>
-
-          <div className="systems-right-stack">
-            <div className="sys-placeholder-box" style={{ height: '31%' }}>
-              Monthly Planned Budget
-            </div>
-            <div className="sys-placeholder-box flex-1">
-              Top 5 Most Requested Destinations
-            </div>
-          </div>
+        <h2
+          style={{
+            fontFamily: 'Poppins, var(--font-sans)',
+            fontWeight: 700,
+            fontSize: '20px',
+            color: '#1F2937',
+            marginBottom: '8px',
+          }}
+        >
+          Systems Report Not Available Yet
+        </h2>
+        <p
+          style={{
+            fontFamily: 'SF Pro Rounded, var(--font-sans)',
+            fontSize: '14px',
+            color: '#6B7280',
+            maxWidth: '460px',
+            lineHeight: 1.6,
+            marginBottom: '24px',
+          }}
+        >
+          Aggregated analytics and system reporting are currently{' '}
+          <strong style={{ color: '#9A3412' }}>blocked on backend implementation</strong>.
+          The backend does not yet provide dedicated reporting or metrics endpoints
+          (FR-ADM-03 / FR-ADM-04).
+        </p>
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '11px',
+            fontWeight: 700,
+            color: '#9A3412',
+            backgroundColor: '#FFEDD5',
+            padding: '6px 16px',
+            borderRadius: '20px',
+            letterSpacing: '0.4px',
+            textTransform: 'uppercase',
+          }}
+        >
+          <span>BLOCKED — NEEDS BACKEND ROUTE</span>
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -281,16 +247,20 @@ function UserManagementTab() {
 
   const filteredUsers = useMemo(() => {
     return users
-      .filter(
-        (u) =>
-          u.name.toLowerCase().includes(search.toLowerCase()) ||
-          u.email.toLowerCase().includes(search.toLowerCase()),
-      )
+      .filter((u) => {
+        const displayName = u.full_name || u.name || '';
+        return (
+          displayName.toLowerCase().includes(search.toLowerCase()) ||
+          u.email.toLowerCase().includes(search.toLowerCase())
+        );
+      })
       .sort((a, b) => {
+        const nameA = a.full_name || a.name || '';
+        const nameB = b.full_name || b.name || '';
         if (sortField === 'name') {
           return sortOrder === 'asc'
-            ? a.name.localeCompare(b.name)
-            : b.name.localeCompare(a.name);
+            ? nameA.localeCompare(nameB)
+            : nameB.localeCompare(nameA);
         }
         if (sortField === 'status') {
           return a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1;
@@ -299,7 +269,9 @@ function UserManagementTab() {
           return a.role.localeCompare(b.role);
         }
         if (sortField === 'date') {
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return timeB - timeA;
         }
         return 0;
       });
@@ -398,14 +370,16 @@ function UserManagementTab() {
                     <td className="font-mono text-xs">
                       USR-{String(u.id).padStart(3, '0')}
                     </td>
-                    <td className="font-semibold">{u.name}</td>
+                    <td className="font-semibold">{u.full_name || u.name || 'User'}</td>
                     <td>{u.email}</td>
                     <td>
-                      {new Date(u.created_at).toLocaleDateString('en-US', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      })}
+                      {u.created_at
+                        ? new Date(u.created_at).toLocaleDateString('en-US', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })
+                        : '—'}
                     </td>
                     <td className="font-bold">{u.role}</td>
                     <td>
@@ -474,6 +448,8 @@ function CategoriesActivitiesTab() {
   // Forms
   const [categoryName, setCategoryName] = useState('');
   const [categoryType, setCategoryType] = useState('');
+  const [isSavingCat, setIsSavingCat] = useState(false);
+  const [catError, setCatError] = useState<string | null>(null);
 
   const [activityName, setActivityName] = useState('');
   const [activityDest, setActivityDest] = useState('');
@@ -525,18 +501,29 @@ function CategoriesActivitiesTab() {
   const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!categoryName.trim()) return;
+    setIsSavingCat(true);
+    setCatError(null);
 
     try {
       await adminApi.createCategory({
-        name: categoryName,
-        type: categoryType || 'General',
+        name: categoryName.trim(),
+        type: categoryType.trim() || 'General',
       });
       setCatModalOpen(false);
       setCategoryName('');
       setCategoryType('');
       await refreshData();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to create category:', err);
+      if (axios.isAxiosError(err) && err.response?.data?.message) {
+        setCatError(err.response.data.message);
+      } else if (err instanceof Error) {
+        setCatError(err.message);
+      } else {
+        setCatError('Failed to create category. Please check permissions.');
+      }
+    } finally {
+      setIsSavingCat(false);
     }
   };
 
@@ -617,23 +604,26 @@ function CategoriesActivitiesTab() {
                 </tr>
               </thead>
               <tbody>
-                {filteredCategories.map((c) => (
-                  <tr key={c.id}>
-                    <td>C{String(c.id).padStart(3, '0')}</td>
-                    <td className="font-semibold">{c.name}</td>
-                    <td>{c.type}</td>
-                    <td>{c.activity_count ?? 0}</td>
-                    <td>
-                      <button
-                        type="button"
-                        aria-label="Edit category"
-                        className="text-stone-500 hover:text-black"
-                      >
-                        <Edit size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {filteredCategories.map((c) => {
+                  const catId = c.id ?? c.categoryid ?? 0;
+                  return (
+                    <tr key={catId}>
+                      <td>C{String(catId).padStart(3, '0')}</td>
+                      <td className="font-semibold">{c.name}</td>
+                      <td>{c.type}</td>
+                      <td>{c.activity_count ?? 0}</td>
+                      <td>
+                        <button
+                          type="button"
+                          aria-label="Edit category"
+                          className="text-stone-500 hover:text-black"
+                        >
+                          <Edit size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -718,6 +708,23 @@ function CategoriesActivitiesTab() {
         <div className="admin-modal-overlay" role="dialog" aria-modal="true">
           <form onSubmit={handleSaveCategory} className="admin-modal-box">
             <h3 className="admin-modal-title">Add New Category</h3>
+
+            {catError && (
+              <div
+                style={{
+                  backgroundColor: '#FEF2F2',
+                  border: '1px solid #FCA5A5',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  color: '#991B1B',
+                  marginBottom: '12px',
+                }}
+              >
+                {catError}
+              </div>
+            )}
+
             <div>
               <label
                 htmlFor="cat-name-input"
@@ -731,7 +738,10 @@ function CategoriesActivitiesTab() {
                 required
                 placeholder="e.g. Nature & Hiking"
                 value={categoryName}
-                onChange={(e) => setCategoryName(e.target.value)}
+                onChange={(e) => {
+                  setCategoryName(e.target.value);
+                  if (catError) setCatError(null);
+                }}
                 className="admin-modal-input-field"
               />
             </div>
@@ -747,7 +757,10 @@ function CategoriesActivitiesTab() {
                 type="text"
                 placeholder="e.g. outdoor"
                 value={categoryType}
-                onChange={(e) => setCategoryType(e.target.value)}
+                onChange={(e) => {
+                  setCategoryType(e.target.value);
+                  if (catError) setCatError(null);
+                }}
                 className="admin-modal-input-field"
               />
             </div>
@@ -755,12 +768,19 @@ function CategoriesActivitiesTab() {
               <button
                 type="button"
                 className="px-4 py-1.5 text-xs text-stone-600 font-semibold"
-                onClick={() => setCatModalOpen(false)}
+                onClick={() => {
+                  setCatModalOpen(false);
+                  setCatError(null);
+                }}
               >
                 Cancel
               </button>
-              <button type="submit" className="btn-admin-pill-gradient">
-                Save Category
+              <button
+                type="submit"
+                disabled={isSavingCat || !categoryName.trim()}
+                className="btn-admin-pill-gradient disabled:opacity-50"
+              >
+                {isSavingCat ? 'Saving...' : 'Save Category'}
               </button>
             </div>
           </form>
@@ -937,12 +957,14 @@ function MasterRecordsTab() {
     if (!userSearch.trim()) return;
     try {
       const usersList = await adminApi.getUsers();
-      const match = usersList.find(
-        (u) =>
+      const match = usersList.find((u) => {
+        const displayName = (u.full_name || u.name || '').toLowerCase();
+        return (
           String(u.id) === userSearch.trim() ||
           u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
-          u.name.toLowerCase().includes(userSearch.toLowerCase()),
-      );
+          displayName.includes(userSearch.toLowerCase())
+        );
+      });
       setFoundUser(match || null);
     } catch {
       setFoundUser(null);
@@ -1025,21 +1047,21 @@ function MasterRecordsTab() {
             />
           </div>
 
-          <div className="text-center mt-2">
+          <div className="flex justify-end mt-2">
             <button
               type="button"
               disabled={!foundTrip}
               className="btn-master-danger disabled:opacity-50"
               onClick={() => setIsDeletingTrip(true)}
             >
-              Force Delete Trip
+              Master Force Delete Trip
             </button>
           </div>
         </div>
 
         {/* User Override Card */}
         <div className="admin-card-panel">
-          <h2 className="text-sm font-bold mb-3">User Records Override</h2>
+          <h2 className="text-sm font-bold mb-3">User Deactivation Override</h2>
           <form onSubmit={handleSearchUser} className="admin-pill-search w-full mb-4">
             <Search size={14} className="text-stone-400" />
             <input
@@ -1064,55 +1086,49 @@ function MasterRecordsTab() {
             />
           </div>
           <div className="master-field-row">
-            <span className="master-field-label">Name:</span>
+            <span className="master-field-label">Full Name:</span>
             <input
               type="text"
               className="master-field-input"
               readOnly
-              value={foundUser ? foundUser.name : '—'}
+              value={foundUser ? foundUser.full_name || foundUser.name || 'User' : '—'}
             />
           </div>
           <div className="master-field-row">
-            <span className="master-field-label">Email:</span>
+            <span className="master-field-label">Role:</span>
             <input
               type="text"
               className="master-field-input"
               readOnly
-              value={foundUser ? foundUser.email : '—'}
+              value={foundUser ? foundUser.role : '—'}
             />
           </div>
           <div className="master-field-row">
             <span className="master-field-label">Status:</span>
             <input
               type="text"
-              className="master-field-input"
+              className="master-field-input font-bold"
               readOnly
               value={foundUser ? (foundUser.is_active ? 'ACTIVE' : 'INACTIVE') : '—'}
             />
           </div>
 
-          <div className="text-center mt-2">
+          <div className="flex justify-end mt-2">
             <button
               type="button"
               disabled={!foundUser || !foundUser.is_active}
               className="btn-master-danger disabled:opacity-50"
               onClick={handleDeactivateFoundUser}
             >
-              Deactivate User
+              Master Force Deactivate
             </button>
           </div>
         </div>
       </div>
 
-      {/* Override Activity Log */}
-      <div className="admin-card-panel flex-1">
-        <img src={lakbyeLogo} alt="" className="admin-watermark" />
-        <h2
-          className="text-sm font-bold mb-3"
-          style={{ color: 'var(--color-brand-red)' }}
-        >
-          Override Activity Log
-        </h2>
+      {/* System Audit Logs Section */}
+      <div className="admin-card-panel flex-1 min-h-[220px]">
+        <h2 className="text-sm font-bold mb-3">Immutable System Audit Trail</h2>
 
         <div className="overflow-x-auto flex-1">
           {loadingLogs ? (
@@ -1195,7 +1211,7 @@ function MasterRecordsTab() {
               <button
                 type="button"
                 disabled={!deleteReason.trim()}
-                className="btn-master-danger !mt-0 disabled:opacity-50"
+                className="btn-master-danger mt-0! disabled:opacity-50"
                 onClick={handleForceDeleteTrip}
               >
                 Confirm Delete

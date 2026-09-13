@@ -4,7 +4,8 @@ import addMembersIcon from '../assets/add-members.png';
 import routeIcon from '../assets/route.png';
 import dayByDayIcon from '../assets/day-by-day.png';
 import magnifierIcon from '../assets/magnifier.png';
-import { MapPlaceholder } from '../components';
+import { GlobeMap } from '../components';
+import { getCoordinatesForName } from '../constants/coordinates';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../lib/constants';
 import type { Trip } from '../types/trip';
@@ -20,6 +21,8 @@ export interface Destination {
   accommodation?: string;
   activities?: string;
   transportation?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export default function TripWorkspace() {
@@ -53,16 +56,24 @@ export default function TripWorkspace() {
         const merged = mergeTripWithExtras(apiTrip);
         setTrip(merged);
 
-        // Initialize destinations from extras countries
-        const initialDests: Destination[] = (merged.countries || []).map((c, i) => ({
-          id: `dest-${i + 1}`,
-          name: c,
-          country: c,
-          nights: Math.max(1, Math.floor(merged.nights / (merged.countries.length || 1))),
-          accommodation: 'Selected Hotel',
-          activities: 'Sightseeing & Culture',
-          transportation: 'Flight / Express Train',
-        }));
+        // Initialize destinations from extras countries with coordinates
+        const initialDests: Destination[] = (merged.countries || []).map((c, i) => {
+          const coords = getCoordinatesForName(c);
+          return {
+            id: `dest-${i + 1}`,
+            name: c,
+            country: c,
+            nights: Math.max(
+              1,
+              Math.floor(merged.nights / (merged.countries.length || 1)),
+            ),
+            accommodation: 'Selected Hotel',
+            activities: 'Sightseeing & Culture',
+            transportation: 'Flight / Express Train',
+            latitude: coords ? coords[1] : undefined,
+            longitude: coords ? coords[0] : undefined,
+          };
+        });
         setDestinations(initialDests);
         if (initialDests.length > 0) {
           setActiveDestinationId(initialDests[0].id);
@@ -93,13 +104,18 @@ export default function TripWorkspace() {
     e.preventDefault();
     if (!newDestInput.trim()) return;
 
+    const name = newDestInput.trim();
+    const coords = getCoordinatesForName(name);
+
     const newDest: Destination = {
       id: `dest-custom-${Date.now()}`,
-      name: newDestInput.trim(),
+      name,
       nights: 3,
       accommodation: 'TBD Hotel',
       activities: 'Local Exploration',
       transportation: 'Train / Taxi',
+      latitude: coords ? coords[1] : undefined,
+      longitude: coords ? coords[0] : undefined,
     };
 
     const updated = [...destinations, newDest];
@@ -107,6 +123,28 @@ export default function TripWorkspace() {
     setActiveDestinationId(newDest.id);
     setNewDestInput('');
   };
+
+  // Convert destinations to Mapbox globe markers
+  const globeMarkers = destinations
+    .map((dest, index) => {
+      const coords =
+        dest.longitude != null && dest.latitude != null
+          ? ([dest.longitude, dest.latitude] as [number, number])
+          : getCoordinatesForName(dest.name) ||
+            (dest.country ? getCoordinatesForName(dest.country) : null);
+
+      if (!coords) return null;
+
+      return {
+        id: dest.id,
+        lng: coords[0],
+        lat: coords[1],
+        title: `${index + 1}. ${dest.name}`,
+      };
+    })
+    .filter(
+      (m): m is { id: string; lng: number; lat: number; title: string } => m !== null,
+    );
 
   const handleDeleteDestination = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -271,7 +309,12 @@ export default function TripWorkspace() {
 
         {/* Map Zone (Right) */}
         <div className="workspace-map-zone animate-slide-up delay-300">
-          <MapPlaceholder />
+          <GlobeMap
+            markers={globeMarkers}
+            activeMarkerId={activeDestinationId}
+            onMarkerClick={(id) => setActiveDestinationId(id)}
+            showRouteLines={activeTab === 'route'}
+          />
         </div>
       </div>
     </div>

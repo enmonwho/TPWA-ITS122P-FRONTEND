@@ -4,6 +4,7 @@ export { default as ErrorBoundary } from './ErrorBoundary';
 export { default as Spinner } from './Spinner';
 export { default as AuthLayout } from './AuthLayout';
 export { default as MapPlaceholder } from './MapPlaceholder';
+export { default as GlobeMap } from './GlobeMap';
 export { default as CalendarPopover } from './CalendarPopover';
 export { CountryAutocomplete } from './CountryAutocomplete';
 export { DateRangePicker } from './DateRangePicker';

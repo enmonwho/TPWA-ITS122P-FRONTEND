@@ -8,3 +8,4 @@ export { Budget } from './Budget';
 export { Settings } from './Settings';
 export { default as MapView } from './MapView';
 export { default as Explore } from './Explore';
+export { default as Bookings } from './Bookings';

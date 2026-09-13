@@ -6,6 +6,12 @@ import axios, {
 import type { RegisterPayload, LoginPayload, AuthResponse, MeResponse } from '../types';
 import type { Destination, Category } from '../types/destination';
 import type { Trip, TripApiPayload, TripApiResponse, TripStatus } from '../types/trip';
+import type {
+  Booking,
+  BookingStatus,
+  Activity,
+  BookingCreatePayload,
+} from '../types/booking';
 import { mockAuthApi } from './mockAuthApi';
 
 /**
@@ -162,6 +168,22 @@ export const destinationsApi = {
     }
   },
 
+  /** GET /destinations?trip_id=:tripId — returns destinations for a specific trip. */
+  getByTripId: async (tripId: string | number): Promise<Destination[]> => {
+    try {
+      const response = await api.get<{ destinations?: Destination[] } | Destination[]>(
+        '/destinations',
+        { params: { trip_id: tripId } },
+      );
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
+      return response.data.destinations || [];
+    } catch {
+      return [];
+    }
+  },
+
   /** GET /categories — returns master travel categories/tags. */
   getCategories: async (): Promise<Category[]> => {
     try {
@@ -244,22 +266,98 @@ export const budgetApi = {
 };
 
 /* ------------------------------------------------------------------ */
+/*  Activities API Module                                             */
+/* ------------------------------------------------------------------ */
+
+export const activitiesApi = {
+  /** GET /activities — returns bookable activities catalog */
+  getAll: async (params?: {
+    destination_id?: number | string;
+    category_id?: number | string;
+    vendor_id?: number | string;
+  }): Promise<Activity[]> => {
+    try {
+      const response = await api.get<{ activities?: Activity[] } | Activity[]>(
+        '/activities',
+        { params },
+      );
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
+      return response.data.activities || [];
+    } catch {
+      return [];
+    }
+  },
+
+  /** GET /activities/:id — returns a single activity */
+  getById: async (id: number | string): Promise<Activity | null> => {
+    try {
+      const response = await api.get<{ activity: Activity }>(`/activities/${id}`);
+      return response.data.activity;
+    } catch {
+      return null;
+    }
+  },
+};
+
+/* ------------------------------------------------------------------ */
+/*  Bookings API Module                                               */
+/* ------------------------------------------------------------------ */
+
+export const bookingsApi = {
+  /** GET /bookings?status= — returns user's bookings with server error resilience */
+  getAll: async (status?: BookingStatus): Promise<Booking[]> => {
+    try {
+      const response = await api.get<{ bookings?: Booking[] } | Booking[]>('/bookings', {
+        params: status ? { status } : undefined,
+      });
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
+      return response.data.bookings || [];
+    } catch (err) {
+      console.warn('Backend /bookings endpoint notice, returning empty list:', err);
+      return [];
+    }
+  },
+
+  /** POST /bookings — submit a new booking */
+  create: async (payload: BookingCreatePayload): Promise<Booking> => {
+    const response = await api.post<{ message: string; booking: Booking }>(
+      '/bookings',
+      payload,
+    );
+    return response.data.booking;
+  },
+
+  /** PUT /bookings/:id — update booking status */
+  updateStatus: async (id: number | string, status: BookingStatus): Promise<Booking> => {
+    const response = await api.put<{ message: string; booking: Booking }>(
+      `/bookings/${id}`,
+      { status },
+    );
+    return response.data.booking;
+  },
+};
+
+/* ------------------------------------------------------------------ */
 /*  Admin Dashboard API                                               */
 /* ------------------------------------------------------------------ */
 
-// Add these types and export adminApi in src/services/api.ts
-
 export interface AdminUser {
   id: number;
-  name: string;
+  full_name?: string;
+  name?: string;
   email: string;
-  role: 'ADMIN' | 'STAFF' | 'CUSTOMER';
+  role: 'admin' | 'staff' | 'customer' | 'vendor' | string;
   is_active: boolean;
-  created_at: string;
+  created_at?: string;
 }
 
 export interface AdminCategory {
   id: number;
+  categoryid?: number;
   name: string;
   type: string;
   activity_count?: number;
@@ -268,70 +366,115 @@ export interface AdminCategory {
 export interface AdminActivity {
   id: number;
   title: string;
-  destination: string;
-  category: string;
+  destination?: string;
+  category?: string;
   cost: number;
-  status: string;
+  status?: string;
 }
 
 export interface SystemAuditLog {
   id: number;
-  user_name: string;
+  user_id?: number;
+  user_name?: string;
   action_type: string;
-  record_id: string;
+  table_affected?: string;
+  record_id?: string | number;
   description: string;
   created_at: string;
 }
 
 export const adminApi = {
-  // Systems Report Analytics (FR-ADM-03)
+  // Systems Report Analytics (FR-ADM-03) — Blocked: no dedicated backend reports route
   getReports: async () => {
-    const res = await api.get('/api/admin/reports');
-    return res.data;
+    return null;
   },
 
-  // User Management (FR-ADM-01)
+  // User Management (FR-ADM-01) — Real routes: GET /users, PUT /users/:id
   getUsers: async (): Promise<AdminUser[]> => {
-    const res = await api.get('/api/admin/users');
-    return res.data;
+    try {
+      const res = await api.get<{ users: AdminUser[] } | AdminUser[]>('/users');
+      if (Array.isArray(res.data)) {
+        return res.data;
+      }
+      return res.data.users || [];
+    } catch {
+      return [];
+    }
   },
   toggleUserStatus: async (userId: number, isActive: boolean) => {
-    const res = await api.patch(`/api/admin/users/${userId}/status`, {
+    const res = await api.put<{ message: string; user: AdminUser }>(`/users/${userId}`, {
       is_active: isActive,
     });
     return res.data;
   },
 
-  // Categories & Activities (FR-ADM-02)
+  // Categories & Activities (FR-ADM-02) — Real routes: GET/POST /categories, GET/POST /activities
   getCategories: async (): Promise<AdminCategory[]> => {
-    const res = await api.get('/api/categories');
-    return res.data;
+    try {
+      const res = await api.get<{ categories: AdminCategory[] } | AdminCategory[]>(
+        '/categories',
+      );
+      const raw = Array.isArray(res.data) ? res.data : res.data.categories || [];
+      return raw.map((c) => ({
+        id: c.id ?? c.categoryid ?? 0,
+        name: c.name,
+        type: c.type,
+        activity_count: c.activity_count,
+      }));
+    } catch {
+      return [];
+    }
   },
   createCategory: async (payload: { name: string; type: string }) => {
-    const res = await api.post('/api/categories', payload);
+    const res = await api.post<{ message: string; category: AdminCategory }>(
+      '/categories',
+      payload,
+    );
     return res.data;
   },
   getActivities: async (): Promise<AdminActivity[]> => {
-    const res = await api.get('/api/activities');
-    return res.data;
+    try {
+      const res = await api.get<{ activities: AdminActivity[] } | AdminActivity[]>(
+        '/activities',
+      );
+      if (Array.isArray(res.data)) {
+        return res.data;
+      }
+      return res.data.activities || [];
+    } catch {
+      return [];
+    }
   },
   createActivity: async (payload: {
     title: string;
     destination_id?: number;
     category_id?: number;
     cost: number;
+    start_time?: string;
+    end_time?: string;
+    vendor_id?: number;
   }) => {
-    const res = await api.post('/api/activities', payload);
+    const res = await api.post<{ message: string; activity: AdminActivity }>(
+      '/activities',
+      payload,
+    );
     return res.data;
   },
 
-  // Master Override & Audit Logs (FR-ADM-05)
+  // Master Override & Audit Logs (FR-ADM-05) — Real routes: GET /logs, DELETE /trips/:id
   getAuditLogs: async (): Promise<SystemAuditLog[]> => {
-    const res = await api.get('/api/admin/audit-logs');
-    return res.data;
+    try {
+      const res = await api.get<{ logs: SystemAuditLog[] } | SystemAuditLog[]>('/logs');
+      if (Array.isArray(res.data)) {
+        return res.data;
+      }
+      return res.data.logs || [];
+    } catch {
+      return [];
+    }
   },
-  overrideDeleteTrip: async (tripId: number, reason: string) => {
-    const res = await api.delete(`/api/admin/trips/${tripId}/override`, {
+  overrideDeleteTrip: async (tripId: number, reason?: string) => {
+    const res = await api.delete<{ message: string }>(`/trips/${tripId}`, {
       data: { reason },
     });
     return res.data;

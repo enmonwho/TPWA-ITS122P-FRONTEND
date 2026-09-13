@@ -5,7 +5,6 @@ import axios from 'axios';
 
 import AuthLayout from '../components/AuthLayout';
 import { useAuth } from '../context/AuthContext';
-import { authApi } from '../services/api';
 import { ROUTES } from '../lib/constants';
 
 export default function Login() {
@@ -15,7 +14,7 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const { setUser } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -24,10 +23,7 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const response = await authApi.login({ email, password });
-
-      // Update global auth state
-      setUser(response.user);
+      const response = await login({ email, password });
 
       // Store credentials & user session locally
       if (response.token) {
@@ -35,13 +31,19 @@ export default function Login() {
       }
       localStorage.setItem('user', JSON.stringify(response.user));
 
-      // Dynamic role-based redirection
-      const userRole = response.user?.role?.toUpperCase();
-      if (userRole === 'ADMIN' || userRole === 'ADMINISTRATOR') {
+      // Dynamic role-based redirection with lowercase checks
+      const role = response.user?.role?.toLowerCase();
+      if (role === 'admin') {
         navigate('/admin');
-      } else if (userRole === 'STAFF') {
-        navigate('/staff');
+      } else if (role === 'staff') {
+        console.warn(
+          'Staff route (/staff) is not yet implemented. Falling back to dashboard.',
+        );
+        navigate(ROUTES.DASHBOARD);
+      } else if (role === 'customer') {
+        navigate(ROUTES.DASHBOARD);
       } else {
+        // Fallback for any unrecognized or unexpected role
         navigate(ROUTES.DASHBOARD);
       }
     } catch (err: unknown) {

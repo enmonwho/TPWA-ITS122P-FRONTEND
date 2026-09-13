@@ -7,6 +7,7 @@ import {
   Onboarding,
   SignUp,
   Dashboard,
+  Bookings,
   Explore,
   MapView,
   TripWorkspace,
@@ -36,6 +37,10 @@ const router = createBrowserRouter([
       {
         path: '',
         element: <Dashboard />,
+      },
+      {
+        path: 'bookings',
+        element: <Bookings />,
       },
       {
         path: 'explore',
