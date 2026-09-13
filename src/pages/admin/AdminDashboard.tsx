@@ -1127,7 +1127,7 @@ function MasterRecordsTab() {
       </div>
 
       {/* System Audit Logs Section */}
-      <div className="admin-card-panel flex-1 min-h-[220px]">
+      <div className="admin-card-panel flex-1 min-h-55">
         <h2 className="text-sm font-bold mb-3">Immutable System Audit Trail</h2>
 
         <div className="overflow-x-auto flex-1">

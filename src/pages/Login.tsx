@@ -25,12 +25,6 @@ export default function Login() {
     try {
       const response = await login({ email, password });
 
-      // Store credentials & user session locally
-      if (response.token) {
-        localStorage.setItem('token', response.token);
-      }
-      localStorage.setItem('user', JSON.stringify(response.user));
-
       // Dynamic role-based redirection with lowercase checks
       const role = response.user?.role?.toLowerCase();
       if (role === 'admin') {
