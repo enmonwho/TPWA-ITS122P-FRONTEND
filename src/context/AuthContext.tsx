@@ -49,12 +49,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (payload: LoginPayload): Promise<AuthResponse> => {
     const data = await authApi.login(payload);
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+    }
     setUser(data.user);
     return data;
   };
 
   const register = async (payload: RegisterPayload): Promise<AuthResponse> => {
     const data = await authApi.register(payload);
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+    }
     setUser(data.user);
     return data;
   };
@@ -63,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await authApi.logout();
     } finally {
+      localStorage.removeItem('token');
       setUser(null);
     }
   };

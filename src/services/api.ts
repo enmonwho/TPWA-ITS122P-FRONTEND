@@ -35,7 +35,15 @@ const api = axios.create({
 /* ------------------------------------------------------------------ */
 
 api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => config,
+  (config: InternalAxiosRequestConfig) => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (token && config.headers && !config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    return config;
+  },
   (error: AxiosError) => Promise.reject(error),
 );
 

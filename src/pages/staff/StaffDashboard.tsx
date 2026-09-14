@@ -10,7 +10,9 @@ import {
   XCircle,
   Clock,
   Info,
+  ShieldAlert,
 } from 'lucide-react';
+import axios from 'axios';
 import lakbyeLogo from '../../assets/lakbye-logo.png';
 import staffPendingIcon from '../../assets/staff/staff_pending.png';
 import staffBookingsIcon from '../../assets/staff/staff_bookings_nav.png';
@@ -71,7 +73,7 @@ function formatDate(dateStr?: string | null): string {
 }
 
 export default function StaffDashboard() {
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading: isAuthLoading } = useAuth();
   const navigate = useNavigate();
 
   // Active navigation tab
@@ -119,6 +121,7 @@ export default function StaffDashboard() {
 
   // Fetch all bookings, activities, and user directory
   const loadDashboardData = useCallback(async () => {
+    if (!user) return;
     setLoading(true);
     setSyncError(null);
     try {
@@ -133,15 +136,22 @@ export default function StaffDashboard() {
       setUsers(usersData || []);
     } catch (err) {
       console.error('Failed to load staff dashboard data:', err);
-      setSyncError(
-        'Unable to sync live booking data with backend. Retrying is available.',
-      );
+      if (axios.isAxiosError(err) && err.response?.status === 401) {
+        setSyncError(
+          'Unauthorized: Your session has expired or you need staff permissions. Please log in.',
+        );
+      } else {
+        setSyncError(
+          'Unable to sync live booking data with backend. Retrying is available.',
+        );
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
+    if (!user) return;
     let active = true;
     const initFetch = async () => {
       try {
@@ -159,9 +169,15 @@ export default function StaffDashboard() {
       } catch (err) {
         console.error('Failed to load staff dashboard data:', err);
         if (active) {
-          setSyncError(
-            'Unable to sync live booking data with backend. Retrying is available.',
-          );
+          if (axios.isAxiosError(err) && err.response?.status === 401) {
+            setSyncError(
+              'Unauthorized: Your session has expired or you need staff permissions. Please log in.',
+            );
+          } else {
+            setSyncError(
+              'Unable to sync live booking data with backend. Retrying is available.',
+            );
+          }
         }
       } finally {
         if (active) {
@@ -174,7 +190,7 @@ export default function StaffDashboard() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [user]);
 
   // Dismiss dropdowns on outside click
   useEffect(() => {
@@ -288,6 +304,101 @@ export default function StaffDashboard() {
     activityMap,
     userMap,
   ]);
+
+  if (isAuthLoading) {
+    return (
+      <div
+        className="staff-layout-root"
+        style={{ alignItems: 'center', justifyContent: 'center' }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '14px',
+          }}
+        >
+          <img src={lakbyeLogo} alt="LakBye" style={{ width: '120px' }} />
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              color: '#7B6F68',
+              fontSize: '13px',
+              fontFamily: 'Poppins, sans-serif',
+            }}
+          >
+            <RefreshCw size={16} className="animate-spin" />
+            <span>Verifying staff session...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div
+        className="staff-layout-root"
+        style={{ alignItems: 'center', justifyContent: 'center' }}
+      >
+        <div
+          className="staff-modal-card"
+          style={{
+            maxWidth: '420px',
+            textAlign: 'center',
+            alignItems: 'center',
+            padding: '36px 28px',
+          }}
+        >
+          <ShieldAlert size={48} style={{ color: '#E9724C', marginBottom: '16px' }} />
+          <h2
+            style={{
+              fontSize: '20px',
+              fontWeight: 700,
+              margin: '0 0 10px 0',
+              color: '#111',
+              fontFamily: 'Poppins, sans-serif',
+            }}
+          >
+            Staff Login Required
+          </h2>
+          <p
+            style={{
+              fontSize: '13px',
+              color: '#7B6F68',
+              lineHeight: 1.5,
+              margin: '0 0 24px 0',
+              fontFamily: 'SF Pro Rounded, Poppins, sans-serif',
+            }}
+          >
+            The staff queue connects directly to live booking approvals. Please log in
+            with an authorized staff account to view and manage requests.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/login')}
+            style={{
+              background: '#E9724C',
+              color: '#FFF',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '10px 28px',
+              fontSize: '13px',
+              fontWeight: 600,
+              fontFamily: 'Poppins, sans-serif',
+              cursor: 'pointer',
+              boxShadow: '0 2px 6px rgba(233, 114, 76, 0.3)',
+            }}
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="staff-layout-root">
