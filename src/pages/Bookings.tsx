@@ -9,6 +9,8 @@ import {
   Ticket,
   CheckCircle2,
   Clock,
+  XCircle,
+  CloudOff,
   X,
   Sparkles,
 } from 'lucide-react';
@@ -25,7 +27,7 @@ import {
 import { mergeTripsWithExtras, formatDateOnly } from '../lib/tripExtras';
 import type { Trip } from '../types/trip';
 import type { Destination } from '../types/destination';
-import type { Activity, Booking } from '../types/booking';
+import type { Activity, Booking, BookingStatus } from '../types/booking';
 
 interface BookingLedgerItem {
   id: string;
@@ -34,7 +36,79 @@ interface BookingLedgerItem {
   activities: string;
   accommodation: string;
   budget: string;
-  status: 'confirmed' | 'pending' | 'completed';
+  status: BookingStatus;
+}
+
+/**
+ * Executes an async network call with one automatic retry (~800ms delay) on failure.
+ */
+async function withRetry<T>(fn: () => Promise<T>, delayMs = 800): Promise<T> {
+  try {
+    return await fn();
+  } catch (firstErr) {
+    console.warn(`Initial request failed, retrying in ${delayMs}ms...`, firstErr);
+    await new Promise((res) => setTimeout(res, delayMs));
+    return await fn();
+  }
+}
+
+/**
+ * Renders an accessible status badge for all 4 seeded/API booking statuses:
+ * 'pending' | 'confirmed' | 'completed' | 'cancelled'
+ */
+function renderStatusBadge(status: BookingStatus) {
+  const norm = (status || 'pending').toLowerCase();
+  switch (norm) {
+    case 'confirmed':
+      return (
+        <span
+          title="Confirmed"
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shrink-0"
+        >
+          <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+          <span>Confirmed</span>
+        </span>
+      );
+    case 'pending':
+      return (
+        <span
+          title="Pending"
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/80 shrink-0"
+        >
+          <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+          <span>Pending</span>
+        </span>
+      );
+    case 'completed':
+      return (
+        <span
+          title="Completed"
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/80 shrink-0"
+        >
+          <CheckCircle2 className="w-3 h-3 text-blue-600 shrink-0" />
+          <span>Completed</span>
+        </span>
+      );
+    case 'cancelled':
+      return (
+        <span
+          title="Cancelled"
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/80 shrink-0"
+        >
+          <XCircle className="w-3 h-3 text-rose-600 shrink-0" />
+          <span>Cancelled</span>
+        </span>
+      );
+    default:
+      return (
+        <span
+          title={status}
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-stone-100 text-stone-700 border border-stone-200 shrink-0"
+        >
+          <span>{status}</span>
+        </span>
+      );
+  }
 }
 
 export default function Bookings() {
@@ -50,9 +124,21 @@ export default function Bookings() {
   // Selected trip detailed backend state
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [tripDestinations, setTripDestinations] = useState<Destination[]>([]);
+  const [allDestinations, setAllDestinations] = useState<Destination[]>([]);
   const [tripExpenses, setTripExpenses] = useState<ExpenseApiResponse[]>([]);
   const [catalogActivities, setCatalogActivities] = useState<Activity[]>([]);
   const [userBookings, setUserBookings] = useState<Booking[]>([]);
+
+  // Sync failure notice state (auto-dismiss after 6s)
+  const [syncNotice, setSyncNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!syncNotice) return;
+    const timer = setTimeout(() => {
+      setSyncNotice(null);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [syncNotice]);
 
   // Booking modal state
   const [isBookActivityOpen, setIsBookActivityOpen] = useState(false);
@@ -60,6 +146,7 @@ export default function Bookings() {
   const [bookingDate, setBookingDate] = useState('');
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
   const [bookingSuccessMsg, setBookingSuccessMsg] = useState<string | null>(null);
+  const [bookingErrorMsg, setBookingErrorMsg] = useState<string | null>(null);
 
   // Fetch all trips for authenticated user
   const loadTrips = useCallback(async () => {
@@ -128,25 +215,41 @@ export default function Bookings() {
     const fetchTripDetails = async () => {
       setDetailsLoading(true);
       try {
-        const [destData, budgetData, activitiesData, bookingsData] = await Promise.all([
+        const [destData, budgetData, activitiesData, allDestData] = await Promise.all([
           destinationsApi.getByTripId(selectedTrip.id).catch(() => []),
           budgetApi
             .getBudget(selectedTrip.id)
             .catch(() => ({ balance: 0, expenses: [] })),
           activitiesApi.getAll().catch(() => []),
-          bookingsApi.getAll().catch(() => []),
+          destinationsApi.getAll().catch(() => []),
         ]);
 
         if (!cancelled) {
           setTripDestinations(destData);
           setTripExpenses(budgetData.expenses || []);
           setCatalogActivities(activitiesData);
-          setUserBookings(bookingsData);
-          setDetailsLoading(false);
+          setAllDestinations(allDestData);
+        }
+
+        // Retry-then-notice pattern on bookings fetch
+        try {
+          const bookingsData = await withRetry(() => bookingsApi.getAll());
+          if (!cancelled) {
+            setUserBookings(bookingsData);
+            setSyncNotice(null);
+          }
+        } catch (bErr) {
+          console.error('Failed to sync bookings after retry:', bErr);
+          if (!cancelled) {
+            setSyncNotice('Unable to reach server — could not load latest bookings.');
+          }
         }
       } catch (err) {
         if (!cancelled) {
           console.error('Error fetching trip booking details:', err);
+        }
+      } finally {
+        if (!cancelled) {
           setDetailsLoading(false);
         }
       }
@@ -162,15 +265,13 @@ export default function Bookings() {
   const ledgerItems = useMemo<BookingLedgerItem[]>(() => {
     if (!selectedTrip) return [];
 
-    // Destinations: prioritize backend destinations, fallback to countries in extras, fallback to trip name
-    const destList: string[] =
-      tripDestinations.length > 0
-        ? tripDestinations.map((d) => d.location_name)
-        : selectedTrip.countries && selectedTrip.countries.length > 0
-          ? selectedTrip.countries
-          : [selectedTrip.name];
+    // Identify user bookings matching this trip
+    const tripBookings = userBookings.filter(
+      (b) => b.trip_id === selectedTrip.id || !b.trip_id,
+    );
 
-    // Identify accommodation and activities from backend expenses
+    const bookingsToRender = tripBookings.length > 0 ? tripBookings : userBookings;
+
     const accommodationExpenses = tripExpenses.filter(
       (e) => e.category?.toLowerCase() === 'accommodation',
     );
@@ -178,27 +279,89 @@ export default function Bookings() {
       (e) => e.category?.toLowerCase() === 'activities',
     );
 
-    // Identify user bookings matching this trip
-    const tripBookings = userBookings.filter(
-      (b) => b.trip_id === selectedTrip.id || !b.trip_id,
-    );
+    // When real bookings exist, display each booking
+    if (bookingsToRender.length > 0) {
+      const destLookup = new Map<number, string>();
+      allDestinations.forEach((d) => {
+        if (d.id && d.location_name) {
+          destLookup.set(Number(d.id), d.location_name);
+        }
+      });
+      tripDestinations.forEach((d) => {
+        if (d.id && d.location_name) {
+          destLookup.set(Number(d.id), d.location_name);
+        }
+      });
+
+      return bookingsToRender.map((b, idx) => {
+        const activity = catalogActivities.find((a) => a.id === b.activity_id);
+        const actTitle =
+          b.activity_title || activity?.title || `Activity #${b.activity_id}`;
+
+        const destName =
+          (activity?.destination_id && destLookup.get(activity.destination_id)) ||
+          (tripDestinations.length > 0 ? tripDestinations[0].location_name : null) ||
+          (selectedTrip.countries && selectedTrip.countries[0]) ||
+          selectedTrip.name;
+
+        const matchedAccom =
+          accommodationExpenses[idx % Math.max(accommodationExpenses.length, 1)];
+        let accomLabel = b.vendor_name || 'Confirmed Stay / Boutique Hotel';
+        if (matchedAccom && !b.vendor_name) {
+          accomLabel = `${matchedAccom.name} (₱${Number(matchedAccom.cost).toLocaleString()})`;
+        }
+
+        let budgetStr = 'Included';
+        if (b.total_price) {
+          budgetStr = `₱${Number(b.total_price).toLocaleString()}`;
+        } else if (activity?.cost) {
+          budgetStr = `₱${Number(activity.cost).toLocaleString()}`;
+        }
+
+        const dateStr = b.booking_date
+          ? formatDateOnly(b.booking_date)
+          : b.created_at
+            ? formatDateOnly(b.created_at)
+            : formatDateOnly(selectedTrip.startDate) || 'Flexible';
+
+        const rawStatus = (b.status || 'pending').toLowerCase();
+        const itemStatus: BookingStatus =
+          rawStatus === 'confirmed' ||
+          rawStatus === 'completed' ||
+          rawStatus === 'cancelled'
+            ? (rawStatus as BookingStatus)
+            : 'pending';
+
+        return {
+          id: String(b.id || `${selectedTrip.id}-booking-${idx}`),
+          date: dateStr,
+          destination: destName,
+          activities: actTitle,
+          accommodation: accomLabel,
+          budget: budgetStr,
+          status: itemStatus,
+        };
+      });
+    }
+
+    // Fallback when no real bookings exist yet: preview itinerary from trip destinations
+    const destList: string[] =
+      tripDestinations.length > 0
+        ? tripDestinations.map((d) => d.location_name)
+        : selectedTrip.countries && selectedTrip.countries.length > 0
+          ? selectedTrip.countries
+          : [selectedTrip.name];
 
     const totalBudget = selectedTrip.totalBudget || 0;
     const perStopBudget =
       destList.length > 0 ? Math.round(totalBudget / destList.length) : 0;
 
     return destList.map((destName, idx) => {
-      // Find matching activity booking or expense
-      const matchedBooking = tripBookings[idx];
       const matchedActivityExp = activityExpenses[idx];
       const matchedAccomExp = accommodationExpenses[idx];
 
       let activityLabel = 'Local Exploration & Sightseeing';
-      if (matchedBooking) {
-        activityLabel =
-          matchedBooking.activity_title ||
-          `Activity #${matchedBooking.activity_id} (Booked)`;
-      } else if (matchedActivityExp) {
+      if (matchedActivityExp) {
         activityLabel = matchedActivityExp.name;
       } else if (catalogActivities.length > 0) {
         const catalogSample = catalogActivities[idx % catalogActivities.length];
@@ -212,20 +375,14 @@ export default function Bookings() {
         accomLabel = `${matchedAccomExp.name} (₱${Number(matchedAccomExp.cost).toLocaleString()})`;
       }
 
-      // Budget calculation
       let itemBudgetStr =
         perStopBudget > 0 ? `₱${perStopBudget.toLocaleString()}` : 'Included';
-      if (matchedBooking && matchedBooking.total_price) {
-        itemBudgetStr = `₱${Number(matchedBooking.total_price).toLocaleString()}`;
-      } else if (matchedActivityExp) {
+      if (matchedActivityExp) {
         itemBudgetStr = `₱${Number(matchedActivityExp.cost).toLocaleString()}`;
       }
 
-      // Status
-      let itemStatus: 'confirmed' | 'pending' | 'completed' = 'confirmed';
-      if (matchedBooking) {
-        itemStatus = matchedBooking.status === 'pending' ? 'pending' : 'confirmed';
-      } else if (selectedTrip.status === 'completed') {
+      let itemStatus: BookingStatus = 'confirmed';
+      if (selectedTrip.status === 'completed') {
         itemStatus = 'completed';
       } else if (selectedTrip.status === 'planning') {
         itemStatus = 'pending';
@@ -241,7 +398,14 @@ export default function Bookings() {
         status: itemStatus,
       };
     });
-  }, [selectedTrip, tripDestinations, tripExpenses, userBookings, catalogActivities]);
+  }, [
+    selectedTrip,
+    tripDestinations,
+    tripExpenses,
+    userBookings,
+    catalogActivities,
+    allDestinations,
+  ]);
 
   const handleTripCreated = () => {
     loadTrips();
@@ -255,6 +419,7 @@ export default function Bookings() {
       setSelectedActivityId(catalogActivities[0].id);
     }
     setBookingSuccessMsg(null);
+    setBookingErrorMsg(null);
     setIsBookActivityOpen(true);
   };
 
@@ -264,25 +429,30 @@ export default function Bookings() {
 
     setBookingSubmitting(true);
     setBookingSuccessMsg(null);
+    setBookingErrorMsg(null);
 
     const activity = catalogActivities.find((a) => a.id === Number(selectedActivityId));
     const cost = activity ? Number(activity.cost) : 0;
 
     try {
-      const newBooking = await bookingsApi.create({
-        activity_id: Number(selectedActivityId),
-        trip_id: Number(selectedTrip.id),
-        booking_date: bookingDate,
-        total_price: cost,
-      });
+      const newBooking = await withRetry(() =>
+        bookingsApi.create({
+          activity_id: Number(selectedActivityId),
+          trip_id: Number(selectedTrip.id),
+          booking_date: bookingDate,
+          total_price: cost,
+        }),
+      );
 
       setUserBookings((prev) => [
-        ...prev,
         {
           ...newBooking,
           activity_title: activity ? activity.title : `Activity #${selectedActivityId}`,
         },
+        ...prev,
       ]);
+      setSyncNotice(null);
+      setBookingErrorMsg(null);
       setBookingSuccessMsg(
         `Activity "${activity?.title || 'Selected Activity'}" booked successfully!`,
       );
@@ -291,29 +461,12 @@ export default function Bookings() {
         setBookingSuccessMsg(null);
       }, 1500);
     } catch (err) {
-      console.warn(
-        'Backend create booking returned error, storing client-side fallback booking:',
-        err,
-      );
-      // Fallback for demo resilience
-      const fallbackBooking: Booking = {
-        id: Date.now(),
-        user_id: 1,
-        activity_id: Number(selectedActivityId),
-        trip_id: Number(selectedTrip.id),
-        status: 'pending',
-        total_price: cost,
-        booking_date: bookingDate,
-        activity_title: activity ? activity.title : `Activity #${selectedActivityId}`,
-      };
-      setUserBookings((prev) => [...prev, fallbackBooking]);
-      setBookingSuccessMsg(
-        `Reservation submitted for "${activity?.title || 'Activity'}" (Pending confirmation)`,
-      );
-      setTimeout(() => {
-        setIsBookActivityOpen(false);
-        setBookingSuccessMsg(null);
-      }, 1500);
+      console.error('Failed to submit booking after retry:', err);
+      const errMsg =
+        'Unable to reach server — booking submission failed. Please try again.';
+      setBookingErrorMsg(errMsg);
+      setSyncNotice(errMsg);
+      // Keep modal open so the user retains their selected activity & date input to retry
     } finally {
       setBookingSubmitting(false);
     }
@@ -323,6 +476,51 @@ export default function Bookings() {
     <div className="bookings-page-wrapper">
       <div className="bookings-container-card">
         <h1 className="bookings-header-title">My Bookings</h1>
+
+        {/* Sync Failure Notice Banner matching Budget.tsx */}
+        {syncNotice && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              padding: '10px 18px',
+              backgroundColor: '#FFF9F2',
+              border: '1px solid rgba(233, 114, 76, 0.35)',
+              borderRadius: '12px',
+              color: '#78350F',
+              fontSize: '13px',
+              fontFamily: "'SF Pro Rounded', var(--font-sans)",
+              fontWeight: 500,
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+              marginBottom: '16px',
+            }}
+            className="animate-slide-up"
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CloudOff size={16} style={{ color: '#E9724C', flexShrink: 0 }} />
+              <span>{syncNotice}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSyncNotice(null)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                padding: '2px',
+                cursor: 'pointer',
+                color: '#92400E',
+                opacity: 0.7,
+              }}
+              aria-label="Dismiss notice"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        )}
 
         <div className="bookings-content-grid">
           {/* =========================================================
@@ -479,23 +677,9 @@ export default function Bookings() {
                         {ledgerItems.map((item) => (
                           <tr key={item.id} className="bookings-table-row">
                             <td className="bookings-cell-date">
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <span>{item.date}</span>
-                                {item.status === 'confirmed' ? (
-                                  <span
-                                    title="Confirmed"
-                                    className="inline-flex items-center"
-                                  >
-                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 inline" />
-                                  </span>
-                                ) : (
-                                  <span
-                                    title="Pending"
-                                    className="inline-flex items-center"
-                                  >
-                                    <Clock className="w-3.5 h-3.5 text-amber-500 inline" />
-                                  </span>
-                                )}
+                                {renderStatusBadge(item.status)}
                               </div>
                             </td>
                             <td className="bookings-cell-destination">
@@ -594,73 +778,121 @@ export default function Bookings() {
                 <span>{bookingSuccessMsg}</span>
               </div>
             ) : (
-              <form onSubmit={handleBookActivitySubmit} className="flex flex-col gap-4">
-                <div>
-                  <label htmlFor="activity-select" className="modal-label">
-                    Select Activity
-                  </label>
-                  <select
-                    id="activity-select"
-                    className="modal-input-gradient"
-                    value={selectedActivityId}
-                    onChange={(e) => setSelectedActivityId(Number(e.target.value))}
-                    required
+              <>
+                {bookingErrorMsg && (
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '10px',
+                      padding: '10px 14px',
+                      backgroundColor: '#FFF9F2',
+                      border: '1px solid rgba(233, 114, 76, 0.35)',
+                      borderRadius: '12px',
+                      color: '#78350F',
+                      fontSize: '12px',
+                      fontFamily: "'SF Pro Rounded', var(--font-sans)",
+                      fontWeight: 500,
+                      marginBottom: '16px',
+                    }}
+                    className="animate-slide-up"
                   >
-                    <option value="" disabled>
-                      Choose an activity...
-                    </option>
-                    {catalogActivities.map((act) => (
-                      <option key={act.id} value={act.id}>
-                        {act.title} — ₱{Number(act.cost).toLocaleString()}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <CloudOff size={15} style={{ color: '#E9724C', flexShrink: 0 }} />
+                      <span>{bookingErrorMsg}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setBookingErrorMsg(null)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        padding: '2px',
+                        cursor: 'pointer',
+                        color: '#92400E',
+                        opacity: 0.7,
+                      }}
+                      aria-label="Dismiss error"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+
+                <form onSubmit={handleBookActivitySubmit} className="flex flex-col gap-4">
+                  <div>
+                    <label htmlFor="activity-select" className="modal-label">
+                      Select Activity
+                    </label>
+                    <select
+                      id="activity-select"
+                      className="modal-input-gradient"
+                      value={selectedActivityId}
+                      onChange={(e) => setSelectedActivityId(Number(e.target.value))}
+                      required
+                    >
+                      <option value="" disabled>
+                        Choose an activity...
                       </option>
-                    ))}
-                  </select>
-                </div>
+                      {catalogActivities.map((act) => (
+                        <option key={act.id} value={act.id}>
+                          {act.title} — ₱{Number(act.cost).toLocaleString()}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                <div>
-                  <label htmlFor="booking-date" className="modal-label">
-                    Booking Date
-                  </label>
-                  <input
-                    id="booking-date"
-                    type="date"
-                    className="modal-input-gradient"
-                    value={bookingDate}
-                    onChange={(e) => setBookingDate(e.target.value)}
-                    required
-                  />
-                </div>
+                  <div>
+                    <label htmlFor="booking-date" className="modal-label">
+                      Booking Date
+                    </label>
+                    <input
+                      id="booking-date"
+                      type="date"
+                      className="modal-input-gradient"
+                      value={bookingDate}
+                      onChange={(e) => setBookingDate(e.target.value)}
+                      required
+                    />
+                  </div>
 
-                <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 flex items-center justify-between text-xs mt-1">
-                  <span className="text-stone-600 font-medium">Estimated Cost:</span>
-                  <span className="text-base font-bold text-emerald-700 font-mono">
-                    {(() => {
-                      const act = catalogActivities.find(
-                        (a) => a.id === Number(selectedActivityId),
-                      );
-                      return act ? `₱${Number(act.cost).toLocaleString()}` : '—';
-                    })()}
-                  </span>
-                </div>
+                  <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 flex items-center justify-between text-xs mt-1">
+                    <span className="text-stone-600 font-medium">Estimated Cost:</span>
+                    <span className="text-base font-bold text-emerald-700 font-mono">
+                      {(() => {
+                        const act = catalogActivities.find(
+                          (a) => a.id === Number(selectedActivityId),
+                        );
+                        return act ? `₱${Number(act.cost).toLocaleString()}` : '—';
+                      })()}
+                    </span>
+                  </div>
 
-                <div className="flex justify-end gap-3 mt-4">
-                  <button
-                    type="button"
-                    onClick={() => setIsBookActivityOpen(false)}
-                    className="px-5 py-2.5 rounded-full text-stone-600 text-sm font-semibold hover:bg-stone-100 transition"
-                    disabled={bookingSubmitting}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={bookingSubmitting || !selectedActivityId}
-                    className="btn-start-planning-modal"
-                  >
-                    {bookingSubmitting ? 'Confirming...' : 'Confirm Booking'}
-                  </button>
-                </div>
-              </form>
+                  <div className="flex justify-end gap-3 mt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsBookActivityOpen(false);
+                        setBookingErrorMsg(null);
+                      }}
+                      className="px-5 py-2.5 rounded-full text-stone-600 text-sm font-semibold hover:bg-stone-100 transition"
+                      disabled={bookingSubmitting}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={bookingSubmitting || !selectedActivityId}
+                      className="btn-start-planning-modal"
+                    >
+                      {bookingSubmitting ? 'Confirming...' : 'Confirm Booking'}
+                    </button>
+                  </div>
+                </form>
+              </>
             )}
           </div>
         </div>

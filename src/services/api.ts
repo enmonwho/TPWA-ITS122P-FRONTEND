@@ -306,20 +306,15 @@ export const activitiesApi = {
 /* ------------------------------------------------------------------ */
 
 export const bookingsApi = {
-  /** GET /bookings?status= — returns user's bookings with server error resilience */
+  /** GET /bookings?status= — returns user's bookings */
   getAll: async (status?: BookingStatus): Promise<Booking[]> => {
-    try {
-      const response = await api.get<{ bookings?: Booking[] } | Booking[]>('/bookings', {
-        params: status ? { status } : undefined,
-      });
-      if (Array.isArray(response.data)) {
-        return response.data;
-      }
-      return response.data.bookings || [];
-    } catch (err) {
-      console.warn('Backend /bookings endpoint notice, returning empty list:', err);
-      return [];
+    const response = await api.get<{ bookings?: Booking[] } | Booking[]>('/bookings', {
+      params: status ? { status } : undefined,
+    });
+    if (Array.isArray(response.data)) {
+      return response.data;
     }
+    return response.data.bookings || [];
   },
 
   /** POST /bookings — submit a new booking */
