@@ -17,6 +17,8 @@ export interface Booking {
   created_at?: string;
   activity_title?: string;
   vendor_name?: string;
+  customer_name?: string;
+  customer_email?: string;
 }
 
 /**

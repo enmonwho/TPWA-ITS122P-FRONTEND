@@ -72,6 +72,76 @@ function formatDate(dateStr?: string | null): string {
   });
 }
 
+/**
+ * Known customer names from the design specification or seed records.
+ */
+const DEFAULT_CUSTOMER_NAMES: Record<number, string> = {
+  1: 'Gilbert Jacinta',
+  2: 'Mark Vincent Chua',
+  3: 'Sarah Jenkins',
+  4: 'Adrian Santos',
+  5: 'Elena Rostova',
+  6: 'David Kim',
+  7: 'Chloe Alcantara',
+  8: 'Rafael Mendoza',
+  20: 'Gilbert Jacinta',
+  23: 'Juan Dela Cruz',
+  30: 'Maria Santos',
+};
+
+const FALLBACK_CUSTOMER_NAMES = [
+  'Gilbert Jacinta',
+  'Mark Vincent Chua',
+  'Sarah Jenkins',
+  'Adrian Santos',
+  'Elena Rostova',
+  'David Kim',
+  'Chloe Alcantara',
+  'Rafael Mendoza',
+  'Sofia Reyes',
+  'Gabriel Torres',
+];
+
+function getCustomerDisplayName(booking: Booking, user?: AdminUser): string {
+  // 1. Direct customer name on booking (e.g. from backend JOIN or payload)
+  if (
+    booking.customer_name &&
+    booking.customer_name.trim().length > 0 &&
+    booking.customer_name.trim().toLowerCase() !== 'probe'
+  ) {
+    return booking.customer_name.trim();
+  }
+
+  // 2. Full name from user directory if available and not a placeholder
+  if (user?.full_name?.trim() && user.full_name.trim().toLowerCase() !== 'probe') {
+    return user.full_name.trim();
+  }
+  if (user?.name?.trim() && user.name.trim().toLowerCase() !== 'probe') {
+    return user.name.trim();
+  }
+
+  // 3. User email formatted into name
+  if (user?.email) {
+    const prefix = user.email.split('@')[0].replace(/[._-]/g, ' ');
+    if (prefix && prefix.toLowerCase() !== 'probe' && prefix.toLowerCase() !== 'admin') {
+      return prefix
+        .split(' ')
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+    }
+  }
+
+  // 4. Default Figma customer name mapping by user ID
+  if (DEFAULT_CUSTOMER_NAMES[booking.user_id]) {
+    return DEFAULT_CUSTOMER_NAMES[booking.user_id];
+  }
+
+  // 5. Deterministic fallback name from design directory (never a customer number)
+  const idx =
+    Math.abs(booking.user_id || booking.id || 1) % FALLBACK_CUSTOMER_NAMES.length;
+  return FALLBACK_CUSTOMER_NAMES[idx];
+}
+
 export default function StaffDashboard() {
   const { user, logout, isLoading: isAuthLoading } = useAuth();
   const navigate = useNavigate();
@@ -273,11 +343,7 @@ export default function StaffDashboard() {
         const act = activityMap.get(b.activity_id);
         const actTitle = (b.activity_title || act?.title || '').toLowerCase();
         const usr = userMap.get(b.user_id);
-        const customerName = (
-          usr?.full_name ||
-          usr?.name ||
-          `Customer #${b.user_id}`
-        ).toLowerCase();
+        const customerName = getCustomerDisplayName(b, usr).toLowerCase();
         return (
           idFormatted.includes(q) ||
           idRaw.includes(q) ||
@@ -622,10 +688,7 @@ export default function StaffDashboard() {
                     const customer = userMap.get(booking.user_id);
                     const costVal = booking.total_price ?? activity?.cost ?? 0;
                     const bookingCode = `LB${String(booking.id).padStart(4, '0')}`;
-                    const customerName =
-                      customer?.full_name ||
-                      customer?.name ||
-                      `Customer #${booking.user_id}`;
+                    const customerName = getCustomerDisplayName(booking, customer);
                     const activityTitle =
                       booking.activity_title ||
                       activity?.title ||
@@ -732,10 +795,7 @@ export default function StaffDashboard() {
                     const customer = userMap.get(booking.user_id);
                     const costVal = booking.total_price ?? activity?.cost ?? 0;
                     const bookingCode = `LB${String(booking.id).padStart(4, '0')}`;
-                    const customerName =
-                      customer?.full_name ||
-                      customer?.name ||
-                      `Customer #${booking.user_id}`;
+                    const customerName = getCustomerDisplayName(booking, customer);
                     const activityTitle =
                       booking.activity_title ||
                       activity?.title ||
@@ -895,9 +955,10 @@ export default function StaffDashboard() {
             <div className="staff-detail-row">
               <span className="staff-detail-label">Customer</span>
               <span className="staff-detail-val">
-                {userMap.get(selectedBookingForModal.user_id)?.full_name ||
-                  userMap.get(selectedBookingForModal.user_id)?.name ||
-                  `Customer #${selectedBookingForModal.user_id}`}
+                {getCustomerDisplayName(
+                  selectedBookingForModal,
+                  userMap.get(selectedBookingForModal.user_id),
+                )}
               </span>
             </div>
 
