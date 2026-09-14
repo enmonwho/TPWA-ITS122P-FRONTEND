@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import StaffDashboard from './pages/staff/StaffDashboard';
 import { BaseLayout, DashboardLayout, TripWorkspaceLayout } from './layouts';
 import {
   Home,
@@ -55,6 +56,10 @@ const router = createBrowserRouter([
   {
     path: '/admin',
     element: <AdminDashboard />,
+  },
+  {
+    path: '/staff',
+    element: <StaffDashboard />,
   },
   {
     path: '/login',

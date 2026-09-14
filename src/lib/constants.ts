@@ -4,6 +4,8 @@ export const ROUTES = {
   LOGIN: '/login',
   SIGN_UP: '/signup',
   ONBOARDING: '/onboarding',
+  ADMIN: '/admin',
+  STAFF: '/staff',
   TRIP: (tripId: string | number) => `/trip/${tripId}`,
 };
 

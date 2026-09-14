@@ -28,12 +28,9 @@ export default function Login() {
       // Dynamic role-based redirection with lowercase checks
       const role = response.user?.role?.toLowerCase();
       if (role === 'admin') {
-        navigate('/admin');
+        navigate(ROUTES.ADMIN);
       } else if (role === 'staff') {
-        console.warn(
-          'Staff route (/staff) is not yet implemented. Falling back to dashboard.',
-        );
-        navigate(ROUTES.DASHBOARD);
+        navigate(ROUTES.STAFF);
       } else if (role === 'customer') {
         navigate(ROUTES.DASHBOARD);
       } else {

@@ -1,0 +1,686 @@
+/* ==========================================================================
+   LakBye Staff Dashboard — Exact Figma Tokens (Nodes 590:589 & 605:708)
+   ========================================================================== */
+
+.staff-layout-root {
+  background-color: var(--color-dash-bg, #ebebeb);
+  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  padding: 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+  font-family: var(--font-sans);
+}
+
+/* Sidebar (Exact 145px width matching Customer & Admin Dashboards) */
+.staff-sidebar {
+  width: 145px;
+  min-width: 145px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0;
+  box-sizing: border-box;
+}
+
+.staff-logo-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.staff-logo-img {
+  width: 85px;
+  height: auto;
+  object-fit: contain;
+}
+
+.staff-divider {
+  width: 85%;
+  height: 1px;
+  background-color: var(--color-dash-divider, rgba(64, 28, 2, 0.25));
+  margin: 12px auto;
+}
+
+.staff-profile-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 4px 8px;
+}
+
+.staff-profile-name {
+  font-family: 'Poppins', var(--font-sans);
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.15;
+  color: #000000;
+  word-break: break-word;
+}
+
+.staff-role-badge {
+  background: linear-gradient(90deg, #255f85 0%, #e9724c 50%, #c5283d 75%, #ffc245 100%);
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 20px;
+  margin-top: 6px;
+  display: inline-block;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+}
+
+.staff-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 12px;
+  flex: 1;
+  box-sizing: border-box;
+}
+
+.staff-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: #454545;
+  font-family: 'SF Pro Rounded', 'Poppins', var(--font-sans);
+  font-weight: 600;
+  font-size: 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  line-height: 1.2;
+  transition: all 0.2s ease;
+}
+
+.staff-nav-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: #000000;
+}
+
+.staff-nav-item.active-pending {
+  color: #e9724c;
+  font-weight: 700;
+  background: rgba(233, 114, 76, 0.09);
+}
+
+.staff-nav-item.active-bookings {
+  color: #ffc245;
+  font-weight: 700;
+  background: rgba(255, 194, 69, 0.12);
+}
+
+.staff-nav-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.staff-sidebar-bottom {
+  width: 100%;
+  padding: 0 12px;
+  box-sizing: border-box;
+  margin-top: auto;
+}
+
+.staff-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: #454545;
+  font-family: 'SF Pro Rounded', 'Poppins', var(--font-sans);
+  font-weight: 600;
+  font-size: 11px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.staff-logout-btn:hover {
+  background: rgba(197, 40, 61, 0.08);
+  color: #c5283d;
+}
+
+/* ==========================================================================
+   Main Canvas Panel
+   ========================================================================== */
+
+.staff-main-canvas {
+  flex: 1;
+  height: 100%;
+  background-color: #f6f6f6;
+  border-radius: 16px;
+  border: 0.5px solid rgba(47, 27, 12, 0.25);
+  box-shadow: 0px 0px 4px 0px rgba(0, 0, 0, 0.25);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.staff-inner-card {
+  flex: 1;
+  background-color: #ffffff;
+  border-radius: 10px;
+  border: 1px solid rgba(72, 42, 19, 0.2);
+  box-shadow: 0px 1.5px 3.8px 0px rgba(0, 0, 0, 0.25);
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.staff-watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.13;
+  pointer-events: none;
+  width: 320px;
+  max-width: 80%;
+  height: auto;
+  object-fit: contain;
+  z-index: 0;
+  user-select: none;
+}
+
+/* ==========================================================================
+   Header & Controls
+   ========================================================================== */
+
+.staff-header-area {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 2;
+}
+
+.staff-heading-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.staff-page-title {
+  font-family: 'Poppins', var(--font-sans);
+  font-size: 32px;
+  font-weight: 700;
+  color: #000000;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.staff-controls-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.staff-controls-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.staff-controls-label {
+  font-family: 'Poppins', var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: #401c02;
+  margin-right: 2px;
+  white-space: nowrap;
+}
+
+.staff-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid rgba(64, 28, 2, 0.2);
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.staff-sort-btn:hover {
+  background: rgba(64, 28, 2, 0.05);
+  border-color: rgba(64, 28, 2, 0.4);
+}
+
+.staff-sort-icon {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+}
+
+.staff-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 14px;
+  border-radius: 20px;
+  border: 1px solid #d9d9d9;
+  background: #ffffff;
+  font-family: 'Poppins', var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: #401c02;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.staff-pill-btn:hover {
+  border-color: #e9724c;
+  color: #e9724c;
+}
+
+.staff-pill-btn.active {
+  border-color: #e9724c;
+  color: #e9724c;
+  background: rgba(233, 114, 76, 0.08);
+  font-weight: 600;
+}
+
+.staff-search-wrapper {
+  position: relative;
+  width: 288px;
+  height: 31px;
+}
+
+.staff-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  opacity: 0.5;
+  pointer-events: none;
+  color: #401c02;
+}
+
+.staff-search-input {
+  width: 100%;
+  height: 100%;
+  border-radius: 20px;
+  border: 1px solid rgba(64, 28, 2, 0.3);
+  padding: 4px 12px 4px 32px;
+  font-size: 12px;
+  font-family: 'Poppins', var(--font-sans);
+  box-sizing: border-box;
+  outline: none;
+  background: #ffffff;
+  color: #111111;
+  transition: border-color 0.15s ease;
+}
+
+.staff-search-input:focus {
+  border-color: #e9724c;
+  box-shadow: 0 0 0 2px rgba(233, 114, 76, 0.15);
+}
+
+/* ==========================================================================
+   Table & Rows
+   ========================================================================== */
+
+.staff-table-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+  position: relative;
+  z-index: 1;
+  border-radius: 4px;
+}
+
+.staff-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.staff-th {
+  padding: 12px 14px;
+  font-family: 'SF Pro Rounded', 'Poppins', var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  color: #401c02;
+  border-bottom: 1px solid rgba(64, 28, 2, 0.18);
+  background: #ffffff;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  white-space: nowrap;
+}
+
+.staff-tr {
+  border-bottom: 1px solid rgba(64, 28, 2, 0.08);
+  transition: background-color 0.15s ease;
+}
+
+.staff-tr:hover {
+  background-color: rgba(233, 114, 76, 0.03);
+}
+
+.staff-td {
+  padding: 12px 14px;
+  font-size: 13px;
+  color: #222222;
+  font-family: 'SF Pro Rounded', 'Poppins', var(--font-sans);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.staff-booking-id {
+  font-weight: 600;
+  color: #255f85;
+  font-family: 'Poppins', var(--font-sans);
+  letter-spacing: 0.3px;
+}
+
+.staff-customer-name {
+  font-weight: 600;
+  color: #111111;
+}
+
+.staff-activity-title {
+  font-weight: 500;
+  color: #222222;
+}
+
+.staff-cost-val {
+  font-weight: 600;
+  color: #2e7d32;
+  font-family: 'Poppins', var(--font-sans);
+}
+
+.staff-time-val {
+  font-size: 12px;
+  color: #555555;
+}
+
+/* ==========================================================================
+   Badges & Dropdown Action Menu
+   ========================================================================== */
+
+.staff-status-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.staff-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: none;
+  font-family: 'Poppins', var(--font-sans);
+  color: #ffffff;
+  cursor: default;
+  user-select: none;
+}
+
+.staff-status-pill.clickable {
+  cursor: pointer;
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.15s ease;
+}
+
+.staff-status-pill.clickable:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.staff-status-pill.pending {
+  background-color: #e9724c;
+}
+
+.staff-status-pill.confirmed {
+  background-color: #255f85;
+}
+
+.staff-status-pill.cancelled {
+  background-color: #c5283d;
+}
+
+.staff-status-pill.completed {
+  background-color: #2e7d32;
+}
+
+.staff-chevron-icon {
+  width: 8px;
+  height: 5px;
+  object-fit: contain;
+  transition: transform 0.15s ease;
+}
+
+.staff-chevron-icon.open {
+  transform: rotate(180deg);
+}
+
+/* Dropdown popover */
+.staff-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(64, 28, 2, 0.15);
+  min-width: 150px;
+  z-index: 20;
+  overflow: hidden;
+  padding: 4px 0;
+  animation: staffFadeIn 0.15s ease;
+}
+
+@keyframes staffFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.staff-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'Poppins', var(--font-sans);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.staff-dropdown-item.confirm {
+  color: #255f85;
+}
+.staff-dropdown-item.confirm:hover {
+  background: #ebf3f8;
+}
+
+.staff-dropdown-item.cancel {
+  color: #c5283d;
+}
+.staff-dropdown-item.cancel:hover {
+  background: #fdf2f4;
+}
+
+.staff-dropdown-item.revert {
+  color: #e9724c;
+}
+.staff-dropdown-item.revert:hover {
+  background: #fff5f0;
+}
+
+/* Three dots action icon button in Processed Bookings */
+.staff-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  padding: 0;
+}
+
+.staff-action-btn:hover {
+  background-color: rgba(64, 28, 2, 0.08);
+}
+
+.staff-action-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+/* ==========================================================================
+   Sync Notice & Alerts
+   ========================================================================== */
+
+.staff-sync-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff8f0;
+  border: 1px solid #e9724c;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-family: 'Poppins', var(--font-sans);
+  color: #92400e;
+  margin-bottom: 14px;
+  z-index: 5;
+  box-shadow: 0 2px 4px rgba(233, 114, 76, 0.1);
+}
+
+/* Empty & Loading states */
+.staff-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  color: #7b6f68;
+  font-family: 'Poppins', var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  gap: 12px;
+}
+
+/* Modal details */
+.staff-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.staff-modal-backdrop-dismiss {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  cursor: default;
+  padding: 0;
+  margin: 0;
+}
+
+.staff-modal-card {
+  background: #ffffff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 460px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(72, 42, 19, 0.2);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+  animation: staffFadeIn 0.2s ease;
+}
+
+.staff-modal-title {
+  font-family: 'Poppins', var(--font-sans);
+  font-size: 20px;
+  font-weight: 700;
+  color: #000000;
+  margin: 0 0 16px 0;
+}
+
+.staff-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(64, 28, 2, 0.08);
+  font-size: 13px;
+  font-family: 'SF Pro Rounded', 'Poppins', var(--font-sans);
+}
+
+.staff-detail-label {
+  color: #7b6f68;
+  font-weight: 600;
+}
+
+.staff-detail-val {
+  color: #111111;
+  font-weight: 600;
+  text-align: right;
+  max-width: 60%;
+}
