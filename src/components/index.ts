@@ -8,3 +8,5 @@ export { default as GlobeMap } from './GlobeMap';
 export { default as CalendarPopover } from './CalendarPopover';
 export { CountryAutocomplete } from './CountryAutocomplete';
 export { DateRangePicker } from './DateRangePicker';
+export { default as ProtectedRoute } from './ProtectedRoute';
+export { default as PublicOnlyRoute } from './PublicOnlyRoute';

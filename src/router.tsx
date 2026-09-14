@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import StaffDashboard from './pages/staff/StaffDashboard';
 import { BaseLayout, DashboardLayout, TripWorkspaceLayout } from './layouts';
+import { ProtectedRoute, PublicOnlyRoute } from './components';
 import {
   Home,
   Login,
@@ -33,7 +34,11 @@ const router = createBrowserRouter([
   },
   {
     path: '/dashboard',
-    element: <DashboardLayout />,
+    element: (
+      <ProtectedRoute>
+        <DashboardLayout />
+      </ProtectedRoute>
+    ),
     children: [
       {
         path: '',
@@ -55,27 +60,51 @@ const router = createBrowserRouter([
   },
   {
     path: '/admin',
-    element: <AdminDashboard />,
+    element: (
+      <ProtectedRoute allowedRoles={['admin']}>
+        <AdminDashboard />
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/staff',
-    element: <StaffDashboard />,
+    element: (
+      <ProtectedRoute allowedRoles={['staff', 'admin']}>
+        <StaffDashboard />
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/login',
-    element: <Login />,
+    element: (
+      <PublicOnlyRoute>
+        <Login />
+      </PublicOnlyRoute>
+    ),
   },
   {
     path: '/signup',
-    element: <SignUp />,
+    element: (
+      <PublicOnlyRoute>
+        <SignUp />
+      </PublicOnlyRoute>
+    ),
   },
   {
     path: '/onboarding',
-    element: <Onboarding />,
+    element: (
+      <ProtectedRoute>
+        <Onboarding />
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/trip/:tripId',
-    element: <TripWorkspaceLayout />,
+    element: (
+      <ProtectedRoute>
+        <TripWorkspaceLayout />
+      </ProtectedRoute>
+    ),
     children: [
       {
         path: '',

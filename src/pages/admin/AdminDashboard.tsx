@@ -32,8 +32,19 @@ type Tab = 'systems' | 'users' | 'categories' | 'master';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('categories');
-  const { user, setUser } = useAuth();
+  const { user, setUser, isLoading } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (!user) {
+        navigate('/login', { replace: true });
+      } else if (user.role?.toLowerCase() !== 'admin') {
+        const dest = user.role?.toLowerCase() === 'staff' ? '/staff' : '/dashboard';
+        navigate(dest, { replace: true });
+      }
+    }
+  }, [user, isLoading, navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -41,6 +52,10 @@ export default function AdminDashboard() {
     if (setUser) setUser(null);
     navigate('/login');
   };
+
+  if (isLoading || !user || user.role?.toLowerCase() !== 'admin') {
+    return null;
+  }
 
   const adminName = user?.full_name || user?.email?.split('@')[0] || 'Administrator';
 

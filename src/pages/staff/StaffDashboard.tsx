@@ -222,6 +222,12 @@ export default function StaffDashboard() {
 
   useEffect(() => {
     if (!user) return;
+    const role = user.role?.toLowerCase();
+    if (role !== 'staff' && role !== 'admin') {
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+
     let active = true;
     const initFetch = async () => {
       try {
@@ -260,7 +266,7 @@ export default function StaffDashboard() {
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [user, navigate]);
 
   // Dismiss dropdowns on outside click
   useEffect(() => {
@@ -404,7 +410,10 @@ export default function StaffDashboard() {
     );
   }
 
-  if (!user) {
+  const userRole = user?.role?.toLowerCase();
+  const isAuthorizedStaff = userRole === 'staff' || userRole === 'admin';
+
+  if (!user || !isAuthorizedStaff) {
     return (
       <div
         className="staff-layout-root"
@@ -429,7 +438,7 @@ export default function StaffDashboard() {
               fontFamily: 'Poppins, sans-serif',
             }}
           >
-            Staff Login Required
+            Staff Access Required
           </h2>
           <p
             style={{
@@ -445,7 +454,7 @@ export default function StaffDashboard() {
           </p>
           <button
             type="button"
-            onClick={() => navigate('/login')}
+            onClick={() => navigate(user ? '/dashboard' : '/login')}
             style={{
               background: '#E9724C',
               color: '#FFF',
@@ -459,7 +468,7 @@ export default function StaffDashboard() {
               boxShadow: '0 2px 6px rgba(233, 114, 76, 0.3)',
             }}
           >
-            Go to Login
+            {user ? 'Return to Dashboard' : 'Go to Login'}
           </button>
         </div>
       </div>
