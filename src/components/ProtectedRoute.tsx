@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../lib/constants';
-import Spinner from './Spinner';
+import EarthLoadingScreen from './EarthLoadingScreen';
 
 interface ProtectedRouteProps {
   /**
@@ -22,7 +22,7 @@ interface ProtectedRouteProps {
 
 /**
  * Route guard that requires the user to be authenticated and have an allowed role.
- * - Shows a loading spinner while session validation is pending.
+ * - Shows a spinning earth loading screen while session validation is pending.
  * - Redirects unauthenticated users to `/login`.
  * - Redirects unauthorized users with mismatched roles to their authorized home portal.
  */
@@ -35,20 +35,7 @@ export default function ProtectedRoute({
   const location = useLocation();
 
   if (isLoading) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          height: '100vh',
-          width: '100vw',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: '#FAF8F5',
-        }}
-      >
-        <Spinner size={48} />
-      </div>
-    );
+    return <EarthLoadingScreen />;
   }
 
   if (!user) {

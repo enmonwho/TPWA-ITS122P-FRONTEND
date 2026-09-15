@@ -1,7 +1,7 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import StaffDashboard from './pages/staff/StaffDashboard';
-import { BaseLayout, DashboardLayout, TripWorkspaceLayout } from './layouts';
+import { BaseLayout, DashboardLayout, TripWorkspaceLayout, RootLayout } from './layouts';
 import { ProtectedRoute, PublicOnlyRoute } from './components';
 import {
   Home,
@@ -15,108 +15,129 @@ import {
   TripWorkspace,
   Budget,
   Settings,
+  ProfileSettings,
+  CustomerProfile,
 } from './pages';
 
 /**
  * Application router configuration.
  *
- * Sub-routes under /dashboard share DashboardLayout (sidebar/navigation).
+ * All routes are wrapped under RootLayout which provides PageLoaderContext
+ * and automatically displays the spinning earth page loader on cross-page transitions.
  */
 const router = createBrowserRouter([
   {
-    element: <BaseLayout />,
+    path: '/',
+    element: <RootLayout />,
     children: [
       {
-        path: '/',
-        element: <Home />,
-      },
-    ],
-  },
-  {
-    path: '/dashboard',
-    element: (
-      <ProtectedRoute>
-        <DashboardLayout />
-      </ProtectedRoute>
-    ),
-    children: [
-      {
-        path: '',
-        element: <Dashboard />,
+        element: <BaseLayout />,
+        children: [
+          {
+            index: true,
+            element: <Home />,
+          },
+        ],
       },
       {
-        path: 'bookings',
-        element: <Bookings />,
+        path: 'dashboard',
+        element: (
+          <ProtectedRoute>
+            <DashboardLayout />
+          </ProtectedRoute>
+        ),
+        children: [
+          {
+            path: '',
+            element: <Dashboard />,
+          },
+          {
+            path: 'profile',
+            element: <CustomerProfile />,
+          },
+          {
+            path: 'bookings',
+            element: <Bookings />,
+          },
+          {
+            path: 'explore',
+            element: <Explore />,
+          },
+          {
+            path: 'map',
+            element: <MapView />,
+          },
+          {
+            path: 'settings',
+            element: <ProfileSettings />,
+          },
+        ],
       },
       {
-        path: 'explore',
-        element: <Explore />,
+        path: 'app/settings/profile',
+        element: <Navigate to="/dashboard/settings" replace />,
       },
       {
-        path: 'map',
-        element: <MapView />,
-      },
-    ],
-  },
-  {
-    path: '/admin',
-    element: (
-      <ProtectedRoute allowedRoles={['admin']}>
-        <AdminDashboard />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/staff',
-    element: (
-      <ProtectedRoute allowedRoles={['staff', 'admin']}>
-        <StaffDashboard />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/login',
-    element: (
-      <PublicOnlyRoute>
-        <Login />
-      </PublicOnlyRoute>
-    ),
-  },
-  {
-    path: '/signup',
-    element: (
-      <PublicOnlyRoute>
-        <SignUp />
-      </PublicOnlyRoute>
-    ),
-  },
-  {
-    path: '/onboarding',
-    element: (
-      <ProtectedRoute>
-        <Onboarding />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/trip/:tripId',
-    element: (
-      <ProtectedRoute>
-        <TripWorkspaceLayout />
-      </ProtectedRoute>
-    ),
-    children: [
-      {
-        path: '',
-        element: <TripWorkspace />,
+        path: 'admin',
+        element: (
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        ),
       },
       {
-        path: 'budget',
-        element: <Budget />,
+        path: 'staff',
+        element: (
+          <ProtectedRoute allowedRoles={['staff', 'admin']}>
+            <StaffDashboard />
+          </ProtectedRoute>
+        ),
       },
       {
-        path: 'settings',
-        element: <Settings />,
+        path: 'login',
+        element: (
+          <PublicOnlyRoute>
+            <Login />
+          </PublicOnlyRoute>
+        ),
+      },
+      {
+        path: 'signup',
+        element: (
+          <PublicOnlyRoute>
+            <SignUp />
+          </PublicOnlyRoute>
+        ),
+      },
+      {
+        path: 'onboarding',
+        element: (
+          <ProtectedRoute>
+            <Onboarding />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'trip/:tripId',
+        element: (
+          <ProtectedRoute>
+            <TripWorkspaceLayout />
+          </ProtectedRoute>
+        ),
+        children: [
+          {
+            path: '',
+            element: <TripWorkspace />,
+          },
+          {
+            path: 'budget',
+            element: <Budget />,
+          },
+          {
+            path: 'settings',
+            element: <Settings />,
+          },
+        ],
       },
     ],
   },

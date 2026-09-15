@@ -9,3 +9,5 @@ export { Settings } from './Settings';
 export { default as MapView } from './MapView';
 export { default as Explore } from './Explore';
 export { default as Bookings } from './Bookings';
+export { default as ProfileSettings } from './ProfileSettings';
+export { default as CustomerProfile } from './CustomerProfile';

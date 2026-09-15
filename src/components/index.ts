@@ -10,3 +10,4 @@ export { CountryAutocomplete } from './CountryAutocomplete';
 export { DateRangePicker } from './DateRangePicker';
 export { default as ProtectedRoute } from './ProtectedRoute';
 export { default as PublicOnlyRoute } from './PublicOnlyRoute';
+export { default as EarthLoadingScreen } from './EarthLoadingScreen';

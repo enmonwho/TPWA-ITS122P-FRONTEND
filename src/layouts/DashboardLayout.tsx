@@ -60,10 +60,13 @@ export default function DashboardLayout() {
         <div className="dashboard-divider dashboard-divider-margin"></div>
 
         <div className="dashboard-bottom-actions">
-          <button className="sidebar-nav-item">
+          <Link
+            to={ROUTES.PROFILE_SETTINGS}
+            className={`sidebar-nav-item ${location.pathname === ROUTES.PROFILE_SETTINGS ? 'active' : ''}`}
+          >
             <img src={sidebarSettings} alt="Settings" />
             <span className="sidebar-nav-text">Settings</span>
-          </button>
+          </Link>
           <button className="sidebar-nav-item" onClick={handleLogout}>
             <img src={sidebarLogout} alt="Log out" />
             <span className="sidebar-nav-text">Log out</span>

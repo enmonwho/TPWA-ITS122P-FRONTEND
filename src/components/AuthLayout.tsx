@@ -13,25 +13,24 @@ interface AuthLayoutProps {
  * AuthLayout — shared responsive layout for Login and Sign Up pages.
  *
  * Breakpoints:
- * - Desktop (≥1024px): Split-screen — collage fills left half, form centered on right
- * - Tablet (768px–1023px): Vertical column — ~35vh collage strip at top, form below
- * - Mobile (<768px): No collage rendered/loaded — cream + tiled texture, full-width form
+ * - Desktop (>1180px): Split-screen — collage fills left half, form centered on right
+ * - Tablet & Mobile (<=1180px): No collage rendered/loaded — clean cream + tiled texture, centered standalone form
  *
  * The logo is placed:
- * - Desktop: Overlaid on the collage (existing behavior)
- * - Tablet/Mobile: Standalone above the heading inside the form section
+ * - Desktop (>1180px): Overlaid on the collage
+ * - Tablet & Mobile (<=1180px): Standalone above the heading inside the form section
  */
 export default function AuthLayout({ children }: AuthLayoutProps) {
-  // Conditional rendering: don't load the collage image at mobile widths
-  const isTabletUp = useMediaQuery('(min-width: 768px)');
+  // Only load and render the collage on desktop screens wider than 1180px
+  const isDesktop = useMediaQuery('(min-width: 1181px)');
 
   return (
     <div className="auth-root">
       {/*
-        Collage section — only rendered at ≥768px.
-        On mobile, the image is not loaded at all.
+        Collage section — only rendered at >1180px.
+        At <=1180px (including 775px–1180px), the image is not loaded or rendered at all.
       */}
-      {isTabletUp && (
+      {isDesktop && (
         <div className="auth-collage-section">
           <div className="auth-collage-inner">
             <img src={stampsCollage} alt="Stamps Collage" className="auth-collage-img" />
@@ -51,14 +50,20 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
 
       {/* Form section */}
       <div className="auth-form-section">
-        {/* Standalone logo — visible on tablet and mobile only */}
-        <Link
-          to="/"
-          aria-label="Go to homepage"
-          className="auth-standalone-logo-link animate-fade-in-up"
-        >
-          <img src={lakbyeLogo} alt="LakBye Logo" className="auth-standalone-logo-img" />
-        </Link>
+        {/* Standalone logo — visible on tablet and mobile (<=1180px) */}
+        {!isDesktop && (
+          <Link
+            to="/"
+            aria-label="Go to homepage"
+            className="auth-standalone-logo-link animate-fade-in-up"
+          >
+            <img
+              src={lakbyeLogo}
+              alt="LakBye Logo"
+              className="auth-standalone-logo-img"
+            />
+          </Link>
+        )}
 
         <div className="login-form-container">{children}</div>
       </div>

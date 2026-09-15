@@ -1,8 +1,8 @@
-import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import React, { useRef, useEffect } from 'react';
+import { useNavigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../lib/constants';
-import Spinner from './Spinner';
+import EarthLoadingScreen from './EarthLoadingScreen';
 
 interface PublicOnlyRouteProps {
   children?: React.ReactNode;
@@ -11,38 +11,33 @@ interface PublicOnlyRouteProps {
 /**
  * Route wrapper for guest-only pages like Login and Sign Up.
  * - Shows loading spinner while checking initial session.
- * - If user is already authenticated, redirects them directly to their role-appropriate portal.
+ * - If user was already authenticated upon loading this route, redirects them directly to their role-appropriate portal.
+ * - If user transitions to authenticated via in-page form submission (SignUp or Login), lets the page component control its target navigation.
  * - If unauthenticated, renders children or outlet.
  */
 export default function PublicOnlyRoute({ children }: PublicOnlyRouteProps) {
   const { user, isLoading } = useAuth();
+  const navigate = useNavigate();
+  const isInitialCheckRef = useRef(true);
+
+  useEffect(() => {
+    if (!isLoading && isInitialCheckRef.current) {
+      isInitialCheckRef.current = false;
+      if (user) {
+        const role = user.role?.toLowerCase() || '';
+        if (role === 'admin') {
+          navigate(ROUTES.ADMIN, { replace: true });
+        } else if (role === 'staff') {
+          navigate(ROUTES.STAFF, { replace: true });
+        } else {
+          navigate(ROUTES.DASHBOARD, { replace: true });
+        }
+      }
+    }
+  }, [isLoading, user, navigate]);
 
   if (isLoading) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          height: '100vh',
-          width: '100vw',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: '#FAF8F5',
-        }}
-      >
-        <Spinner size={48} />
-      </div>
-    );
-  }
-
-  if (user) {
-    const role = user.role?.toLowerCase() || '';
-    if (role === 'admin') {
-      return <Navigate to={ROUTES.ADMIN} replace />;
-    }
-    if (role === 'staff') {
-      return <Navigate to={ROUTES.STAFF} replace />;
-    }
-    return <Navigate to={ROUTES.DASHBOARD} replace />;
+    return <EarthLoadingScreen />;
   }
 
   return children ? <>{children}</> : <Outlet />;

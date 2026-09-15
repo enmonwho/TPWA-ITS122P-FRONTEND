@@ -5,6 +5,7 @@ import axios from 'axios';
 
 import AuthLayout from '../components/AuthLayout';
 import { useAuth } from '../context/AuthContext';
+import { usePageLoader } from '../context/PageLoaderContext';
 import { ROUTES } from '../lib/constants';
 
 export default function Login() {
@@ -15,6 +16,7 @@ export default function Login() {
   const [errorMessage, setErrorMessage] = useState('');
 
   const { login } = useAuth();
+  const { triggerTransition } = usePageLoader();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -23,20 +25,19 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const response = await login({ email, password });
+      await triggerTransition(async () => {
+        const response = await login({ email, password });
 
-      // Dynamic role-based redirection with lowercase checks
-      const role = response.user?.role?.toLowerCase();
-      if (role === 'admin') {
-        navigate(ROUTES.ADMIN);
-      } else if (role === 'staff') {
-        navigate(ROUTES.STAFF);
-      } else if (role === 'customer') {
-        navigate(ROUTES.DASHBOARD);
-      } else {
-        // Fallback for any unrecognized or unexpected role
-        navigate(ROUTES.DASHBOARD);
-      }
+        // Dynamic role-based redirection with lowercase checks
+        const role = response.user?.role?.toLowerCase();
+        if (role === 'admin') {
+          navigate(ROUTES.ADMIN);
+        } else if (role === 'staff') {
+          navigate(ROUTES.STAFF);
+        } else {
+          navigate(ROUTES.DASHBOARD);
+        }
+      }, 700);
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.data?.message) {
         setErrorMessage(err.response.data.message);

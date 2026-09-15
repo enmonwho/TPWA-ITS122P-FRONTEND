@@ -6,6 +6,7 @@ import axios from 'axios';
 import AuthLayout from '../components/AuthLayout';
 import { ROUTES } from '../lib/constants';
 import { useAuth } from '../context/AuthContext';
+import { usePageLoader } from '../context/PageLoaderContext';
 import { authApi } from '../services/api';
 
 export default function SignUp() {
@@ -20,6 +21,7 @@ export default function SignUp() {
   const [generalError, setGeneralError] = useState('');
 
   const { setUser } = useAuth();
+  const { triggerTransition } = usePageLoader();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -42,13 +44,15 @@ export default function SignUp() {
     setIsLoading(true);
 
     try {
-      const response = await authApi.register({
-        full_name: fullName,
-        email,
-        password,
-      });
-      setUser(response.user);
-      navigate(ROUTES.DASHBOARD);
+      await triggerTransition(async () => {
+        const response = await authApi.register({
+          full_name: fullName,
+          email,
+          password,
+        });
+        setUser(response.user);
+        navigate(ROUTES.ONBOARDING);
+      }, 700);
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         const status = err.response?.status;

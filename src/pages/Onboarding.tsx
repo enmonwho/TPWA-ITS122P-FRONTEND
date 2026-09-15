@@ -1,6 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 
+import { useAuth } from '../context/AuthContext';
+import { usePageLoader } from '../context/PageLoaderContext';
+import { ROUTES, STORAGE_KEYS } from '../lib/constants';
 import lakbyeLogo from '../assets/lakbye-logo.png';
 import cloud1 from '../assets/cloud-1.svg';
 import cloud2 from '../assets/cloud-2.svg';
@@ -42,6 +46,10 @@ const clouds: CloudConfig[] = [
 /* ────────── Component ────────── */
 
 export default function Onboarding() {
+  const { user } = useAuth();
+  const { triggerTransition } = usePageLoader();
+  const navigate = useNavigate();
+
   const [step, setStep] = useState<'username' | 'preferences'>('username');
 
   /* Step 1 state */
@@ -59,8 +67,39 @@ export default function Onboarding() {
     setPreferences((prev) => ({ ...prev, [key]: value }));
   };
 
+  const handleNextStep = () => {
+    triggerTransition(() => {
+      setStep('preferences');
+    }, 550);
+  };
+
   const handleDone = () => {
-    console.log('Onboarding complete:', { username, preferences });
+    /**
+     * NOTE: The backend users table currently has no columns for username,
+     * timeFormat, dateFormat, currency, or distanceUnit.
+     * This is a client-side localStorage stopgap until backend support is added.
+     *
+     * Direct access note: If a user navigates to /onboarding while already
+     * having preferences saved, this will re-run and overwrite the existing entry.
+     */
+    triggerTransition(() => {
+      const userId = user?.id;
+      if (userId) {
+        const userPreferences = {
+          username,
+          timeFormat: preferences.timeFormat,
+          dateFormat: preferences.dateFormat,
+          currency: preferences.currency,
+          distanceUnit: preferences.distanceUnit,
+        };
+        localStorage.setItem(
+          STORAGE_KEYS.USER_PREFERENCES(userId),
+          JSON.stringify(userPreferences),
+        );
+      }
+
+      navigate(ROUTES.DASHBOARD);
+    }, 700);
   };
 
   return (
@@ -116,7 +155,7 @@ export default function Onboarding() {
           <button
             className="onboarding-btn-next"
             disabled={username.trim().length === 0}
-            onClick={() => setStep('preferences')}
+            onClick={handleNextStep}
           >
             Next
           </button>

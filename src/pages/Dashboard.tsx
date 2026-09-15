@@ -1,7 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Trip } from '../types/trip';
-import { Globe, Ticket, Hourglass, Wallet, User, MoreVertical } from 'lucide-react';
+import {
+  Globe,
+  Ticket,
+  Hourglass,
+  Wallet,
+  User,
+  MoreVertical,
+  ChevronRight,
+} from 'lucide-react';
 import StatCard from '../components/StatCard';
 import CreateTripModal from '../components/CreateTripModal';
 import planNowIcon from '../assets/plan-now.svg';
@@ -197,6 +205,15 @@ export default function Dashboard() {
           {/* Profile Section */}
           <div className="dashboard-profile-column">
             <div className="dashboard-profile-section">
+              <button
+                type="button"
+                className="dashboard-profile-action-btn"
+                onClick={() => navigate(ROUTES.CUSTOMER_PROFILE)}
+                aria-label="View Profile and Journal"
+                title="View Profile and Journal"
+              >
+                <ChevronRight size={22} color="#FFFFFF" strokeWidth={2.5} />
+              </button>
               <div className="dashboard-profile-header">
                 <div className="dashboard-profile-avatar">
                   <User size={32} color="var(--color-neutral-500)" />

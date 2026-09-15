@@ -484,4 +484,30 @@ export const adminApi = {
   },
 };
 
+/* ------------------------------------------------------------------ */
+/*  User Profile API Module                                           */
+/* ------------------------------------------------------------------ */
+
+export interface UpdateUserProfilePayload {
+  name?: string;
+  full_name?: string;
+  password?: string;
+  is_active?: boolean;
+  role?: string;
+}
+
+export const userApi = {
+  /** PUT /users/:id — update user profile / status / credentials */
+  updateProfile: async (
+    userId: number | string,
+    payload: UpdateUserProfilePayload,
+  ): Promise<{ message: string; user?: AdminUser }> => {
+    const res = await api.put<{ message: string; user?: AdminUser }>(
+      `/users/${userId}`,
+      payload,
+    );
+    return res.data;
+  },
+};
+
 export default api;
