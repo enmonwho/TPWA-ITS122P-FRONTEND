@@ -5,6 +5,7 @@ import { ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoader } from '../context/PageLoaderContext';
 import { ROUTES, STORAGE_KEYS } from '../lib/constants';
+import { fetchExchangeRates } from '../lib/currency';
 import lakbyeLogo from '../assets/lakbye-logo.png';
 import cloud1 from '../assets/cloud-1.svg';
 import cloud2 from '../assets/cloud-2.svg';
@@ -65,6 +66,12 @@ export default function Onboarding() {
 
   const handlePreferenceChange = (key: keyof typeof preferences, value: string) => {
     setPreferences((prev) => ({ ...prev, [key]: value }));
+    if (key === 'currency' && value) {
+      // Pre-fetch and cache exchange rates in the background for selected currency
+      fetchExchangeRates(value).catch((err) => {
+        console.warn('Failed to pre-cache exchange rates on currency change:', err);
+      });
+    }
   };
 
   const handleNextStep = () => {
@@ -82,6 +89,11 @@ export default function Onboarding() {
      * Direct access note: If a user navigates to /onboarding while already
      * having preferences saved, this will re-run and overwrite the existing entry.
      */
+    const chosenCurrency = preferences.currency || 'PHP';
+    // Ensure base exchange rates are cached
+    fetchExchangeRates(chosenCurrency).catch(() => {});
+    fetchExchangeRates('PHP').catch(() => {});
+
     triggerTransition(() => {
       const userId = user?.id;
       if (userId) {
@@ -89,7 +101,7 @@ export default function Onboarding() {
           username,
           timeFormat: preferences.timeFormat,
           dateFormat: preferences.dateFormat,
-          currency: preferences.currency,
+          currency: chosenCurrency,
           distanceUnit: preferences.distanceUnit,
         };
         localStorage.setItem(

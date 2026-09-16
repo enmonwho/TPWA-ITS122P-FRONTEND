@@ -23,7 +23,7 @@ const api = axios.create({
     (import.meta.env.VITE_API_URL as string) ||
     'https://tpwa-its122p-backend.onrender.com/api',
   withCredentials: true,
-  timeout: 15_000,
+  timeout: 60_000,
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',

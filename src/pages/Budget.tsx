@@ -7,6 +7,14 @@ import type { Trip } from '../types/trip';
 import addMembersIcon from '../assets/add-members.png';
 import { tripsApi, budgetApi } from '../services/api';
 import { mergeTripWithExtras, formatDateOnly } from '../lib/tripExtras';
+import { STORAGE_KEYS } from '../lib/constants';
+import {
+  fetchExchangeRates,
+  convert,
+  getCurrencySymbol,
+  SUPPORTED_CURRENCIES,
+  formatCurrency,
+} from '../lib/currency';
 
 // Figma Icons downloaded directly from Node 578:10
 import bedIcon from '../assets/budget/bed.png';
@@ -80,6 +88,63 @@ export function Budget() {
   // Modal States
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [isAddBalanceOpen, setIsAddBalanceOpen] = useState(false);
+
+  // Currency & Exchange Rate State (Display-Layer Only)
+  const [displayCurrency, setDisplayCurrency] = useState<string>(() => {
+    if (tripId) {
+      const savedTripCurrency = localStorage.getItem(`lakbye_display_currency_${tripId}`);
+      if (savedTripCurrency) return savedTripCurrency;
+    }
+    if (user?.id) {
+      try {
+        const prefsRaw = localStorage.getItem(STORAGE_KEYS.USER_PREFERENCES(user.id));
+        if (prefsRaw) {
+          const prefs = JSON.parse(prefsRaw);
+          if (prefs.currency) return prefs.currency;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return 'PHP';
+  });
+  const [fxRates, setFxRates] = useState<Record<string, number>>({
+    PHP: 1,
+    USD: 0.0175,
+    EUR: 0.0161,
+    GBP: 0.0135,
+    JPY: 2.65,
+  });
+  const [isFxStale, setIsFxStale] = useState(false);
+  const [fxDate, setFxDate] = useState('');
+
+  // Live exchange rates from Frankfurter API (cached daily in localStorage)
+
+  // Fetch live exchange rates from Frankfurter API (cached daily)
+  useEffect(() => {
+    let cancelled = false;
+    fetchExchangeRates('PHP')
+      .then((res) => {
+        if (!cancelled) {
+          setFxRates(res.rates);
+          setIsFxStale(res.isStale);
+          setFxDate(res.date);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch exchange rates:', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleCurrencyChange = (newCurrency: string) => {
+    setDisplayCurrency(newCurrency);
+    if (tripId) {
+      localStorage.setItem(`lakbye_display_currency_${tripId}`, newCurrency);
+    }
+  };
 
   // Form Inputs
   const [expenseName, setExpenseName] = useState('');
@@ -183,10 +248,17 @@ export function Budget() {
 
   const handleAddBalanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const amount = parseFloat(balanceInput);
-    if (isNaN(amount) || amount <= 0) return;
+    const enteredAmount = parseFloat(balanceInput);
+    if (isNaN(enteredAmount) || enteredAmount <= 0) return;
 
-    const optimisticBalance = Math.round((budget.balance + amount) * 100) / 100;
+    // Convert from display currency back to canonical base PHP for ledger storage
+    const amountInPhp =
+      displayCurrency === 'PHP'
+        ? enteredAmount
+        : convert(enteredAmount, displayCurrency, 'PHP', fxRates);
+    const roundedPhp = Math.round(amountInPhp * 100) / 100;
+
+    const optimisticBalance = Math.round((budget.balance + roundedPhp) * 100) / 100;
     saveBudget({
       ...budget,
       balance: optimisticBalance,
@@ -197,7 +269,7 @@ export function Budget() {
 
     if (tripId) {
       try {
-        const res = await budgetApi.addBalance(tripId, amount);
+        const res = await budgetApi.addBalance(tripId, roundedPhp);
         if (res && typeof res.balance === 'number') {
           setBudget((prev) => {
             const reconciled = { ...prev, balance: res.balance };
@@ -214,8 +286,15 @@ export function Budget() {
   const handleAddExpenseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!expenseName.trim()) return;
-    const cost = parseFloat(expenseCost);
-    if (isNaN(cost) || cost <= 0) return;
+    const enteredCost = parseFloat(expenseCost);
+    if (isNaN(enteredCost) || enteredCost <= 0) return;
+
+    // Convert from display currency back to canonical base PHP for ledger storage
+    const costInPhp =
+      displayCurrency === 'PHP'
+        ? enteredCost
+        : convert(enteredCost, displayCurrency, 'PHP', fxRates);
+    const roundedCostPhp = Math.round(costInPhp * 100) / 100;
 
     const totalItems =
       expenseItemRows.reduce((sum, r) => sum + (parseInt(r.quantity, 10) || 0), 0) || 1;
@@ -226,13 +305,13 @@ export function Budget() {
       name: expenseName.trim(),
       items: totalItems,
       category: expenseCategory,
-      cost,
+      cost: roundedCostPhp,
       date: new Date().toISOString().split('T')[0],
     };
 
     saveBudget({
       ...budget,
-      balance: Math.round((budget.balance - cost) * 100) / 100,
+      balance: Math.round((budget.balance - roundedCostPhp) * 100) / 100,
       expenses: [...budget.expenses, newExpense],
     });
 
@@ -319,13 +398,17 @@ export function Budget() {
 
     return {
       name: cat.name,
-      value: val,
+      value: convert(val, 'PHP', displayCurrency, fxRates),
       color: cat.color,
     };
   }).filter((c) => c.value > 0);
 
-  const totalSpent = budget.expenses.reduce((sum, e) => sum + e.cost, 0);
-  const formattedSpent = `₱${totalSpent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const totalSpentPhp = budget.expenses.reduce((sum, e) => sum + e.cost, 0);
+  const convertedTotalSpent = convert(totalSpentPhp, 'PHP', displayCurrency, fxRates);
+  const formattedSpent = formatCurrency(convertedTotalSpent, displayCurrency);
+
+  const convertedBalance = convert(budget.balance, 'PHP', displayCurrency, fxRates);
+  const currentSymbol = getCurrencySymbol(displayCurrency);
 
   // If no expenses, show light gray placeholder circle
   const chartData =
@@ -370,10 +453,45 @@ export function Budget() {
         <div className="budget-left-zone">
           <div className="budget-left-header">
             <h2 className="budget-title">Budget</h2>
-            <div className="budget-currency-pill" title="Currency">
-              <span>PHP</span>
-              <img src={arrowDownIcon} alt="" className="budget-currency-arrow" />
+            <div
+              className="budget-currency-pill"
+              title={`Display Currency: ${displayCurrency}. Rates updated: ${fxDate || 'today'}${isFxStale ? ' (Offline / cached rates)' : ''}`}
+            >
+              <label htmlFor="budget-currency-select-id" className="sr-only">
+                Display Currency
+              </label>
+              <select
+                id="budget-currency-select-id"
+                aria-label="Select display currency"
+                value={displayCurrency}
+                onChange={(e) => handleCurrencyChange(e.target.value)}
+                className="budget-currency-select"
+              >
+                {SUPPORTED_CURRENCIES.map((c) => (
+                  <option
+                    key={c.code}
+                    value={c.code}
+                    style={{ background: '#ffffff', color: '#111827' }}
+                  >
+                    {c.code}
+                  </option>
+                ))}
+              </select>
+              <img
+                src={arrowDownIcon}
+                alt=""
+                className="budget-currency-arrow"
+                aria-hidden="true"
+              />
             </div>
+            {isFxStale && (
+              <span
+                className="budget-currency-stale-badge"
+                title={`Exchange rates are cached from ${fxDate} (ECB Frankfurter rates).`}
+              >
+                Cached ({fxDate})
+              </span>
+            )}
           </div>
 
           {/* Donut Chart with Animated Sweep & Centered Total Expenses */}
@@ -381,7 +499,7 @@ export function Budget() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  key={`donut-wheel-${budget.expenses.length}-${Math.round(totalSpent)}`}
+                  key={`donut-wheel-${budget.expenses.length}-${Math.round(convertedTotalSpent)}-${displayCurrency}`}
                   data={chartData}
                   cx="50%"
                   cy="50%"
@@ -405,7 +523,7 @@ export function Budget() {
 
             <div className="budget-donut-center">
               <div
-                key={`amount-${totalSpent}`}
+                key={`amount-${convertedTotalSpent}-${displayCurrency}`}
                 className="budget-donut-amount"
                 style={{ fontSize: getDonutFontSize(formattedSpent.length) }}
               >
@@ -443,12 +561,26 @@ export function Budget() {
           {/* Centered Balance Hero Section */}
           <div className="budget-hero-section">
             <div className="budget-balance-amount">
-              ₱
-              {budget.balance.toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
+              {formatCurrency(convertedBalance, displayCurrency)}
             </div>
+            {displayCurrency !== 'PHP' && (
+              <div
+                style={{
+                  fontSize: '12px',
+                  color: 'rgba(72, 42, 19, 0.65)',
+                  marginTop: '-4px',
+                  marginBottom: '6px',
+                  fontWeight: 500,
+                }}
+              >
+                ≈ ₱
+                {budget.balance.toLocaleString('en-US', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}{' '}
+                base
+              </div>
+            )}
             <div className="budget-balance-label">YOUR BALANCE</div>
 
             {/* Action Buttons: Add Expense & Add Balance */}
@@ -517,11 +649,26 @@ export function Budget() {
                         </span>
                       </div>
                       <div style={{ fontWeight: 600 }}>
-                        ₱
-                        {expense.cost.toLocaleString('en-US', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
+                        {formatCurrency(
+                          convert(expense.cost, 'PHP', displayCurrency, fxRates),
+                          displayCurrency,
+                        )}
+                        {displayCurrency !== 'PHP' && (
+                          <span
+                            style={{
+                              display: 'block',
+                              fontSize: '10.5px',
+                              fontWeight: 400,
+                              color: 'rgba(0, 0, 0, 0.45)',
+                            }}
+                          >
+                            ≈ ₱
+                            {expense.cost.toLocaleString('en-US', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </span>
+                        )}
                       </div>
                       <button
                         type="button"
@@ -640,24 +787,48 @@ export function Budget() {
                     <span>Add item</span>
                   </button>
 
-                  <div className="budget-modal-cost-wrap">
-                    <label
-                      htmlFor="modal-expense-cost"
-                      className="budget-modal-cost-label"
-                    >
-                      Total Cost:
-                    </label>
-                    <input
-                      id="modal-expense-cost"
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      required
-                      placeholder="₱ 0.00"
-                      className="budget-modal-gradient-input budget-modal-cost-input"
-                      value={expenseCost}
-                      onChange={(e) => setExpenseCost(e.target.value)}
-                    />
+                  <div
+                    className="budget-modal-cost-wrap"
+                    style={{
+                      flexDirection: 'column',
+                      alignItems: 'flex-end',
+                      gap: '2px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <label
+                        htmlFor="modal-expense-cost"
+                        className="budget-modal-cost-label"
+                      >
+                        Total Cost:
+                      </label>
+                      <input
+                        id="modal-expense-cost"
+                        type="number"
+                        min="0.01"
+                        step={displayCurrency === 'JPY' ? '1' : '0.01'}
+                        required
+                        placeholder={`${currentSymbol} 0.00`}
+                        className="budget-modal-gradient-input budget-modal-cost-input"
+                        value={expenseCost}
+                        onChange={(e) => setExpenseCost(e.target.value)}
+                      />
+                    </div>
+                    {displayCurrency !== 'PHP' && parseFloat(expenseCost) > 0 && (
+                      <span className="budget-modal-conversion-hint">
+                        ≈ ₱
+                        {convert(
+                          parseFloat(expenseCost),
+                          displayCurrency,
+                          'PHP',
+                          fxRates,
+                        ).toLocaleString('en-US', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}{' '}
+                        stored in base PHP
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -774,11 +945,24 @@ export function Budget() {
                   Your Current Balance
                 </h3>
                 <div className="budget-balance-current-display">
-                  ₱
-                  {budget.balance.toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+                  {formatCurrency(convertedBalance, displayCurrency)}
+                  {displayCurrency !== 'PHP' && (
+                    <div
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: 400,
+                        color: 'rgba(0, 0, 0, 0.45)',
+                        marginTop: '2px',
+                      }}
+                    >
+                      (₱
+                      {budget.balance.toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{' '}
+                      base)
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -787,19 +971,37 @@ export function Budget() {
                   htmlFor="modal-balance-amount"
                   className="budget-modal-section-title"
                 >
-                  Additional Balance
+                  Additional Balance ({displayCurrency})
                 </label>
                 <input
                   id="modal-balance-amount"
                   type="number"
                   min="0.01"
-                  step="0.01"
+                  step={displayCurrency === 'JPY' ? '1' : '0.01'}
                   required
-                  placeholder="Enter an amount"
+                  placeholder={`Amount in ${displayCurrency} (${currentSymbol})`}
                   className="budget-modal-gradient-input budget-balance-input"
                   value={balanceInput}
                   onChange={(e) => setBalanceInput(e.target.value)}
                 />
+                {displayCurrency !== 'PHP' && parseFloat(balanceInput) > 0 && (
+                  <span
+                    className="budget-modal-conversion-hint"
+                    style={{ textAlign: 'center', marginTop: '6px' }}
+                  >
+                    ≈ ₱
+                    {convert(
+                      parseFloat(balanceInput),
+                      displayCurrency,
+                      'PHP',
+                      fxRates,
+                    ).toLocaleString('en-US', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{' '}
+                    will be added to your canonical base balance
+                  </span>
+                )}
                 <span className="budget-balance-helper">
                   Any additional balance entered will be automatically added to your
                   current total balance.
