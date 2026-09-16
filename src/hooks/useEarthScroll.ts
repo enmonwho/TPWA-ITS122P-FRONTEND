@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 export function useEarthScroll() {
   const earthRef = useRef<HTMLImageElement>(null);
   const earthWrapRef = useRef<HTMLDivElement>(null);
+  const cloudsWrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let ticking = false;
@@ -30,12 +31,26 @@ export function useEarthScroll() {
         earthRef.current.style.transform = `rotate(${deg}deg)`;
       }
 
-      // blur out
-      const progress = clamp01((y - BLUR_START) / BLUR_RANGE);
+      // blur out (adaptive on mobile so blur initiates smoothly as user scrolls)
+      const isMobile = window.innerWidth <= 769;
+      const blurStart = isMobile ? 80 : BLUR_START;
+      const blurRange = isMobile ? 350 : BLUR_RANGE;
+
+      const progress = clamp01((y - blurStart) / blurRange);
       if (earthWrapRef.current) {
         earthWrapRef.current.style.filter = `blur(${progress * MAX_BLUR}px)`;
         if (FADE_OUT) {
           earthWrapRef.current.style.opacity = `${1 - progress}`;
+        }
+      }
+
+      // On mobile, fade clouds out gracefully as user scrolls so they do not linger above the Earth
+      if (cloudsWrapRef.current) {
+        if (isMobile) {
+          const cloudProgress = clamp01(y / 120);
+          cloudsWrapRef.current.style.opacity = `${1 - cloudProgress}`;
+        } else {
+          cloudsWrapRef.current.style.opacity = '1';
         }
       }
 
@@ -50,12 +65,14 @@ export function useEarthScroll() {
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll, { passive: true });
     updateRotation();
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
     };
   }, []);
 
-  return { earthRef, earthWrapRef };
+  return { earthRef, earthWrapRef, cloudsWrapRef };
 }

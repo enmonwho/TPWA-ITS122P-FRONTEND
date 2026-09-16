@@ -16,10 +16,46 @@ import CloudDoodle from '../components/CloudDoodle';
  * - CTA section
  */
 export default function Home() {
-  const { earthRef, earthWrapRef } = useEarthScroll();
+  const { earthRef, earthWrapRef, cloudsWrapRef } = useEarthScroll();
 
   return (
     <div className="earth-home-page">
+      {/* Cloud doodles: rendered in their own background layer behind the Earth */}
+      <div className="earth-clouds-wrap" ref={cloudsWrapRef} aria-hidden="true">
+        <CloudDoodle
+          id={1}
+          className="cloud-doodle-1"
+          top="45%"
+          left="5%"
+          width="160px"
+          opacity={0.8}
+        />
+        <CloudDoodle
+          id={2}
+          className="cloud-doodle-2"
+          top="80%"
+          left="8%"
+          width="120px"
+          opacity={0.7}
+        />
+        <CloudDoodle
+          id={3}
+          className="cloud-doodle-3"
+          top="50%"
+          right="12%"
+          width="140px"
+          opacity={0.8}
+        />
+        <CloudDoodle
+          id={4}
+          className="cloud-doodle-4"
+          top="75%"
+          right="5%"
+          width="180px"
+          opacity={0.7}
+        />
+      </div>
+
       <div className="earth-wrap" ref={earthWrapRef}>
         <img
           className="earth-img"
@@ -30,12 +66,6 @@ export default function Home() {
       </div>
 
       <section className="earth-header-section earth-hero">
-        {/* Clouds placed to match the reference image and float behind the Earth */}
-        <CloudDoodle id={1} top="45%" left="5%" width="160px" opacity={0.8} />
-        <CloudDoodle id={2} top="80%" left="8%" width="120px" opacity={0.7} />
-        <CloudDoodle id={3} top="50%" right="12%" width="140px" opacity={0.8} />
-        <CloudDoodle id={4} top="75%" right="5%" width="180px" opacity={0.7} />
-
         <h1 className="animate-fade-in-up delay-100" style={{ textAlign: 'center' }}>
           <span>Saan aabot ang </span>
           <span

@@ -22,6 +22,7 @@ interface CloudDoodleProps {
   width?: string;
   opacity?: number;
   rotation?: number;
+  className?: string;
 }
 
 const CloudDoodle: React.FC<CloudDoodleProps> = ({
@@ -33,12 +34,13 @@ const CloudDoodle: React.FC<CloudDoodleProps> = ({
   width = '150px',
   opacity = 0.5,
   rotation = 0,
+  className = '',
 }) => {
   return (
     <img
       src={clouds[id]}
       alt=""
-      className="cloud-doodle"
+      className={`cloud-doodle ${className}`.trim()}
       style={{
         top,
         left,
