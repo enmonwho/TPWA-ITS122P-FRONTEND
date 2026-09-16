@@ -19,9 +19,7 @@ import { mockAuthApi } from './mockAuthApi';
  * Reads VITE_API_URL from environment variables with fallback to hosted backend.
  */
 const api = axios.create({
-  baseURL:
-    (import.meta.env.VITE_API_URL as string) ||
-    'https://tpwa-its122p-backend.onrender.com/api',
+  baseURL: (import.meta.env.VITE_API_URL as string) || '/api',
   withCredentials: true,
   timeout: 60_000,
   headers: {

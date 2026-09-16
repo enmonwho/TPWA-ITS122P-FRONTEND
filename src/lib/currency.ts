@@ -86,7 +86,11 @@ export async function fetchExchangeRates(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-    const res = await fetch(`https://api.frankfurter.dev/v1/latest?base=${base}`, {
+    const frankfurterBaseUrl =
+      (import.meta.env.VITE_FRANKFURTER_API_URL as string) ||
+      'https://api.frankfurter.dev';
+
+    const res = await fetch(`${frankfurterBaseUrl}/v1/latest?base=${base}`, {
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
