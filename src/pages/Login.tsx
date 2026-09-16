@@ -35,7 +35,7 @@ export default function Login() {
         } else if (role === 'staff') {
           navigate(ROUTES.STAFF);
         } else {
-          navigate(ROUTES.DASHBOARD);
+          navigate(ROUTES.HOME);
         }
       }, 700);
     } catch (err: unknown) {

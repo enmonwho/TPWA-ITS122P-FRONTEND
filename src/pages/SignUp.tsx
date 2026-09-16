@@ -51,7 +51,7 @@ export default function SignUp() {
           password,
         });
         setUser(response.user);
-        navigate(ROUTES.ONBOARDING);
+        navigate(ROUTES.HOME);
       }, 700);
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {

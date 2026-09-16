@@ -98,7 +98,7 @@ export default function Onboarding() {
         );
       }
 
-      navigate(ROUTES.DASHBOARD);
+      navigate(ROUTES.HOME);
     }, 700);
   };
 

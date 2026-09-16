@@ -1,8 +1,13 @@
 import React from 'react';
-import { Link } from 'react-router';
+import { Link } from 'react-router-dom';
 import CloudDoodle from './CloudDoodle';
+import { useAuth } from '../context/AuthContext';
+import { ROUTES } from '../lib/constants';
 
 const CTASection: React.FC = () => {
+  const { user } = useAuth();
+  const planTarget = user ? ROUTES.DASHBOARD : ROUTES.SIGN_UP;
+
   return (
     <section className="cta-section">
       <CloudDoodle id={3} top="15%" left="5%" width="130px" opacity={0.6} />
@@ -15,7 +20,7 @@ const CTASection: React.FC = () => {
         <h2 className="cta-heading">Join us now!</h2>
         <p className="cta-subheading">Start your travel journey</p>
         <div>
-          <Link to="#" className="btn-signup hover-lift">
+          <Link to={planTarget} className="btn-signup hover-lift">
             Start Planning
           </Link>
         </div>

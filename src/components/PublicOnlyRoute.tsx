@@ -30,7 +30,7 @@ export default function PublicOnlyRoute({ children }: PublicOnlyRouteProps) {
         } else if (role === 'staff') {
           navigate(ROUTES.STAFF, { replace: true });
         } else {
-          navigate(ROUTES.DASHBOARD, { replace: true });
+          navigate(ROUTES.HOME, { replace: true });
         }
       }
     }

@@ -47,10 +47,64 @@ export default function Dashboard() {
         }
       } catch (err) {
         if (!cancelled) {
-          const msg = err instanceof Error ? err.message : 'Failed to load trips';
-          setError(msg);
-          setLoading(false);
-          console.error('Failed to fetch trips:', err);
+          const tripKey = `lakbye_local_trips_${user.id}`;
+          const localSaved = localStorage.getItem(tripKey);
+          if (localSaved) {
+            setTrips(JSON.parse(localSaved));
+            setLoading(false);
+          } else if (import.meta.env.VITE_USE_MOCK_AUTH === 'true') {
+            const sampleTrips: Trip[] = [
+              {
+                id: 1,
+                name: 'Boracay White Beach Escapade',
+                startDate: '2026-10-12',
+                endDate: '2026-10-18',
+                totalBudget: 45000,
+                status: 'confirmed',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                countries: ['Philippines'],
+                travelType: 'Solo',
+                nights: 6,
+                daysUntil: 26,
+              },
+              {
+                id: 2,
+                name: 'El Nido & Coron Island Hopping',
+                startDate: '2026-11-05',
+                endDate: '2026-11-12',
+                totalBudget: 60000,
+                status: 'planning',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                countries: ['Philippines'],
+                travelType: 'Friends',
+                nights: 7,
+                daysUntil: 50,
+              },
+              {
+                id: 3,
+                name: 'Batanes Heritage & Hills Expedition',
+                startDate: '2026-08-01',
+                endDate: '2026-08-07',
+                totalBudget: 55000,
+                status: 'completed',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                countries: ['Philippines'],
+                travelType: 'Couple',
+                nights: 6,
+              },
+            ];
+            setTrips(sampleTrips);
+            localStorage.setItem(tripKey, JSON.stringify(sampleTrips));
+            setLoading(false);
+          } else {
+            const msg = err instanceof Error ? err.message : 'Failed to load trips';
+            setError(msg);
+            setLoading(false);
+            console.error('Failed to fetch trips:', err);
+          }
         }
       }
     };
@@ -318,90 +372,104 @@ export default function Dashboard() {
                   </div>
                 </div>
               ) : (
-                <div className="dashboard-trip-list">
-                  {filteredTrips.map((trip) => {
-                    const displayStatus = getDisplayStatus(trip);
-                    const tripLocation =
-                      trip.countries && trip.countries.length > 0
-                        ? trip.countries.join(', ')
-                        : 'Philippines';
+                <div className="dashboard-trips-table">
+                  <div className="dashboard-trips-table-header">
+                    <div className="header-cell-name">Trip Name</div>
+                    <div className="header-cell-status">Status</div>
+                    <div className="header-cell-dates">Dates</div>
+                    <div className="header-cell-duration">Duration</div>
+                    <div className="header-cell-actions"></div>
+                  </div>
 
-                    return (
-                      <div
-                        key={trip.id}
-                        className="dashboard-trip-row"
-                        onClick={() => navigate(ROUTES.TRIP(trip.id))}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            navigate(ROUTES.TRIP(trip.id));
-                          }
-                        }}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <div className="trip-row-header-wrapper">
-                          <div className="trip-row-name">{trip.name}</div>
-                          {tripLocation && (
-                            <div className="trip-row-location">
-                              <MapPin size={12} className="trip-row-location-icon" />
-                              <span>{tripLocation}</span>
-                            </div>
-                          )}
-                        </div>
+                  <div className="dashboard-trips-table-divider" />
 
-                        <div className="trip-badges-group">
-                          {displayStatus === 'upcoming' ? (
-                            <>
-                              <div className="trip-badge-container">
-                                <div className="trip-badge trip-badge--upcoming">
-                                  UPCOMING
-                                </div>
-                              </div>
-                              <div className="trip-badge-container">
-                                <div className="trip-badge trip-badge--countdown">
-                                  {trip.daysUntil !== undefined
-                                    ? `In ${trip.daysUntil} Day/s`
-                                    : 'TBD'}
-                                </div>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="trip-badge-container">
-                                <div className="trip-badge trip-badge--completed">
-                                  {displayStatus === 'ongoing' ? 'ONGOING' : 'COMPLETED'}
-                                </div>
-                              </div>
-                              <div className="trip-badge-spacer"></div>
-                            </>
-                          )}
+                  <div className="dashboard-trips-table-rows">
+                    {filteredTrips.map((trip) => {
+                      const displayStatus = getDisplayStatus(trip);
+                      const tripLocation =
+                        trip.countries && trip.countries.length > 0
+                          ? trip.countries.join(', ')
+                          : 'Philippines';
 
-                          <div className="trip-badge-container">
-                            <div className="trip-badge trip-badge--date">
-                              {formatDateOnly(trip.startDate)} -{' '}
-                              {formatDateOnly(trip.endDate)}
-                            </div>
-                          </div>
-                          <div className="trip-badge-container">
-                            <div className="trip-badge trip-badge--nights">
-                              {trip.nights} Nights
-                            </div>
-                          </div>
-                        </div>
-
-                        <button
-                          className="trip-row-options"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            console.log('Options clicked');
+                      return (
+                        <div
+                          key={trip.id}
+                          className="dashboard-trips-table-row"
+                          onClick={() => navigate(ROUTES.TRIP(trip.id))}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              navigate(ROUTES.TRIP(trip.id));
+                            }
                           }}
+                          style={{ cursor: 'pointer' }}
                         >
-                          <MoreVertical size={20} color="var(--color-neutral-950)" />
-                        </button>
-                      </div>
-                    );
-                  })}
+                          <div className="trip-cell-name">
+                            <span className="trip-row-name">{trip.name}</span>
+                            {tripLocation && (
+                              <div className="trip-row-location">
+                                <MapPin size={12} className="trip-row-location-icon" />
+                                <span>{tripLocation}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="trip-badges-group">
+                            <div className="trip-cell-status">
+                              <div className="trip-status-badges-wrap">
+                                <span
+                                  className={`trip-badge trip-badge--${displayStatus === 'upcoming' ? 'upcoming' : 'completed'}`}
+                                >
+                                  {displayStatus === 'upcoming'
+                                    ? 'UPCOMING'
+                                    : displayStatus === 'ongoing'
+                                      ? 'ONGOING'
+                                      : 'COMPLETED'}
+                                </span>
+                                {displayStatus === 'upcoming' &&
+                                  trip.daysUntil !== undefined && (
+                                    <span className="trip-badge trip-badge--countdown">
+                                      In {trip.daysUntil} Day/s
+                                    </span>
+                                  )}
+                              </div>
+                            </div>
+
+                            <div className="trip-cell-dates">
+                              <span className="trip-badge trip-badge--date">
+                                {formatDateOnly(trip.startDate)} -{' '}
+                                {formatDateOnly(trip.endDate)}
+                              </span>
+                            </div>
+
+                            <div className="trip-cell-duration">
+                              <span className="trip-badge trip-badge--nights">
+                                {trip.nights} Nights
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="trip-cell-actions">
+                            <button
+                              type="button"
+                              className="trip-row-options"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                console.log('Options clicked');
+                              }}
+                              aria-label="Trip options"
+                            >
+                              <MoreVertical
+                                size={18}
+                                color="var(--color-dash-sidebar-text)"
+                              />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
