@@ -9,6 +9,7 @@ import {
   User,
   MoreVertical,
   ChevronRight,
+  MapPin,
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import CreateTripModal from '../components/CreateTripModal';
@@ -110,14 +111,17 @@ export default function Dashboard() {
     <div className="dashboard-page">
       <div className="dashboard-container">
         {/* Greeting Header */}
-        <div className="dashboard-greeting">
-          <span>Greetings,</span>
-          <span
-            className="dashboard-greeting-name"
-            style={{ filter: "url('#text-inner-shadow')" }}
-          >
-            {firstName}!
-          </span>
+        <div className="dashboard-greeting-wrapper">
+          <div className="dashboard-greeting">
+            <span>Greetings,</span>
+            <span
+              className="dashboard-greeting-name"
+              style={{ filter: "url('#text-inner-shadow')" }}
+            >
+              {firstName}!
+            </span>
+          </div>
+          <p className="dashboard-greeting-sub">Where does your journey take you next?</p>
         </div>
 
         {/* Stat Cards */}
@@ -250,6 +254,17 @@ export default function Dashboard() {
 
           {/* Trips Section */}
           <div className="dashboard-trips-section">
+            <div className="dashboard-trips-header-row">
+              <h2 className="dashboard-trips-title">My Journeys</h2>
+              <button
+                type="button"
+                className="dashboard-view-calendar-btn"
+                onClick={() => navigate('/dashboard/bookings')}
+              >
+                View Calendar
+              </button>
+            </div>
+
             <div className="dashboard-trips-filters">
               <button
                 className={`dashboard-filter-btn ${activeTab === 'all' ? 'active' : ''}`}
@@ -306,6 +321,11 @@ export default function Dashboard() {
                 <div className="dashboard-trip-list">
                   {filteredTrips.map((trip) => {
                     const displayStatus = getDisplayStatus(trip);
+                    const tripLocation =
+                      trip.countries && trip.countries.length > 0
+                        ? trip.countries.join(', ')
+                        : 'Philippines';
+
                     return (
                       <div
                         key={trip.id}
@@ -320,43 +340,53 @@ export default function Dashboard() {
                         }}
                         style={{ cursor: 'pointer' }}
                       >
-                        <div className="trip-row-name">{trip.name}</div>
-
-                        {displayStatus === 'upcoming' ? (
-                          <>
-                            <div className="trip-badge-container">
-                              <div className="trip-badge trip-badge--upcoming">
-                                UPCOMING
-                              </div>
+                        <div className="trip-row-header-wrapper">
+                          <div className="trip-row-name">{trip.name}</div>
+                          {tripLocation && (
+                            <div className="trip-row-location">
+                              <MapPin size={12} className="trip-row-location-icon" />
+                              <span>{tripLocation}</span>
                             </div>
-                            <div className="trip-badge-container">
-                              <div className="trip-badge trip-badge--countdown">
-                                {trip.daysUntil !== undefined
-                                  ? `In ${trip.daysUntil} Day/s`
-                                  : 'TBD'}
-                              </div>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="trip-badge-container">
-                              <div className="trip-badge trip-badge--completed">
-                                {displayStatus === 'ongoing' ? 'ONGOING' : 'COMPLETED'}
-                              </div>
-                            </div>
-                            <div className="trip-badge-spacer"></div>
-                          </>
-                        )}
-
-                        <div className="trip-badge-container">
-                          <div className="trip-badge trip-badge--date">
-                            {formatDateOnly(trip.startDate)} -{' '}
-                            {formatDateOnly(trip.endDate)}
-                          </div>
+                          )}
                         </div>
-                        <div className="trip-badge-container">
-                          <div className="trip-badge trip-badge--nights">
-                            {trip.nights} Nights
+
+                        <div className="trip-badges-group">
+                          {displayStatus === 'upcoming' ? (
+                            <>
+                              <div className="trip-badge-container">
+                                <div className="trip-badge trip-badge--upcoming">
+                                  UPCOMING
+                                </div>
+                              </div>
+                              <div className="trip-badge-container">
+                                <div className="trip-badge trip-badge--countdown">
+                                  {trip.daysUntil !== undefined
+                                    ? `In ${trip.daysUntil} Day/s`
+                                    : 'TBD'}
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="trip-badge-container">
+                                <div className="trip-badge trip-badge--completed">
+                                  {displayStatus === 'ongoing' ? 'ONGOING' : 'COMPLETED'}
+                                </div>
+                              </div>
+                              <div className="trip-badge-spacer"></div>
+                            </>
+                          )}
+
+                          <div className="trip-badge-container">
+                            <div className="trip-badge trip-badge--date">
+                              {formatDateOnly(trip.startDate)} -{' '}
+                              {formatDateOnly(trip.endDate)}
+                            </div>
+                          </div>
+                          <div className="trip-badge-container">
+                            <div className="trip-badge trip-badge--nights">
+                              {trip.nights} Nights
+                            </div>
                           </div>
                         </div>
 

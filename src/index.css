@@ -2249,7 +2249,9 @@ h6 {
 /* ============================== */
 img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
     .feature-card-icon
-  ):not(.auth-collage-img):not(.auth-collage-logo-img):not(.auth-standalone-logo-img) {
+  ):not(.auth-collage-img):not(.auth-collage-logo-img):not(.auth-standalone-logo-img):not(
+    .dashboard-mobile-logo
+  ) {
   max-width: 100%;
   height: auto;
 }
@@ -2790,6 +2792,28 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 }
 
 /* Dashboard Layout */
+.dashboard-mobile-header {
+  display: none;
+}
+.dashboard-mobile-bottom-nav {
+  display: none;
+}
+.dashboard-greeting-sub {
+  display: none;
+}
+.dashboard-trips-header-row {
+  display: none;
+}
+.trip-row-header-wrapper {
+  display: contents;
+}
+.trip-row-location {
+  display: none;
+}
+.trip-badges-group {
+  display: contents;
+}
+
 .dashboard-layout-root {
   background-color: var(--color-dash-bg);
   height: 100vh;
@@ -3587,32 +3611,505 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   }
 }
 
+/* Dashboard Mobile Responsive (Figma Node 5:4) */
 @media (max-width: 768px) {
-  .dashboard-trip-list {
+  .dashboard-layout-root {
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    padding: 0;
+    background-color: #faf8f5;
+    overflow: hidden;
+  }
+
+  .dashboard-sidebar {
+    display: none;
+  }
+
+  /* Mobile Top Header */
+  .dashboard-mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 54px;
+    padding: 0 18px;
+    background-color: #faf8f5;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    flex-shrink: 0;
+    z-index: 10;
+  }
+
+  .dashboard-mobile-logo-link {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+  }
+
+  .dashboard-mobile-logo {
+    height: 22px;
+    max-height: 22px;
+    width: auto;
+    object-fit: contain;
+  }
+
+  .dashboard-mobile-avatar-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    border: 1.5px solid #cbd5e1;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .dashboard-mobile-avatar-fallback {
+    font-family: 'Poppins', var(--font-sans);
+    font-weight: 700;
+    font-size: 15px;
+    color: #1e293b;
+  }
+
+  /* Mobile Bottom Navigation Bar */
+  .dashboard-mobile-bottom-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    background-color: #ffffff;
+    border-top: 1px solid #eae6df;
+    padding: 8px 12px clamp(12px, 2.2vh, 22px) 12px;
+    flex-shrink: 0;
+    z-index: 20;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.03);
+  }
+
+  .dashboard-mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    text-decoration: none;
+    color: #71717a;
+    padding: 4px 10px;
+    border-radius: 8px;
+    transition: color 0.15s ease;
+  }
+
+  .dashboard-mobile-nav-item img {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+    opacity: 0.65;
+    transition:
+      opacity 0.15s ease,
+      filter 0.15s ease;
+  }
+
+  .dashboard-mobile-nav-label {
+    font-family: 'SF Pro Rounded', var(--font-sans);
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .dashboard-mobile-nav-item.active {
+    color: var(--color-brand-red);
+  }
+
+  .dashboard-mobile-nav-item.active img {
+    opacity: 1;
+    filter: brightness(0) saturate(100%) invert(27%) sepia(80%) saturate(3000%)
+      hue-rotate(335deg) brightness(95%) contrast(90%);
+  }
+
+  .dashboard-mobile-nav-item.active .dashboard-mobile-nav-label {
+    font-weight: 700;
+  }
+
+  /* Main Content Area */
+  .dashboard-main-content {
+    flex: 1;
+    background-color: transparent;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     display: flex;
     flex-direction: column;
   }
+
+  .dashboard-page {
+    padding: 16px 16px 24px 16px;
+    overflow-y: visible;
+    height: auto;
+    min-height: auto;
+  }
+
+  .dashboard-container {
+    max-width: 100%;
+  }
+
+  /* Greeting Header */
+  .dashboard-greeting-wrapper {
+    margin-bottom: 16px;
+  }
+
+  .dashboard-greeting {
+    font-size: clamp(22px, 5.5vw, 28px);
+    margin-bottom: 2px;
+    line-height: 1.2;
+  }
+
+  .dashboard-greeting-sub {
+    display: block;
+    font-family: 'SF Pro Rounded', var(--font-sans);
+    font-size: 13.5px;
+    color: #71717a;
+    margin: 0;
+  }
+
+  /* 2x2 Stats Grid */
+  .dashboard-stats-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .dash-stat-card {
+    width: 100%;
+    height: 104px;
+    border-radius: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .dash-stat-card-bg {
+    border-radius: 16px;
+  }
+
+  .dash-stat-card-content {
+    padding: 12px 14px;
+  }
+
+  .dash-stat-card-value {
+    font-size: 26px;
+    line-height: 1;
+  }
+
+  .dash-stat-card-title {
+    font-size: 17px;
+    line-height: 1.1;
+  }
+
+  .dash-stat-card-subtitle {
+    font-size: 11.5px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dash-stat-card-chevron-svg,
+  .dash-stat-card-chevron {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* Watermark icons inside stat cards */
+  .dash-stat-icon-countries {
+    width: 72px;
+    height: 72px;
+    right: -8px;
+    bottom: -8px;
+    opacity: 0.18;
+  }
+
+  .dash-stat-icon-bookings {
+    width: 64px;
+    height: 64px;
+    right: -6px;
+    top: 6px;
+    opacity: 0.18;
+  }
+
+  .dash-stat-icon-countdown {
+    width: 60px;
+    height: 60px;
+    right: 0px;
+    top: 6px;
+    opacity: 0.18;
+  }
+
+  .dash-stat-icon-spent {
+    width: 66px;
+    height: 66px;
+    right: -6px;
+    top: 6px;
+    opacity: 0.18;
+  }
+
+  /* Bottom Row (Stacked vertically on mobile) */
+  .dashboard-bottom-row {
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .dashboard-profile-column {
+    width: 100%;
+    max-width: 100%;
+    gap: 12px;
+  }
+
+  /* User Profile Card */
+  .dashboard-profile-section {
+    min-height: auto;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    border: 1px solid var(--color-dash-border);
+  }
+
+  .dashboard-profile-action-btn {
+    width: 32px;
+    height: 32px;
+    top: 14px;
+    right: 14px;
+  }
+
+  .dashboard-profile-header {
+    margin-bottom: 12px;
+    gap: 12px;
+  }
+
+  .dashboard-profile-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 22px;
+  }
+
+  .dashboard-profile-name {
+    font-size: 17px;
+  }
+
+  .dashboard-profile-location {
+    font-size: 13px;
+    color: #71717a;
+  }
+
+  .dashboard-profile-stats {
+    padding: 6px 0;
+  }
+
+  .dashboard-profile-stat-value {
+    font-size: 26px;
+  }
+
+  .dashboard-profile-stat-label {
+    font-size: 12px;
+    color: #71717a;
+  }
+
+  .dashboard-profile-btn-create {
+    height: 46px;
+    border-radius: 9999px;
+    font-size: 15px;
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(224, 76, 56, 0.25);
+  }
+
+  /* Trips Section */
+  .dashboard-trips-section {
+    width: 100%;
+    min-height: auto;
+  }
+
+  .dashboard-trips-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .dashboard-trips-title {
+    font-family: 'Poppins', var(--font-sans);
+    font-weight: 700;
+    font-size: 18px;
+    color: #1a1a1a;
+    margin: 0;
+  }
+
+  .dashboard-view-calendar-btn {
+    background: none;
+    border: none;
+    color: #255f85;
+    font-family: 'SF Pro Rounded', var(--font-sans);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .dashboard-trips-filters {
+    gap: 8px;
+    margin-bottom: 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .dashboard-trips-filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dashboard-filter-btn {
+    min-width: unset;
+    height: 32px;
+    padding: 6px 14px;
+    font-size: 13px;
+    border-radius: 9999px;
+    white-space: nowrap;
+  }
+
+  .dashboard-trips-card {
+    background: transparent;
+    border: none;
+    padding: 0;
+    min-height: auto;
+  }
+
+  .dashboard-trip-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: transparent;
+    border-radius: 0;
+  }
+
+  /* Self-contained Trip Cards matching Figma */
   .dashboard-trip-row {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 10px;
+    background: #ffffff;
+    border: 1px solid var(--color-dash-border);
+    border-radius: 16px;
+    padding: 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     position: relative;
-    padding: 16px;
-    border-bottom: 1px solid var(--color-dash-divider);
-    gap: 8px;
+    box-sizing: border-box;
+    cursor: pointer;
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease;
   }
+
   .dashboard-trip-row > * {
     border-bottom: none;
     height: auto;
   }
-  .trip-row-name {
-    padding-left: 0;
-    width: 100%;
+
+  .dashboard-trip-row:active {
+    transform: scale(0.99);
   }
+
+  .trip-row-header-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-right: 32px;
+  }
+
+  .trip-row-name {
+    font-family: 'Poppins', var(--font-sans);
+    font-weight: 700;
+    font-size: 15px;
+    color: #1a1a1a;
+    padding-left: 0;
+    white-space: normal;
+    line-height: 1.25;
+  }
+
+  .trip-row-location {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'SF Pro Rounded', var(--font-sans);
+    font-size: 12px;
+    color: #71717a;
+  }
+
+  .trip-row-location-icon {
+    flex-shrink: 0;
+    color: #a1a1aa;
+  }
+
   .trip-row-options {
     position: absolute;
-    top: 16px;
-    right: 16px;
-    padding-right: 0;
+    top: 12px;
+    right: 12px;
+    padding: 4px;
+    border-radius: 6px;
+  }
+
+  /* Badges row */
+  .trip-badges-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .trip-badge-container {
+    display: inline-flex;
+  }
+
+  .trip-badge {
+    height: 22px;
+    padding: 0 8px;
+    font-size: 10.5px;
+    font-weight: 600;
+    border-radius: 6px;
+    letter-spacing: 0.02em;
+  }
+
+  /* Soft modern badge colors matching Figma node 5:4 */
+  .trip-badge--upcoming {
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fde68a;
+  }
+
+  .trip-badge--completed {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+  }
+
+  .trip-badge--countdown {
+    background: #ffe4e6;
+    color: #e11d48;
+    border: 1px solid #fecdd3;
+  }
+
+  .trip-badge--date {
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+  }
+
+  .trip-badge--nights {
+    background: #ffedd5;
+    color: #c2410c;
+    border: 1px solid #fed7aa;
+  }
+
+  .trip-badge-spacer {
+    display: none;
   }
 }
 

@@ -12,7 +12,7 @@ import { ROUTES } from '../lib/constants';
 export default function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
   const handleLogout = async () => {
     try {
@@ -32,7 +32,23 @@ export default function DashboardLayout() {
 
   return (
     <div className="dashboard-layout-root">
-      {/* Sidebar */}
+      {/* Mobile Top Header (≤768px) */}
+      <header className="dashboard-mobile-header">
+        <Link to="/dashboard" className="dashboard-mobile-logo-link">
+          <img src={lakbyeLogo} alt="LakBye Logo" className="dashboard-mobile-logo" />
+        </Link>
+        <Link
+          to={ROUTES.CUSTOMER_PROFILE}
+          className="dashboard-mobile-avatar-btn"
+          aria-label="View Profile"
+        >
+          <span className="dashboard-mobile-avatar-fallback">
+            {(user?.full_name || 'U').charAt(0).toUpperCase()}
+          </span>
+        </Link>
+      </header>
+
+      {/* Sidebar (Desktop) */}
       <aside className="dashboard-sidebar">
         <div className="dashboard-logo-container">
           <img src={lakbyeLogo} alt="LakBye Logo" className="dashboard-logo" />
@@ -78,6 +94,25 @@ export default function DashboardLayout() {
       <main className="dashboard-main-content">
         <Outlet />
       </main>
+
+      {/* Mobile Bottom Navigation (≤768px) */}
+      <nav className="dashboard-mobile-bottom-nav">
+        {navItems.map((item) => {
+          const isActive =
+            location.pathname === item.path ||
+            (location.pathname === '/dashboard' && item.path === '/dashboard');
+          return (
+            <Link
+              key={item.name}
+              to={item.path}
+              className={`dashboard-mobile-nav-item ${isActive ? 'active' : ''}`}
+            >
+              <img src={item.icon} alt={item.name} />
+              <span className="dashboard-mobile-nav-label">{item.name}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }
