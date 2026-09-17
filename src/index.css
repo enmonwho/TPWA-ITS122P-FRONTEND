@@ -1314,12 +1314,7 @@ h6 {
 .testimonials-section {
   position: relative;
   z-index: 2;
-  background-color: var(--color-brand-cream);
-  background-image: url('./assets/texture-filter.png');
-  background-repeat: no-repeat;
-  background-size: cover;
-  background-attachment: fixed;
-  background-position: center;
+  background: transparent;
   padding: 4rem clamp(1rem, 5vw, 8vw);
 }
 
@@ -1409,12 +1404,7 @@ h6 {
 .cta-section {
   position: relative;
   z-index: 2;
-  background-color: var(--color-brand-cream);
-  background-image: url('./assets/texture-filter.png');
-  background-repeat: no-repeat;
-  background-size: cover;
-  background-attachment: fixed;
-  background-position: center;
+  background: transparent;
   padding: clamp(3rem, 6vw, 6rem) clamp(1rem, 5vw, 8vw);
   display: flex;
   justify-content: center;
@@ -2371,12 +2361,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   .cta-section {
     position: relative;
     z-index: 2;
-    background-color: var(--color-brand-cream);
-    background-image: url('./assets/texture-filter.png');
-    background-repeat: no-repeat;
-    background-size: cover;
-    background-attachment: fixed;
-    background-position: center;
+    background: transparent;
   }
 
   .feature-section {

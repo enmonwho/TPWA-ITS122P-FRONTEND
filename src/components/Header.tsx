@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Settings, LogOut, ChevronDown } from 'lucide-react';
 import lakByeImg from '../assets/lakbye-logo.png';
 import { useAuth } from '../context/AuthContext';
+import { usePageLoader } from '../context/PageLoaderContext';
 import { ROUTES } from '../lib/constants';
 
 /**
@@ -17,6 +18,7 @@ export default function Header() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const { user, logout, isLoading } = useAuth();
+  const { triggerTransition } = usePageLoader();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -60,8 +62,14 @@ export default function Header() {
   const handleLogout = async () => {
     setDropdownOpen(false);
     setMenuOpen(false);
-    await logout();
-    navigate(ROUTES.HOME);
+    try {
+      await triggerTransition(async () => {
+        await logout();
+        navigate(ROUTES.HOME);
+      }, 600);
+    } catch (err) {
+      console.error('Logout failed:', err);
+    }
   };
 
   // Extract first name for "Hello, {firstName}"
