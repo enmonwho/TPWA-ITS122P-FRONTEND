@@ -1,15 +1,47 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import GlobeMap from '../components/GlobeMap';
 import magnifierIcon from '../assets/magnifier.png';
-import { tripsApi, destinationsApi } from '../services/api';
-import type { Destination } from '../types/destination';
+import { tripsApi } from '../services/api';
+import {
+  fetchExploreCountries,
+  TOP_ISLANDS,
+  getMostPopularDestination,
+  type ExplorePlace,
+} from '../services/exploreService';
+
+const COMPANIONS = [
+  {
+    type: 'Solo',
+    title: 'Solo\nRetreat',
+    bg: 'https://images.unsplash.com/photo-1501555088652-021faa106b9b?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    type: 'Couple',
+    title: 'Couple\nRetreat',
+    bg: 'https://images.unsplash.com/photo-1510414842594-a61752d3857d?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    type: 'Friends',
+    title: 'Friend\nGetaway',
+    bg: 'https://images.unsplash.com/photo-1539635278303-d4002c07eae3?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    type: 'Family',
+    title: 'Family\nVacation',
+    bg: 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=400&q=80',
+  },
+];
 
 export default function Explore() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [countries, setCountries] = useState<ExplorePlace[]>([]);
+  const [islands] = useState<ExplorePlace[]>(TOP_ISLANDS);
+  const [popularPlace, setPopularPlace] = useState<ExplorePlace | null>(null);
   const [activeRegion, setActiveRegion] = useState('All');
+  const [activeMarkerId, setActiveMarkerId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isStartTripOpen, setIsStartTripOpen] = useState(false);
 
   // Modal form states
@@ -23,59 +55,31 @@ export default function Explore() {
   const countryScrollRef = useRef<HTMLDivElement>(null);
   const islandScrollRef = useRef<HTMLDivElement>(null);
 
+  // Load live dynamic destination datasets
   useEffect(() => {
-    const loadDestinations = async () => {
-      const data = await destinationsApi.getAll();
-      if (data && data.length > 0) {
-        setDestinations(data);
-        setSelectedLocation(data[0].location_name);
-      } else {
-        setDestinations([
-          {
-            id: 1,
-            trip_id: null,
-            location_name: 'Japan',
-            latitude: 35.6895,
-            longitude: 139.6917,
-            order_sequence: 1,
-          },
-          {
-            id: 2,
-            trip_id: null,
-            location_name: 'Palawan',
-            latitude: 9.8349,
-            longitude: 118.7384,
-            order_sequence: 2,
-          },
-          {
-            id: 3,
-            trip_id: null,
-            location_name: 'Boracay',
-            latitude: 11.9674,
-            longitude: 121.9248,
-            order_sequence: 3,
-          },
-          {
-            id: 4,
-            trip_id: null,
-            location_name: 'Italy',
-            latitude: 41.9028,
-            longitude: 12.4964,
-            order_sequence: 4,
-          },
-          {
-            id: 5,
-            trip_id: null,
-            location_name: 'Maldives',
-            latitude: 3.2028,
-            longitude: 73.2207,
-            order_sequence: 5,
-          },
-        ]);
-        setSelectedLocation('Japan');
+    let isMounted = true;
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const loadedCountries = await fetchExploreCountries();
+        if (!isMounted) return;
+
+        setCountries(loadedCountries);
+        const featured = getMostPopularDestination(loadedCountries);
+        setPopularPlace(featured);
+        setSelectedLocation(featured.name);
+        setActiveMarkerId(featured.id);
+      } catch (err) {
+        console.error('Error loading explore destinations:', err);
+      } finally {
+        if (isMounted) setLoading(false);
       }
     };
-    loadDestinations();
+
+    loadData();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const scrollContainer = (
@@ -87,16 +91,63 @@ export default function Explore() {
     }
   };
 
-  const globeMarkers = destinations.map((d) => ({
-    id: String(d.id),
-    lng: Number(d.longitude),
-    lat: Number(d.latitude),
-    title: d.location_name,
-  }));
+  // Filter countries by active region & search query
+  const filteredCountries = useMemo(() => {
+    return countries.filter((c) => {
+      const matchesRegion = activeRegion === 'All' || c.region === activeRegion;
+      const matchesSearch =
+        !searchQuery.trim() ||
+        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.region.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesRegion && matchesSearch;
+    });
+  }, [countries, activeRegion, searchQuery]);
 
-  const filteredDestinations = destinations.filter((d) =>
-    d.location_name.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  // Filter islands by search query
+  const filteredIslands = useMemo(() => {
+    return islands.filter((island) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        island.name.toLowerCase().includes(q) ||
+        (island.country && island.country.toLowerCase().includes(q)) ||
+        (island.tag && island.tag.toLowerCase().includes(q))
+      );
+    });
+  }, [islands, searchQuery]);
+
+  // Mapbox 3D Globe markers (combines popular, islands, and top region countries)
+  const globeMarkers = useMemo(() => {
+    const list: ExplorePlace[] = [];
+    if (popularPlace) list.push(popularPlace);
+    list.push(...islands);
+    list.push(...filteredCountries.slice(0, 30));
+
+    // Deduplicate by ID
+    const seen = new Set<string>();
+    return list
+      .filter((item) => {
+        if (seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+      })
+      .map((d) => ({
+        id: d.id,
+        lng: d.longitude,
+        lat: d.latitude,
+        title: d.name,
+      }));
+  }, [popularPlace, islands, filteredCountries]);
+
+  const handleSelectPlace = (place: ExplorePlace, openModal = false) => {
+    setActiveMarkerId(place.id);
+    setSelectedLocation(place.name);
+    setTripName(`Trip to ${place.name}`);
+
+    if (openModal) {
+      setIsStartTripOpen(true);
+    }
+  };
 
   const handleStartPlanning = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,65 +177,139 @@ export default function Explore() {
     <div className="explore-page-wrapper">
       <div className="explore-container-card">
         <div className="explore-scroll-pane">
-          <h1 className="text-3xl font-bold text-stone-900 tracking-tight">
-            Where to next?
-          </h1>
+          <div className="explore-header-group">
+            <h1 className="text-3xl font-bold text-stone-900 tracking-tight">
+              Where to next?
+            </h1>
+            <p className="text-xs text-stone-500 mt-1">
+              Explore trending islands, world destinations, and plan your next itinerary
+              in 3D.
+            </p>
+          </div>
 
+          {/* Search Box with Real-Time Filtering */}
           <div className="explore-search-input-box">
             <img src={magnifierIcon} alt="" className="w-5 h-5 opacity-50" />
             <input
               type="text"
               className="w-full bg-transparent outline-none text-sm font-medium text-stone-800 placeholder-stone-400"
-              placeholder="Search..."
+              placeholder="Search destinations, islands, or countries..."
               value={searchQuery}
               aria-label="Search destinations"
               onChange={(e) => setSearchQuery(e.target.value)}
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="text-stone-400 hover:text-stone-600 text-xs px-2"
+              >
+                Clear
+              </button>
+            )}
           </div>
 
-          <div>
-            <div className="flex justify-between items-baseline mb-2">
-              <h2 className="text-lg font-bold text-stone-900">Most Popular</h2>
-              <span className="text-xs font-semibold text-stone-600">Month Year</span>
+          {/* Most Popular Feature Card (Dynamic Hero) */}
+          {popularPlace && (
+            <div>
+              <div className="flex justify-between items-baseline mb-2">
+                <h2 className="text-lg font-bold text-stone-900">Most Popular</h2>
+                <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200/60">
+                  ★ Featured Destination
+                </span>
+              </div>
+              <div
+                className="explore-popular-card"
+                style={{
+                  backgroundImage: `url(${popularPlace.imageUrl})`,
+                }}
+                onClick={() => handleSelectPlace(popularPlace, false)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSelectPlace(popularPlace, false);
+                }}
+              >
+                <div className="explore-popular-card-content">
+                  <div className="explore-popular-badge">
+                    <span>{popularPlace.tag || 'Trending Now'}</span>
+                  </div>
+                  <h3 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">
+                    {popularPlace.name}
+                  </h3>
+                  <p className="text-xs text-stone-200 line-clamp-2 max-w-lg drop-shadow">
+                    {popularPlace.description}
+                  </p>
+                  <div className="flex gap-2.5 mt-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectPlace(popularPlace, true);
+                      }}
+                      className="btn-popular-plan"
+                    >
+                      Plan Trip Here
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectPlace(popularPlace, false);
+                      }}
+                      className="btn-popular-globe"
+                    >
+                      View on Globe ↗
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="explore-popular-card" />
-          </div>
+          )}
 
+          {/* Companion Selector Grid */}
           <div>
             <h2 className="text-base font-bold text-stone-900">
               Choose Your Companion, Find Your Destination
             </h2>
             <p className="text-xs text-stone-400 mb-3">
-              Wherever you're going and whoever's coming along, find the ideal country for
+              Wherever you're going and whoever's coming along, find the ideal retreat for
               your next trip.
             </p>
             <div className="companion-grid">
-              {['Solo', 'Couple', 'Friends', 'Family'].map((type) => (
+              {COMPANIONS.map((item) => (
                 <button
                   type="button"
-                  key={type}
+                  key={item.type}
                   onClick={() => {
-                    setTravelType(type);
+                    setTravelType(item.type);
                     setIsStartTripOpen(true);
                   }}
                   className="companion-btn-card text-left"
+                  style={{ backgroundImage: `url(${item.bg})` }}
                 >
-                  <span>
-                    {type === 'Friends' ? 'Friend\nGetaway' : `${type}\nRetreat`}
-                  </span>
+                  <span>{item.title}</span>
                 </button>
               ))}
             </div>
           </div>
 
+          {/* All Countries Carousel (REST Countries API live data) */}
           <div>
-            <h2 className="text-base font-bold text-stone-900">All Countries</h2>
+            <div className="flex items-baseline justify-between mb-1">
+              <h2 className="text-base font-bold text-stone-900">All Countries</h2>
+              <span className="text-xs text-stone-400">
+                {filteredCountries.length}{' '}
+                {filteredCountries.length === 1 ? 'country' : 'countries'}
+              </span>
+            </div>
             <p className="text-xs text-stone-400 mb-3">
-              {filteredDestinations.length} destinations to travel to
+              Explore places across every continent with live geographic coordinates.
             </p>
 
+            {/* Region Filter Chips */}
             <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-              {['All', 'Europe', 'Asia', 'Americas', 'Africa', 'Oceania', 'Others'].map(
+              {['All', 'Europe', 'Asia', 'Americas', 'Africa', 'Oceania'].map(
                 (region) => (
                   <button
                     key={region}
@@ -198,11 +323,12 @@ export default function Explore() {
               )}
             </div>
 
+            {/* Carousel Content */}
             <div className="flex items-center gap-3 mt-3">
               <button
                 onClick={() => scrollContainer(countryScrollRef, -240)}
                 className="carousel-arrow-btn"
-                aria-label="Scroll left"
+                aria-label="Scroll countries left"
               >
                 ‹
               </button>
@@ -210,36 +336,68 @@ export default function Explore() {
                 ref={countryScrollRef}
                 className="flex gap-4 overflow-x-auto py-2 no-scrollbar scroll-smooth flex-1"
               >
-                {filteredDestinations.map((item) => (
-                  <button
-                    type="button"
-                    key={item.id}
-                    className="carousel-card text-left"
-                    onClick={() => {
-                      setSelectedLocation(item.location_name);
-                      setTripName(`Trip to ${item.location_name}`);
-                      setIsStartTripOpen(true);
-                    }}
-                  >
-                    <div className="carousel-thumb" />
-                    <span className="carousel-label">{item.location_name}</span>
-                  </button>
-                ))}
+                {loading && countries.length === 0 ? (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <div key={`skel-${i}`} className="carousel-card animate-pulse">
+                      <div className="carousel-thumb bg-stone-200" />
+                      <div className="w-16 h-3 bg-stone-200 rounded mt-1" />
+                    </div>
+                  ))
+                ) : filteredCountries.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-stone-500 w-full">
+                    No destinations match your search in {activeRegion}.
+                  </div>
+                ) : (
+                  filteredCountries.map((item) => (
+                    <button
+                      type="button"
+                      key={item.id}
+                      className="carousel-card text-left group"
+                      onClick={() => handleSelectPlace(item, true)}
+                      title={`Click to plan a trip to ${item.name}`}
+                    >
+                      <div
+                        className="carousel-thumb"
+                        style={{ backgroundImage: `url(${item.imageUrl})` }}
+                      >
+                        {item.flag && (
+                          <img
+                            src={item.flag}
+                            alt=""
+                            className="carousel-flag-badge"
+                            loading="lazy"
+                          />
+                        )}
+                      </div>
+                      <span className="carousel-label group-hover:text-amber-700 transition-colors">
+                        {item.name}
+                      </span>
+                    </button>
+                  ))
+                )}
               </div>
               <button
                 onClick={() => scrollContainer(countryScrollRef, 240)}
                 className="carousel-arrow-btn"
-                aria-label="Scroll right"
+                aria-label="Scroll countries right"
               >
                 ›
               </button>
             </div>
           </div>
 
+          {/* Top Islands to Explore Carousel */}
           <div>
-            <h2 className="text-base font-bold text-stone-900">Top Islands to Explore</h2>
+            <div className="flex items-baseline justify-between mb-1">
+              <h2 className="text-base font-bold text-stone-900">
+                Top Islands to Explore
+              </h2>
+              <span className="text-xs text-stone-400">
+                {filteredIslands.length} iconic islands
+              </span>
+            </div>
             <p className="text-xs text-stone-400 mb-3">
-              Discover breathtaking island getaways
+              Discover breathtaking archipelagos, lagoons, and white-sand escapes.
             </p>
 
             <div className="flex items-center gap-3 mt-2">
@@ -254,19 +412,25 @@ export default function Explore() {
                 ref={islandScrollRef}
                 className="flex gap-4 overflow-x-auto py-2 no-scrollbar scroll-smooth flex-1"
               >
-                {filteredDestinations.map((island) => (
+                {filteredIslands.map((island) => (
                   <button
                     type="button"
                     key={`island-${island.id}`}
-                    className="carousel-card text-left"
-                    onClick={() => {
-                      setSelectedLocation(island.location_name);
-                      setTripName(`Escape to ${island.location_name}`);
-                      setIsStartTripOpen(true);
-                    }}
+                    className="carousel-card text-left group"
+                    onClick={() => handleSelectPlace(island, true)}
+                    title={`Click to plan a trip to ${island.name}`}
                   >
-                    <div className="carousel-thumb" />
-                    <span className="carousel-label">{island.location_name}</span>
+                    <div
+                      className="carousel-thumb"
+                      style={{ backgroundImage: `url(${island.imageUrl})` }}
+                    >
+                      {island.tag && (
+                        <span className="carousel-tag-badge">{island.tag}</span>
+                      )}
+                    </div>
+                    <span className="carousel-label group-hover:text-amber-700 transition-colors">
+                      {island.name}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -280,6 +444,7 @@ export default function Explore() {
             </div>
           </div>
 
+          {/* CTA Banner */}
           <div className="explore-cta-banner">
             <p className="explore-cta-text">
               Start a new adventure and LakBye will handle your itineraries, stays, and
@@ -295,11 +460,23 @@ export default function Explore() {
           </div>
         </div>
 
+        {/* 3D Mapbox Globe Sticky Panel */}
         <div className="explore-map-sticky-panel">
-          <GlobeMap markers={globeMarkers} />
+          <GlobeMap
+            markers={globeMarkers}
+            activeMarkerId={activeMarkerId}
+            onMarkerClick={(id) => {
+              const matched =
+                [...islands, ...countries].find((p) => p.id === id) || popularPlace;
+              if (matched) {
+                handleSelectPlace(matched, false);
+              }
+            }}
+          />
         </div>
       </div>
 
+      {/* Start Trip Modal */}
       {isStartTripOpen && (
         <div
           className="modal-overlay"
@@ -336,7 +513,7 @@ export default function Explore() {
                   type="text"
                   required
                   className="modal-input-gradient"
-                  placeholder="Enter a trip name"
+                  placeholder="e.g. Boracay Island Hopping"
                   value={tripName}
                   onChange={(e) => setTripName(e.target.value)}
                 />
@@ -344,24 +521,18 @@ export default function Explore() {
 
               <div>
                 <label htmlFor="explore-destination-country" className="modal-label">
-                  Which countries are you going to?
+                  Destination
                 </label>
                 <div className="relative">
-                  <select
+                  <input
                     id="explore-destination-country"
-                    className="modal-input-gradient appearance-none pr-10 cursor-pointer"
+                    type="text"
+                    required
+                    className="modal-input-gradient"
+                    placeholder="Enter destination (e.g. Boracay, Japan, France)"
                     value={selectedLocation}
                     onChange={(e) => setSelectedLocation(e.target.value)}
-                  >
-                    {destinations.map((d) => (
-                      <option key={d.id} value={d.location_name}>
-                        {d.location_name}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-stone-700 text-xs">
-                    ▼
-                  </span>
+                  />
                 </div>
               </div>
 
