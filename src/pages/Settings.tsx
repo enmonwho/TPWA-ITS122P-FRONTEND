@@ -5,7 +5,6 @@ import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../lib/constants';
 import type { Trip } from '../types/trip';
 import { CountryAutocomplete, DateRangePicker } from '../components';
-import addMembersIcon from '../assets/add-members.png';
 import { tripsApi } from '../services/api';
 import {
   mergeTripWithExtras,
@@ -155,14 +154,9 @@ export function Settings() {
       <header className="workspace-header-card animate-slide-up">
         <h1 className="workspace-trip-title">{trip.name}</h1>
         <div className="workspace-header-actions">
-          <button className="workspace-pill-members">
-            <img src={addMembersIcon} alt="" className="workspace-add-members-icon" />
-            Add Members
-          </button>
-          <button className="workspace-pill-date">
+          <div className="workspace-pill-date">
             {formatDateOnly(trip.startDate)} - {formatDateOnly(trip.endDate)}
-          </button>
-          <button className="workspace-share-btn">Share</button>
+          </div>
         </div>
       </header>
 

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import addMembersIcon from '../assets/add-members.png';
 import routeIcon from '../assets/route.png';
 import dayByDayIcon from '../assets/day-by-day.png';
 import magnifierIcon from '../assets/magnifier.png';
@@ -200,14 +199,9 @@ export default function TripWorkspace() {
         <h1 className="workspace-trip-title">{trip.name}</h1>
 
         <div className="workspace-header-actions">
-          <button className="workspace-pill-members">
-            <img src={addMembersIcon} alt="" className="workspace-add-members-icon" />
-            Add Members
-          </button>
-          <button className="workspace-pill-date">
+          <div className="workspace-pill-date">
             {formatDateOnly(trip.startDate)} - {formatDateOnly(trip.endDate)}
-          </button>
-          <button className="workspace-share-btn">Share</button>
+          </div>
         </div>
       </header>
 

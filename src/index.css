@@ -1062,21 +1062,28 @@ h6 {
   padding: 3rem clamp(1rem, 5vw, 8vw) 1rem;
   font-family: 'Poppins', sans-serif;
   font-weight: 700;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* Hero variant — was inline styles on Home.tsx */
 .earth-hero {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   padding-top: clamp(110px, 14vh, 160px);
   align-items: center;
   position: relative;
+  box-sizing: border-box;
 }
 
 .earth-header-section h1 {
-  font-size: clamp(1.75rem, 5vw, 4rem);
+  font-size: clamp(2rem, 5vw, 3.75rem);
   margin: 0 0 0.5rem;
+  line-height: 1.2;
+  overflow-wrap: break-word;
 }
 
 .earth-header-section .subtitle {
@@ -1088,6 +1095,7 @@ h6 {
   margin-inline: auto;
   line-height: 1.5;
   padding: 0 1rem;
+  overflow-wrap: break-word;
 }
 
 /* LakBye gradient text */
@@ -2278,6 +2286,53 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
     min-height: 190px;
     padding: 1.5rem;
   }
+
+  /* Earth hero layout for tablets (<1024px) */
+  .earth-header-section.earth-hero {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: clamp(105px, 13vh, 130px);
+    padding-left: clamp(1rem, 4vw, 2.5rem);
+    padding-right: clamp(1rem, 4vw, 2.5rem);
+    padding-bottom: 1.5rem;
+    box-sizing: border-box;
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .earth-wrap {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    top: clamp(280px, 38vh, 440px);
+    bottom: auto;
+    width: clamp(480px, 78vw, 750px);
+    height: clamp(480px, 78vw, 750px);
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    overflow: hidden;
+    z-index: 1; /* Strictly above clouds (z-index: 0) */
+  }
+
+  .earth-header-section h1 {
+    font-size: clamp(1.85rem, 4.5vw, 2.85rem);
+    margin: 0 0 0.5rem;
+    line-height: 1.2;
+    overflow-wrap: break-word;
+  }
+
+  .earth-header-section .subtitle {
+    font-size: clamp(0.92rem, 1.8vw, 1.15rem);
+    max-width: 38rem;
+    line-height: 1.5;
+    padding: 0 1rem;
+    margin-inline: auto;
+    overflow-wrap: break-word;
+  }
 }
 
 /* --- Tablets & Mobile breakpoint (≤769px) --- */
@@ -2310,45 +2365,6 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 
   .header-logo-img {
     height: clamp(38px, 6vw, 48px);
-  }
-
-  /* Earth hero layout for tablets & mobile (≤769px) */
-  .earth-hero {
-    min-height: 100vh;
-    min-height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding-top: clamp(85px, 12vh, 115px);
-    box-sizing: border-box;
-    position: relative;
-  }
-
-  .earth-wrap {
-    position: fixed;
-    left: 50%;
-    transform: translateX(-50%);
-    top: clamp(260px, 39vh, 440px);
-    bottom: auto;
-    width: clamp(480px, 85vw, 750px);
-    height: clamp(480px, 85vw, 750px);
-    aspect-ratio: 1 / 1;
-    border-radius: 50%;
-    overflow: hidden;
-    z-index: 1; /* Strictly above clouds (z-index: 0) */
-  }
-
-  .earth-header-section h1 {
-    font-size: clamp(1.65rem, 5.5vw, 2.75rem);
-    margin: 0 0 0.5rem;
-  }
-
-  .earth-header-section .subtitle {
-    font-size: clamp(0.9rem, 2.6vw, 1.15rem);
-    max-width: 36rem;
-    line-height: 1.5;
-    padding: 0 1rem;
-    margin-inline: auto;
   }
 
   /* Content sections below hero on tablets & mobile (≤769px) */
@@ -2498,6 +2514,56 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   }
 }
 
+/* --- Mobile phones (<640px) --- */
+@media (max-width: 640px) {
+  /* Earth hero layout for mobile (<640px) */
+  .earth-header-section.earth-hero {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: clamp(82px, 12vh, 100px);
+    padding-left: clamp(0.75rem, 4vw, 1.25rem);
+    padding-right: clamp(0.75rem, 4vw, 1.25rem);
+    padding-bottom: 1.5rem;
+    box-sizing: border-box;
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .earth-header-section h1 {
+    font-size: clamp(1.35rem, 6.2vw, 1.85rem);
+    line-height: 1.25;
+    margin: 0 0 0.4rem;
+    overflow-wrap: break-word;
+  }
+
+  .earth-header-section .subtitle {
+    font-size: clamp(0.8rem, 3.2vw, 0.92rem);
+    line-height: 1.45;
+    max-width: 24rem;
+    padding: 0 0.5rem;
+    margin-inline: auto;
+    overflow-wrap: break-word;
+  }
+
+  .earth-wrap {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    top: clamp(230px, 35vh, 290px);
+    bottom: auto;
+    width: clamp(290px, 88vw, 440px);
+    height: clamp(290px, 88vw, 440px);
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    overflow: hidden;
+    z-index: 1;
+  }
+}
+
 /* --- Compact screens / Mobile phones (≤560px) --- */
 @media (max-width: 560px) {
   /* Delicate smaller clouds for mobile phones */
@@ -2629,6 +2695,32 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 
 /* --- Very small phones (≤375px) --- */
 @media (max-width: 375px) {
+  /* Hero adjustments for compact mobile viewports (≤375px & 320px) */
+  .earth-header-section.earth-hero {
+    padding-top: clamp(74px, 12vh, 86px);
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .earth-header-section h1 {
+    font-size: clamp(1.2rem, 5.8vw, 1.45rem);
+    line-height: 1.25;
+    margin-bottom: 0.35rem;
+  }
+
+  .earth-header-section .subtitle {
+    font-size: clamp(0.72rem, 3.1vw, 0.82rem);
+    line-height: 1.4;
+    max-width: 18.5rem;
+    padding: 0 0.25rem;
+  }
+
+  .earth-wrap {
+    top: clamp(220px, 34vh, 255px);
+    width: clamp(260px, 86vw, 320px);
+    height: clamp(260px, 86vw, 320px);
+  }
+
   .btn-login {
     font-size: 0.85rem;
     padding: 0.5rem 1rem;
@@ -4437,19 +4529,28 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 52px 16px 41px;
-  height: 68px;
+  padding: 14px 32px;
+  min-height: 68px;
+  box-sizing: border-box;
+  gap: 16px;
 }
 .workspace-trip-title {
   font-family: 'Poppins', var(--font-sans);
   font-weight: 600;
   font-size: 20px;
   color: #000000;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .workspace-header-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 13px;
+  flex-shrink: 0;
 }
 .workspace-pill-members {
   background-color: #ffffff;
@@ -4492,11 +4593,14 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   font-weight: 700;
   font-size: 13px;
   color: var(--color-dash-muted);
-  cursor: pointer;
+  cursor: default;
   transition:
     transform var(--transition-fast),
     box-shadow var(--transition-fast);
-  width: 300px;
+  width: auto;
+  min-width: 220px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .workspace-pill-members:hover {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -4831,12 +4935,24 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   .workspace-header-card {
     flex-direction: column;
     height: auto;
-    gap: 16px;
+    min-height: auto;
+    gap: 12px;
     align-items: flex-start;
+    padding: 16px;
+  }
+  .workspace-trip-title {
+    white-space: normal;
+    width: 100%;
   }
   .workspace-header-actions {
     flex-wrap: wrap;
     width: 100%;
+    justify-content: flex-start;
+  }
+  .workspace-pill-date {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
   .workspace-table-header-row {
     display: none; /* Hide grid headers on mobile */

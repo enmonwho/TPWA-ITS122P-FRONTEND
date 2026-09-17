@@ -4,7 +4,6 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { Trash2, X, CirclePlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import type { Trip } from '../types/trip';
-import addMembersIcon from '../assets/add-members.png';
 import { tripsApi, budgetApi } from '../services/api';
 import { mergeTripWithExtras, formatDateOnly } from '../lib/tripExtras';
 import { STORAGE_KEYS } from '../lib/constants';
@@ -435,13 +434,9 @@ export function Budget() {
       <header className="workspace-header-card animate-slide-up">
         <h1 className="workspace-trip-title">{trip.name}</h1>
         <div className="workspace-header-actions">
-          <button className="workspace-pill-members">
-            <img src={addMembersIcon} alt="" className="workspace-add-members-icon" />
-            Add Members
-          </button>
-          <button className="workspace-pill-date">
+          <div className="workspace-pill-date">
             {formatDateOnly(trip.startDate)} - {formatDateOnly(trip.endDate)}
-          </button>
+          </div>
         </div>
       </header>
 
