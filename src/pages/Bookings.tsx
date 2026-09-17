@@ -13,6 +13,7 @@ import {
   CloudOff,
   X,
   Sparkles,
+  MapPin,
 } from 'lucide-react';
 import magnifierIcon from '../assets/magnifier.png';
 import CreateTripModal from '../components/CreateTripModal';
@@ -189,6 +190,27 @@ export default function Bookings() {
     };
   }, []);
 
+  // Active tab for status filtering ('all' | 'upcoming' | 'completed')
+  const [activeTab, setActiveTab] = useState<'all' | 'upcoming' | 'completed'>('all');
+
+  // Compute status for trip cards
+  const getTripDisplayStatus = useCallback(
+    (trip: Trip): 'upcoming' | 'ongoing' | 'completed' => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (!trip.startDate) return 'upcoming';
+      const start = new Date(trip.startDate);
+      start.setHours(0, 0, 0, 0);
+      if (today < start) return 'upcoming';
+      if (!trip.endDate) return 'ongoing';
+      const end = new Date(trip.endDate);
+      end.setHours(23, 59, 59, 999);
+      if (today <= end) return 'ongoing';
+      return 'completed';
+    },
+    [],
+  );
+
   // Filter trips by search query
   const filteredTrips = useMemo(() => {
     if (!searchQuery.trim()) return trips;
@@ -200,11 +222,99 @@ export default function Bookings() {
     );
   }, [trips, searchQuery]);
 
+  // Filter trips by active tab
+  const filteredTripsByTab = useMemo(() => {
+    return filteredTrips.filter((trip) => {
+      if (activeTab === 'all') return true;
+      const status = getTripDisplayStatus(trip);
+      if (activeTab === 'upcoming') return status === 'upcoming' || status === 'ongoing';
+      if (activeTab === 'completed') return status === 'completed';
+      return true;
+    });
+  }, [filteredTrips, activeTab, getTripDisplayStatus]);
+
+  // Dynamic trip cover image matching Figma style
+  const getTripImage = useCallback((trip: Trip, idx: number): string => {
+    const nameLower = (trip.name || '').toLowerCase();
+    const countryLower = (trip.countries || []).join(' ').toLowerCase();
+    if (
+      nameLower.includes('boracay') ||
+      countryLower.includes('boracay') ||
+      nameLower.includes('beach')
+    ) {
+      return 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80';
+    }
+    if (
+      nameLower.includes('baguio') ||
+      nameLower.includes('pine') ||
+      nameLower.includes('mountain')
+    ) {
+      return 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=600&q=80';
+    }
+    if (
+      nameLower.includes('palawan') ||
+      nameLower.includes('nido') ||
+      nameLower.includes('island')
+    ) {
+      return 'https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?auto=format&fit=crop&w=600&q=80';
+    }
+    if (nameLower.includes('siargao') || nameLower.includes('surf')) {
+      return 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?auto=format&fit=crop&w=600&q=80';
+    }
+    const fallbackList = [
+      'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80',
+    ];
+    return fallbackList[idx % fallbackList.length];
+  }, []);
+
   // Active selected trip
   const selectedTrip = useMemo(() => {
     if (!selectedTripId) return filteredTrips[0] || null;
     return trips.find((t) => t.id === selectedTripId) || filteredTrips[0] || null;
   }, [trips, filteredTrips, selectedTripId]);
+
+  // Schedule overview calculation
+  const scheduleDays = useMemo(() => {
+    const baseDate = selectedTrip?.startDate
+      ? new Date(selectedTrip.startDate)
+      : new Date();
+    const dayOfWeek = baseDate.getDay();
+    const distanceToMonday = (dayOfWeek + 6) % 7;
+    const monday = new Date(baseDate);
+    monday.setDate(baseDate.getDate() - distanceToMonday);
+
+    const daysLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    const monthName = baseDate.toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    });
+
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const dateNum = d.getDate();
+
+      const isHighlighted = trips.some((t) => {
+        if (!t.startDate || !t.endDate) return false;
+        const start = new Date(t.startDate);
+        const end = new Date(t.endDate);
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
+        return d >= start && d <= end;
+      });
+
+      return {
+        label: daysLabels[i],
+        dateNum,
+        isHighlighted,
+      };
+    });
+
+    return { monthName, days };
+  }, [selectedTrip, trips]);
 
   // Load detailed backend data whenever selected trip changes
   useEffect(() => {
@@ -475,8 +585,6 @@ export default function Bookings() {
   return (
     <div className="bookings-page-wrapper">
       <div className="bookings-container-card">
-        <h1 className="bookings-header-title">My Bookings</h1>
-
         {/* Sync Failure Notice Banner matching Budget.tsx */}
         {syncNotice && (
           <div
@@ -522,211 +630,400 @@ export default function Bookings() {
           </div>
         )}
 
-        <div className="bookings-content-grid">
-          {/* =========================================================
-              Left Column — Trip Selector Panel (Figma 402:15 & 422:298)
-             ========================================================= */}
-          <div className="bookings-trip-selector-card">
-            {/* Search Input Box */}
-            <div className="bookings-search-container">
-              <div className="bookings-search-input-box">
-                <img src={magnifierIcon} alt="Search" className="w-4 h-4 opacity-50" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search..."
-                  className="bookings-search-input"
-                />
+        {/* Desktop View (≥1025px) */}
+        <div className="bookings-desktop-content">
+          <h1 className="bookings-header-title">My Bookings</h1>
+          <div className="bookings-content-grid">
+            {/* =========================================================
+                Left Column — Trip Selector Panel (Figma 402:15 & 422:298)
+               ========================================================= */}
+            <div className="bookings-trip-selector-card">
+              {/* Search Input Box */}
+              <div className="bookings-search-container">
+                <div className="bookings-search-input-box">
+                  <img src={magnifierIcon} alt="Search" className="w-4 h-4 opacity-50" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search..."
+                    className="bookings-search-input"
+                  />
+                </div>
               </div>
+
+              {loading ? (
+                <div className="flex-1 flex items-center justify-center p-8 text-stone-500 font-medium text-sm">
+                  Loading trips...
+                </div>
+              ) : trips.length === 0 ? (
+                /* Empty State (Figma Frame 402:15) */
+                <div className="bookings-empty-selector">
+                  <h3 className="bookings-empty-title">No trips yet?</h3>
+                  <p className="bookings-empty-desc">
+                    Start a new adventure and LakBye will handle your itineraries, stays,
+                    and budget all in one place.
+                  </p>
+                  <div className="bookings-empty-actions">
+                    <button
+                      type="button"
+                      onClick={() => setIsCreateTripModalOpen(true)}
+                      className="btn-bookings-create"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Create a Trip</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/dashboard/explore')}
+                      className="btn-bookings-browse"
+                    >
+                      <Compass className="w-4 h-4 text-stone-600" />
+                      <span>Browse Destinations</span>
+                    </button>
+                  </div>
+                </div>
+              ) : filteredTrips.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-stone-500 text-sm">
+                  <p>No trips match "{searchQuery}"</p>
+                </div>
+              ) : (
+                /* Populated Trip Rows List (Figma Frame 422:298) */
+                <div className="bookings-trips-list">
+                  {filteredTrips.map((t) => {
+                    const isSelected = selectedTrip?.id === t.id;
+                    const dateStr =
+                      t.startDate && t.endDate
+                        ? `${formatDateOnly(t.startDate)} - ${formatDateOnly(t.endDate)}`
+                        : 'Flexible Dates';
+
+                    const nightsCount = t.nights > 0 ? t.nights : 1;
+
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setSelectedTripId(t.id)}
+                        className={`bookings-trip-item ${isSelected ? 'active' : ''}`}
+                      >
+                        <div className="bookings-trip-item-info">
+                          <span className="bookings-trip-item-title">{t.name}</span>
+                          <div className="bookings-trip-item-badges">
+                            <span className="badge-pill-date">{dateStr}</span>
+                            <span className="badge-pill-nights">
+                              {nightsCount} {nightsCount === 1 ? 'Night' : 'Nights'}
+                            </span>
+                          </div>
+                        </div>
+                        <ChevronRight className="bookings-trip-item-chevron w-5 h-5" />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {loading ? (
-              <div className="flex-1 flex items-center justify-center p-8 text-stone-500 font-medium text-sm">
-                Loading trips...
-              </div>
-            ) : trips.length === 0 ? (
-              /* Empty State (Figma Frame 402:15) */
-              <div className="bookings-empty-selector">
-                <h3 className="bookings-empty-title">No trips yet?</h3>
-                <p className="bookings-empty-desc">
-                  Start a new adventure and LakBye will handle your itineraries, stays,
-                  and budget all in one place.
-                </p>
-                <div className="bookings-empty-actions">
+            {/* =========================================================
+                Right Column — Bookings Ledger Table (Figma 402:15 & 422:298)
+               ========================================================= */}
+            <div className="bookings-ledger-card">
+              {selectedTrip ? (
+                <>
+                  <div className="bookings-ledger-header">
+                    <div className="bookings-ledger-trip-meta">
+                      <h2 className="bookings-ledger-title">{selectedTrip.name}</h2>
+                      <span className="badge-pill-daterange-gradient">
+                        {selectedTrip.startDate && selectedTrip.endDate
+                          ? `${formatDateOnly(selectedTrip.startDate)} - ${formatDateOnly(selectedTrip.endDate)}`
+                          : 'Dates Pending'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={handleOpenBookModal}
+                        className="bookings-open-workspace-btn"
+                        style={{
+                          color: '#e9724c',
+                          borderColor: 'rgba(233, 114, 76, 0.3)',
+                          background: 'rgba(233, 114, 76, 0.08)',
+                        }}
+                      >
+                        <Ticket className="w-4 h-4" />
+                        <span>Book Activity</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/trip/${selectedTrip.id}`)}
+                        className="bookings-open-workspace-btn"
+                      >
+                        <span>Open in Workspace</span>
+                        <ArrowUpRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bookings-table-wrapper">
+                    {detailsLoading ? (
+                      <div className="flex flex-col items-center justify-center p-16 text-stone-500 gap-3">
+                        <div className="w-8 h-8 border-3 border-amber-600 border-t-transparent rounded-full animate-spin" />
+                        <span className="text-sm font-medium">
+                          Syncing trip bookings from backend...
+                        </span>
+                      </div>
+                    ) : (
+                      <table className="bookings-table">
+                        <thead>
+                          <tr className="bookings-table-header-row">
+                            <th>Date</th>
+                            <th>Destination</th>
+                            <th>Activities</th>
+                            <th>Accommodation</th>
+                            <th>Total Budget</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bookings-table-body">
+                          {ledgerItems.map((item) => (
+                            <tr key={item.id} className="bookings-table-row">
+                              <td className="bookings-cell-date">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span>{item.date}</span>
+                                  {renderStatusBadge(item.status)}
+                                </div>
+                              </td>
+                              <td className="bookings-cell-destination">
+                                <span className="bookings-dest-dot" />
+                                <span>{item.destination}</span>
+                              </td>
+                              <td
+                                className="bookings-cell-activities"
+                                title={item.activities}
+                              >
+                                {item.activities}
+                              </td>
+                              <td
+                                className="bookings-cell-accommodation"
+                                title={item.accommodation}
+                              >
+                                {item.accommodation}
+                              </td>
+                              <td className="bookings-cell-budget">{item.budget}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="bookings-table-empty">
+                  <Calendar className="bookings-table-empty-icon" />
+                  <h3 className="bookings-table-empty-title">
+                    Select a Trip to View Bookings
+                  </h3>
+                  <p className="bookings-table-empty-desc">
+                    Choose a scheduled trip from the left sidebar or create a new trip to
+                    view its reservations, activities, and budget allocations.
+                  </p>
                   <button
                     type="button"
                     onClick={() => setIsCreateTripModalOpen(true)}
-                    className="btn-bookings-create"
+                    className="btn-bookings-create mt-4"
+                    style={{ maxWidth: '200px' }}
                   >
                     <Plus className="w-4 h-4" />
                     <span>Create a Trip</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/dashboard/explore')}
-                    className="btn-bookings-browse"
-                  >
-                    <Compass className="w-4 h-4 text-stone-600" />
-                    <span>Browse Destinations</span>
-                  </button>
                 </div>
-              </div>
-            ) : filteredTrips.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-stone-500 text-sm">
-                <p>No trips match "{searchQuery}"</p>
-              </div>
-            ) : (
-              /* Populated Trip Rows List (Figma Frame 422:298) */
-              <div className="bookings-trips-list">
-                {filteredTrips.map((t) => {
-                  const isSelected = selectedTrip?.id === t.id;
-                  const dateStr =
-                    t.startDate && t.endDate
-                      ? `${formatDateOnly(t.startDate)} - ${formatDateOnly(t.endDate)}`
-                      : 'Flexible Dates';
+              )}
+            </div>
+          </div>
+        </div>
 
-                  const nightsCount = t.nights > 0 ? t.nights : 1;
-
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setSelectedTripId(t.id)}
-                      className={`bookings-trip-item ${isSelected ? 'active' : ''}`}
-                    >
-                      <div className="bookings-trip-item-info">
-                        <span className="bookings-trip-item-title">{t.name}</span>
-                        <div className="bookings-trip-item-badges">
-                          <span className="badge-pill-date">{dateStr}</span>
-                          <span className="badge-pill-nights">
-                            {nightsCount} {nightsCount === 1 ? 'Night' : 'Nights'}
-                          </span>
-                        </div>
-                      </div>
-                      <ChevronRight className="bookings-trip-item-chevron w-5 h-5" />
-                    </button>
-                  );
-                })}
+        {/* Mobile & Tablet View (≤1024px) - Figma Node 23:5 */}
+        <div className="bookings-mobile-content">
+          <div className="bookings-mobile-header-section">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="bookings-mobile-title">My Bookings</h1>
+                <p className="bookings-mobile-subtitle">
+                  Keep track of your itineraries and reservations
+                </p>
               </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateTripModalOpen(true)}
+                className="btn-bookings-mobile-add"
+                title="Create a Trip"
+                aria-label="Create a Trip"
+              >
+                <Plus className="w-5 h-5 text-white" />
+              </button>
+            </div>
+          </div>
+
+          {/* Search Box */}
+          <div className="bookings-mobile-search-box">
+            <img src={magnifierIcon} alt="Search" className="w-4 h-4 opacity-50" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search active reservations..."
+              className="bookings-mobile-search-input"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="text-stone-400 text-xs px-2"
+                aria-label="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             )}
           </div>
 
-          {/* =========================================================
-              Right Column — Bookings Ledger Table (Figma 402:15 & 422:298)
-             ========================================================= */}
-          <div className="bookings-ledger-card">
-            {selectedTrip ? (
-              <>
-                <div className="bookings-ledger-header">
-                  <div className="bookings-ledger-trip-meta">
-                    <h2 className="bookings-ledger-title">{selectedTrip.name}</h2>
-                    <span className="badge-pill-daterange-gradient">
-                      {selectedTrip.startDate && selectedTrip.endDate
-                        ? `${formatDateOnly(selectedTrip.startDate)} - ${formatDateOnly(selectedTrip.endDate)}`
-                        : 'Dates Pending'}
-                    </span>
-                  </div>
+          {/* Filter Pills */}
+          <div className="bookings-mobile-filter-tabs">
+            <button
+              type="button"
+              onClick={() => setActiveTab('all')}
+              className={`bookings-mobile-tab-btn ${activeTab === 'all' ? 'active' : ''}`}
+            >
+              All ({trips.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('upcoming')}
+              className={`bookings-mobile-tab-btn ${activeTab === 'upcoming' ? 'active' : ''}`}
+            >
+              Upcoming
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('completed')}
+              className={`bookings-mobile-tab-btn ${activeTab === 'completed' ? 'active' : ''}`}
+            >
+              Completed
+            </button>
+          </div>
 
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={handleOpenBookModal}
-                      className="bookings-open-workspace-btn"
-                      style={{
-                        color: '#e9724c',
-                        borderColor: 'rgba(233, 114, 76, 0.3)',
-                        background: 'rgba(233, 114, 76, 0.08)',
-                      }}
-                    >
-                      <Ticket className="w-4 h-4" />
-                      <span>Book Activity</span>
-                    </button>
+          {/* Cards List / Responsive Grid */}
+          {loading ? (
+            <div className="bookings-mobile-loading">Loading bookings...</div>
+          ) : filteredTripsByTab.length === 0 ? (
+            <div className="bookings-mobile-empty">
+              <h3 className="text-base font-bold text-stone-800">No bookings found</h3>
+              <p className="text-xs text-stone-500 mt-1 mb-4">
+                {searchQuery
+                  ? `No reservations match "${searchQuery}"`
+                  : 'Start a new adventure and LakBye will handle your plans!'}
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsCreateTripModalOpen(true)}
+                className="btn-bookings-create"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Create a Trip</span>
+              </button>
+            </div>
+          ) : (
+            <div className="bookings-mobile-cards-grid">
+              {filteredTripsByTab.map((trip, idx) => {
+                const displayStatus = getTripDisplayStatus(trip);
+                const locationStr =
+                  trip.countries && trip.countries.length > 0
+                    ? trip.countries.join(', ')
+                    : 'Philippines';
+                const dateStr =
+                  trip.startDate && trip.endDate
+                    ? `${formatDateOnly(trip.startDate)} - ${formatDateOnly(trip.endDate)}`
+                    : 'Flexible Dates';
+                const isSelected = selectedTrip?.id === trip.id;
 
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/trip/${selectedTrip.id}`)}
-                      className="bookings-open-workspace-btn"
-                    >
-                      <span>Open in Workspace</span>
-                      <ArrowUpRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
+                return (
+                  <div
+                    key={trip.id}
+                    className={`bookings-mobile-trip-card ${isSelected ? 'selected' : ''}`}
+                    onClick={() => {
+                      setSelectedTripId(trip.id);
+                      navigate(`/trip/${trip.id}`);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        setSelectedTripId(trip.id);
+                        navigate(`/trip/${trip.id}`);
+                      }
+                    }}
+                  >
+                    <div
+                      className="bookings-mobile-card-image"
+                      style={{ backgroundImage: `url(${getTripImage(trip, idx)})` }}
+                    />
+                    <div className="bookings-mobile-card-details">
+                      <div className="bookings-mobile-card-header">
+                        <h3 className="bookings-mobile-card-title">{trip.name}</h3>
+                        <div className="bookings-mobile-card-location">
+                          <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                          <span>{locationStr}</span>
+                        </div>
+                      </div>
 
-                <div className="bookings-table-wrapper">
-                  {detailsLoading ? (
-                    <div className="flex flex-col items-center justify-center p-16 text-stone-500 gap-3">
-                      <div className="w-8 h-8 border-3 border-amber-600 border-t-transparent rounded-full animate-spin" />
-                      <span className="text-sm font-medium">
-                        Syncing trip bookings from backend...
-                      </span>
+                      <div className="bookings-mobile-card-badges">
+                        {displayStatus === 'upcoming' ? (
+                          <>
+                            <span className="booking-badge booking-badge--upcoming">
+                              UPCOMING
+                            </span>
+                            <span className="booking-badge booking-badge--countdown">
+                              {trip.daysUntil !== undefined
+                                ? `In ${trip.daysUntil} Day/s`
+                                : 'In 4 Days'}
+                            </span>
+                          </>
+                        ) : displayStatus === 'ongoing' ? (
+                          <span className="booking-badge booking-badge--ongoing">
+                            ONGOING
+                          </span>
+                        ) : (
+                          <span className="booking-badge booking-badge--completed">
+                            COMPLETED
+                          </span>
+                        )}
+                        <span className="booking-badge booking-badge--date">
+                          {dateStr}
+                        </span>
+                      </div>
                     </div>
-                  ) : (
-                    <table className="bookings-table">
-                      <thead>
-                        <tr className="bookings-table-header-row">
-                          <th>Date</th>
-                          <th>Destination</th>
-                          <th>Activities</th>
-                          <th>Accommodation</th>
-                          <th>Total Budget</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bookings-table-body">
-                        {ledgerItems.map((item) => (
-                          <tr key={item.id} className="bookings-table-row">
-                            <td className="bookings-cell-date">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span>{item.date}</span>
-                                {renderStatusBadge(item.status)}
-                              </div>
-                            </td>
-                            <td className="bookings-cell-destination">
-                              <span className="bookings-dest-dot" />
-                              <span>{item.destination}</span>
-                            </td>
-                            <td
-                              className="bookings-cell-activities"
-                              title={item.activities}
-                            >
-                              {item.activities}
-                            </td>
-                            <td
-                              className="bookings-cell-accommodation"
-                              title={item.accommodation}
-                            >
-                              {item.accommodation}
-                            </td>
-                            <td className="bookings-cell-budget">{item.budget}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div className="bookings-table-empty">
-                <Calendar className="bookings-table-empty-icon" />
-                <h3 className="bookings-table-empty-title">
-                  Select a Trip to View Bookings
-                </h3>
-                <p className="bookings-table-empty-desc">
-                  Choose a scheduled trip from the left sidebar or create a new trip to
-                  view its reservations, activities, and budget allocations.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setIsCreateTripModalOpen(true)}
-                  className="btn-bookings-create mt-4"
-                  style={{ maxWidth: '200px' }}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Schedule Overview Component (Figma Frame 23:67) */}
+          <div className="bookings-schedule-overview-card">
+            <div className="bookings-schedule-header">
+              <h3 className="bookings-schedule-title">Schedule Overview</h3>
+              <span className="bookings-schedule-month">{scheduleDays.monthName}</span>
+            </div>
+            <div className="bookings-schedule-days-row">
+              {scheduleDays.days.map((d, i) => (
+                <div
+                  key={i}
+                  className={`bookings-schedule-day-chip ${d.isHighlighted ? 'highlighted' : ''}`}
                 >
-                  <Plus className="w-4 h-4" />
-                  <span>Create a Trip</span>
-                </button>
-              </div>
-            )}
+                  <span className="bookings-schedule-day-label">{d.label}</span>
+                  <span className="bookings-schedule-day-number">{d.dateNum}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
