@@ -685,23 +685,6 @@ export default function Explore() {
             ))
           )}
         </div>
-
-        {/* Planning a Custom Trip Promo Banner (Figma Frame 23:183) */}
-        <div className="explore-promo-banner">
-          <div className="explore-promo-content">
-            <h3 className="explore-promo-title">Planning a Custom Trip?</h3>
-            <p className="explore-promo-desc">
-              Tell LakBye AI your preferences and get a custom layout.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsStartTripOpen(true)}
-            className="explore-promo-btn"
-          >
-            Generate
-          </button>
-        </div>
       </div>
 
       {/* Start Trip Modal */}

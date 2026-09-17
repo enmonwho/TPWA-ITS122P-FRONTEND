@@ -827,15 +827,6 @@ export default function Bookings() {
                     Choose a scheduled trip from the left sidebar or create a new trip to
                     view its reservations, activities, and budget allocations.
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => setIsCreateTripModalOpen(true)}
-                    className="btn-bookings-create mt-4"
-                    style={{ maxWidth: '200px' }}
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Create a Trip</span>
-                  </button>
                 </div>
               )}
             </div>
