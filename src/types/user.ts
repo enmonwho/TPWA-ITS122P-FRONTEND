@@ -4,6 +4,16 @@
  */
 export type UserRole = 'admin' | 'staff' | 'customer' | 'vendor' | string;
 
+export interface UserPreferences {
+  username?: string;
+  bio?: string;
+  timeFormat?: string;
+  dateFormat?: string;
+  currency?: string;
+  distanceUnit?: string;
+  onboardingCompleted?: boolean;
+}
+
 /**
  * Base user interface matching the backend response.
  */
@@ -13,6 +23,9 @@ export interface User {
   email: string;
   role: UserRole;
   created_at?: string;
+  username?: string;
+  bio?: string;
+  preferences?: UserPreferences;
 }
 
 export interface RegisterPayload {

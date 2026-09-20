@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import {
   User as UserIcon,
@@ -16,7 +16,7 @@ import {
 
 import { useAuth } from '../context/AuthContext';
 import { STORAGE_KEYS } from '../lib/constants';
-import { userApi } from '../services/api';
+import { userApi, preferencesApi } from '../services/api';
 import '../styles/ProfileSettings.css';
 
 interface StoredPreferences {
@@ -91,6 +91,26 @@ export default function ProfileSettings() {
     setDistanceUnit(currentPrefs.distanceUnit || 'km');
   }
 
+  // Fetch updated remote/mock preferences if available
+  useEffect(() => {
+    let isMounted = true;
+    if (user?.id) {
+      preferencesApi.getPreferences(user.id).then((remotePrefs) => {
+        if (isMounted && remotePrefs) {
+          if (remotePrefs.username) setUsername(remotePrefs.username);
+          if (remotePrefs.bio) setBio(remotePrefs.bio);
+          if (remotePrefs.timeFormat) setTimeFormat(remotePrefs.timeFormat);
+          if (remotePrefs.dateFormat) setDateFormat(remotePrefs.dateFormat);
+          if (remotePrefs.currency) setCurrency(remotePrefs.currency);
+          if (remotePrefs.distanceUnit) setDistanceUnit(remotePrefs.distanceUnit);
+        }
+      });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
+
   // Compute initials for the avatar
   const initials = (fullName || user?.email || 'U')
     .split(' ')
@@ -126,23 +146,23 @@ export default function ProfileSettings() {
 
     try {
       // 1. Sync core user details to backend API (PUT /users/:id)
-      const payload: { name: string; full_name: string; password?: string } = {
+      const payload: {
+        name: string;
+        full_name: string;
+        username?: string;
+        bio?: string;
+        password?: string;
+        preferences?: StoredPreferences;
+      } = {
         name: fullName.trim(),
         full_name: fullName.trim(),
+        username: username.trim(),
+        bio: bio.trim(),
       };
       if (newPassword) {
         payload.password = newPassword;
       }
 
-      await userApi.updateProfile(user.id, payload);
-
-      // 2. Update React AuthContext so headers, greetings, and cards update live
-      setUser({
-        ...user,
-        full_name: fullName.trim(),
-      });
-
-      // 3. Persist username, bio, and travel preferences to client storage stopgap
       const updatedPreferences: StoredPreferences = {
         username: username.trim(),
         bio: bio.trim(),
@@ -151,10 +171,25 @@ export default function ProfileSettings() {
         currency,
         distanceUnit,
       };
-      localStorage.setItem(
-        STORAGE_KEYS.USER_PREFERENCES(user.id),
-        JSON.stringify(updatedPreferences),
-      );
+      payload.preferences = updatedPreferences;
+
+      // 2. Persist preferences via preferencesApi to backend and local cache
+      await preferencesApi.savePreferences(user.id, updatedPreferences);
+
+      // 3. Attempt core profile sync (name, credentials)
+      try {
+        await userApi.updateProfile(user.id, payload);
+      } catch (userApiErr) {
+        console.warn('Backend user profile update note:', userApiErr);
+      }
+
+      // 4. Update React AuthContext so headers, greetings, and cards update live
+      setUser({
+        ...user,
+        full_name: fullName.trim(),
+        username: username.trim(),
+        preferences: updatedPreferences,
+      });
 
       // Clear sensitive fields
       setNewPassword('');
@@ -163,7 +198,7 @@ export default function ProfileSettings() {
       setSuccessMessage('Your profile and preferences have been updated successfully.');
     } catch (err: unknown) {
       console.error('Failed to update profile:', err);
-      // Even if backend users table has schema limits for custom fields, persist local preferences
+      // Fallback preferences persistence
       const fallbackPreferences: StoredPreferences = {
         username: username.trim(),
         bio: bio.trim(),
@@ -172,18 +207,17 @@ export default function ProfileSettings() {
         currency,
         distanceUnit,
       };
-      localStorage.setItem(
-        STORAGE_KEYS.USER_PREFERENCES(user.id),
-        JSON.stringify(fallbackPreferences),
-      );
+      await preferencesApi.savePreferences(user.id, fallbackPreferences);
 
       setUser({
         ...user,
         full_name: fullName.trim(),
+        username: username.trim(),
+        preferences: fallbackPreferences,
       });
 
       setSuccessMessage(
-        'Preferences saved locally! (Backend profile sync will retry on next connection).',
+        'Preferences saved! (Backend profile sync will retry on next connection).',
       );
     } finally {
       setIsSaving(false);

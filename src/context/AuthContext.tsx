@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { authApi } from '../services/api';
+import { STORAGE_KEYS } from '../lib/constants';
 import type { User, LoginPayload, RegisterPayload, AuthResponse } from '../types';
 
 export interface AuthContextType {
@@ -12,6 +13,24 @@ export interface AuthContextType {
   logout: () => Promise<void>;
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
 }
+
+const enrichUserWithPreferences = (baseUser: User): User => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.USER_PREFERENCES(baseUser.id));
+    if (raw) {
+      const prefs = JSON.parse(raw);
+      return {
+        ...baseUser,
+        username: baseUser.username || prefs.username,
+        bio: baseUser.bio || prefs.bio,
+        preferences: baseUser.preferences || prefs,
+      };
+    }
+  } catch {
+    // ignore parse error
+  }
+  return baseUser;
+};
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -26,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const response = await authApi.getMe();
         if (isMounted && response?.user) {
-          setUser(response.user);
+          setUser(enrichUserWithPreferences(response.user));
         }
       } catch {
         // Silently catch 401 or network error on mount: session cookie absent or invalid
@@ -52,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.token) {
       localStorage.setItem('token', data.token);
     }
-    setUser(data.user);
+    setUser(enrichUserWithPreferences(data.user));
     return data;
   };
 
@@ -61,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.token) {
       localStorage.setItem('token', data.token);
     }
-    setUser(data.user);
+    setUser(enrichUserWithPreferences(data.user));
     return data;
   };
 

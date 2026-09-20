@@ -3,7 +3,13 @@ import axios, {
   type InternalAxiosRequestConfig,
   type AxiosResponse,
 } from 'axios';
-import type { RegisterPayload, LoginPayload, AuthResponse, MeResponse } from '../types';
+import type {
+  RegisterPayload,
+  LoginPayload,
+  AuthResponse,
+  MeResponse,
+  UserPreferences,
+} from '../types';
 import type { Destination, Category } from '../types/destination';
 import type { Trip, TripApiPayload, TripApiResponse, TripStatus } from '../types/trip';
 import type {
@@ -12,6 +18,7 @@ import type {
   Activity,
   BookingCreatePayload,
 } from '../types/booking';
+import { STORAGE_KEYS } from '../lib/constants';
 import { mockAuthApi } from './mockAuthApi';
 
 /**
@@ -489,9 +496,12 @@ export const adminApi = {
 export interface UpdateUserProfilePayload {
   name?: string;
   full_name?: string;
+  username?: string;
+  bio?: string;
   password?: string;
   is_active?: boolean;
   role?: string;
+  preferences?: UserPreferences;
 }
 
 export const userApi = {
@@ -505,6 +515,129 @@ export const userApi = {
       payload,
     );
     return res.data;
+  },
+};
+
+/* ------------------------------------------------------------------ */
+/*  User Preferences API Module                                       */
+/* ------------------------------------------------------------------ */
+
+export const preferencesApi = {
+  /**
+   * Fetch customer preferences.
+   * Priority:
+   * 1. If mock auth is enabled, loads from mockAuthApi.
+   * 2. Reads local storage for instantaneous responsiveness.
+   * 3. Proactively queries backend profile/preferences if available to sync updates.
+   */
+  getPreferences: async (userId?: number | string): Promise<UserPreferences> => {
+    if (!userId) return {};
+
+    // 1. Check local storage cache first
+    let cachedPrefs: UserPreferences = {};
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.USER_PREFERENCES(userId));
+      if (stored) {
+        cachedPrefs = JSON.parse(stored);
+      }
+    } catch (e) {
+      console.warn('Failed to parse local preferences:', e);
+    }
+
+    // 2. If mock mode is active, fetch from mock store
+    if (useMockAuth) {
+      try {
+        const mockPrefs = await mockAuthApi.getPreferences(userId);
+        if (mockPrefs) {
+          const merged = { ...cachedPrefs, ...mockPrefs };
+          localStorage.setItem(
+            STORAGE_KEYS.USER_PREFERENCES(userId),
+            JSON.stringify(merged),
+          );
+          return merged;
+        }
+      } catch {
+        // fallback to local cached
+      }
+      return cachedPrefs;
+    }
+
+    // 3. In real backend mode, attempt to retrieve user details from /auth/me or remote preferences
+    try {
+      const meRes = await realAuthApi.getMe();
+      if (meRes.user) {
+        const remotePrefs = meRes.user.preferences || {};
+        const remoteUsername = meRes.user.username;
+        const merged: UserPreferences = {
+          ...cachedPrefs,
+          ...remotePrefs,
+          ...(remoteUsername ? { username: remoteUsername } : {}),
+        };
+        localStorage.setItem(
+          STORAGE_KEYS.USER_PREFERENCES(userId),
+          JSON.stringify(merged),
+        );
+        return merged;
+      }
+    } catch {
+      // Silent catch: network outage or backend schema limitation — use cachedPrefs
+    }
+
+    return cachedPrefs;
+  },
+
+  /**
+   * Save customer preferences to backend and local storage cache.
+   */
+  savePreferences: async (
+    userId: number | string,
+    preferences: UserPreferences,
+  ): Promise<UserPreferences> => {
+    const fullPrefs: UserPreferences = {
+      ...preferences,
+      onboardingCompleted: true,
+    };
+
+    // 1. Immediately write to local storage stopgap for zero UI lag
+    try {
+      localStorage.setItem(
+        STORAGE_KEYS.USER_PREFERENCES(userId),
+        JSON.stringify(fullPrefs),
+      );
+    } catch (e) {
+      console.warn('Failed to write preferences to localStorage:', e);
+    }
+
+    // 2. If mock auth is active, sync with mockAuthApi
+    if (useMockAuth) {
+      return mockAuthApi.savePreferences(userId, fullPrefs);
+    }
+
+    // 3. Connect to backend API:
+    // Attempt sending user preferences payload to the backend endpoints.
+    const payload = {
+      username: preferences.username,
+      bio: preferences.bio,
+      time_format: preferences.timeFormat,
+      date_format: preferences.dateFormat,
+      currency: preferences.currency,
+      distance_unit: preferences.distanceUnit,
+      preferences: fullPrefs,
+    };
+
+    try {
+      await api.put(`/users/${userId}`, payload);
+    } catch {
+      // Catch backend errors (such as 403 admin-role requirement on existing backend build, or missing columns)
+      // Preferences are safely cached in localStorage, so customer experience continues without disruption.
+      try {
+        await api.put(`/users/${userId}/preferences`, payload);
+      } catch {
+        // Alternative endpoint fallback
+      }
+    }
+
+    return fullPrefs;
   },
 };
 

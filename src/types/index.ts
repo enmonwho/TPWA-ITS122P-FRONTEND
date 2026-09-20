@@ -1,6 +1,7 @@
 export type {
   User,
   UserRole,
+  UserPreferences,
   RegisterPayload,
   LoginPayload,
   AuthResponse,

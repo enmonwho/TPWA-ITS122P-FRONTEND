@@ -6,10 +6,12 @@ import type {
   AuthResponse,
   MeResponse,
   User,
+  UserPreferences,
 } from '../types';
 
 const MOCK_USERS_KEY = 'lakbye_mock_users';
 const MOCK_SESSION_KEY = 'lakbye_mock_session';
+const MOCK_PREFS_PREFIX = 'lakbye_mock_prefs_';
 
 // Helper to simulate Axios errors exactly how the frontend expects them
 const throwAxiosError = (status: number, message: string) => {
@@ -137,8 +139,55 @@ export const mockAuthApi = {
 
     const { _password, ...userWithoutSensitive } = userRecord;
 
+    const storedPrefsRaw = localStorage.getItem(`${MOCK_PREFS_PREFIX}${sessionId}`);
+    const userPrefs: UserPreferences | undefined = storedPrefsRaw
+      ? JSON.parse(storedPrefsRaw)
+      : userRecord.preferences;
+
     return {
-      user: userWithoutSensitive as User,
+      user: {
+        ...(userWithoutSensitive as User),
+        username: userPrefs?.username || userRecord.username,
+        preferences: userPrefs,
+      },
     };
+  },
+
+  savePreferences: async (
+    userId: number | string,
+    preferences: UserPreferences,
+  ): Promise<UserPreferences> => {
+    await delay(300);
+    const users = getMockUsers();
+    const userIndex = users.findIndex((u) => u.id.toString() === userId.toString());
+
+    if (userIndex !== -1) {
+      users[userIndex] = {
+        ...users[userIndex],
+        username: preferences.username || users[userIndex].username,
+        preferences,
+      };
+      saveMockUsers(users);
+    }
+
+    localStorage.setItem(`${MOCK_PREFS_PREFIX}${userId}`, JSON.stringify(preferences));
+
+    return preferences;
+  },
+
+  getPreferences: async (userId: number | string): Promise<UserPreferences | null> => {
+    await delay(200);
+    const stored = localStorage.getItem(`${MOCK_PREFS_PREFIX}${userId}`);
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        // ignore parse error
+      }
+    }
+
+    const users = getMockUsers();
+    const userRecord = users.find((u) => u.id.toString() === userId.toString());
+    return userRecord?.preferences || null;
   },
 };

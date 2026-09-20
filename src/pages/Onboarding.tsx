@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
 import { usePageLoader } from '../context/PageLoaderContext';
-import { ROUTES, STORAGE_KEYS } from '../lib/constants';
+import { ROUTES } from '../lib/constants';
 import { fetchExchangeRates } from '../lib/currency';
+import { preferencesApi } from '../services/api';
 import lakbyeLogo from '../assets/lakbye-logo.png';
 import cloud1 from '../assets/cloud-1.svg';
 import cloud2 from '../assets/cloud-2.svg';
@@ -19,7 +20,7 @@ import cloud5 from '../assets/cloud-5.svg';
  * Step 1 ("username"):  Enter a username with live "Available" indicator.
  * Step 2 ("preferences"): Set Time Format, Date Format, Currency, Distance Unit.
  *
- * No back navigation between steps; no redirect after completion.
+ * Persists preferences to backend API and resilient local storage cache, then routes to Dashboard.
  */
 
 /* ────────── Cloud layout data ────────── */
@@ -47,7 +48,7 @@ const clouds: CloudConfig[] = [
 /* ────────── Component ────────── */
 
 export default function Onboarding() {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const { triggerTransition } = usePageLoader();
   const navigate = useNavigate();
 
@@ -63,6 +64,27 @@ export default function Onboarding() {
     currency: '',
     distanceUnit: '',
   });
+
+  // Pre-load existing preferences if available from backend or local storage
+  useEffect(() => {
+    let isMounted = true;
+    if (user?.id) {
+      preferencesApi.getPreferences(user.id).then((saved) => {
+        if (isMounted && saved) {
+          if (saved.username) setUsername(saved.username);
+          setPreferences((prev) => ({
+            timeFormat: saved.timeFormat || prev.timeFormat,
+            dateFormat: saved.dateFormat || prev.dateFormat,
+            currency: saved.currency || prev.currency,
+            distanceUnit: saved.distanceUnit || prev.distanceUnit,
+          }));
+        }
+      });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
 
   const handlePreferenceChange = (key: keyof typeof preferences, value: string) => {
     setPreferences((prev) => ({ ...prev, [key]: value }));
@@ -80,37 +102,38 @@ export default function Onboarding() {
     }, 550);
   };
 
-  const handleDone = () => {
-    /**
-     * NOTE: The backend users table currently has no columns for username,
-     * timeFormat, dateFormat, currency, or distanceUnit.
-     * This is a client-side localStorage stopgap until backend support is added.
-     *
-     * Direct access note: If a user navigates to /onboarding while already
-     * having preferences saved, this will re-run and overwrite the existing entry.
-     */
+  const handleDone = async () => {
     const chosenCurrency = preferences.currency || 'PHP';
     // Ensure base exchange rates are cached
     fetchExchangeRates(chosenCurrency).catch(() => {});
     fetchExchangeRates('PHP').catch(() => {});
 
-    triggerTransition(() => {
-      const userId = user?.id;
-      if (userId) {
-        const userPreferences = {
-          username,
-          timeFormat: preferences.timeFormat,
-          dateFormat: preferences.dateFormat,
-          currency: chosenCurrency,
-          distanceUnit: preferences.distanceUnit,
-        };
-        localStorage.setItem(
-          STORAGE_KEYS.USER_PREFERENCES(userId),
-          JSON.stringify(userPreferences),
-        );
+    const userPreferences = {
+      username: username.trim(),
+      timeFormat: preferences.timeFormat || '12h',
+      dateFormat: preferences.dateFormat || 'MM/DD/YYYY',
+      currency: chosenCurrency,
+      distanceUnit: preferences.distanceUnit || 'km',
+    };
+
+    if (user?.id) {
+      try {
+        await preferencesApi.savePreferences(user.id, userPreferences);
+      } catch (err) {
+        console.warn('Backend preferences save caught:', err);
       }
 
-      navigate(ROUTES.HOME);
+      if (username && setUser) {
+        setUser({
+          ...user,
+          username: username.trim(),
+          preferences: userPreferences,
+        });
+      }
+    }
+
+    triggerTransition(() => {
+      navigate(ROUTES.DASHBOARD);
     }, 700);
   };
 

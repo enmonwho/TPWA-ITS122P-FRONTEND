@@ -7,7 +7,6 @@ import AuthLayout from '../components/AuthLayout';
 import { ROUTES } from '../lib/constants';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoader } from '../context/PageLoaderContext';
-import { authApi } from '../services/api';
 
 export default function SignUp() {
   const [firstName, setFirstName] = useState('');
@@ -20,7 +19,7 @@ export default function SignUp() {
   const [passwordError, setPasswordError] = useState('');
   const [generalError, setGeneralError] = useState('');
 
-  const { setUser } = useAuth();
+  const { register } = useAuth();
   const { triggerTransition } = usePageLoader();
   const navigate = useNavigate();
 
@@ -45,13 +44,12 @@ export default function SignUp() {
 
     try {
       await triggerTransition(async () => {
-        const response = await authApi.register({
+        await register({
           full_name: fullName,
           email,
           password,
         });
-        setUser(response.user);
-        navigate(ROUTES.HOME);
+        navigate(ROUTES.ONBOARDING);
       }, 700);
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {

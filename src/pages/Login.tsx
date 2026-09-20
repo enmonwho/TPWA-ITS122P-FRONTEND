@@ -7,6 +7,7 @@ import AuthLayout from '../components/AuthLayout';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoader } from '../context/PageLoaderContext';
 import { ROUTES } from '../lib/constants';
+import { preferencesApi } from '../services/api';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -35,7 +36,21 @@ export default function Login() {
         } else if (role === 'staff') {
           navigate(ROUTES.STAFF);
         } else {
-          navigate(ROUTES.HOME);
+          // Check if customer has completed onboarding preferences
+          const userId = response.user?.id;
+          const prefs = await preferencesApi.getPreferences(userId);
+          const hasPrefs =
+            prefs &&
+            (prefs.currency ||
+              prefs.timeFormat ||
+              prefs.username ||
+              prefs.onboardingCompleted);
+
+          if (!hasPrefs) {
+            navigate(ROUTES.ONBOARDING);
+          } else {
+            navigate(ROUTES.DASHBOARD);
+          }
         }
       }, 700);
     } catch (err: unknown) {
