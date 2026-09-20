@@ -2059,10 +2059,24 @@ h6 {
   height: 45px;
   background-color: #ffffff;
   border-radius: 3px;
+  border: 1.5px solid transparent;
   box-shadow: 0 0 6px rgba(0, 0, 0, 0.44);
   display: flex;
   align-items: center;
   padding: 0 1rem;
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.onboarding-input-container--error {
+  border-color: #c5283d;
+  box-shadow: 0 0 6px rgba(197, 40, 61, 0.35);
+}
+
+.onboarding-input-container--valid {
+  border-color: #1d7433;
+  box-shadow: 0 0 6px rgba(29, 116, 51, 0.3);
 }
 
 .onboarding-input {
@@ -2084,12 +2098,27 @@ h6 {
 /* Availability indicator */
 .onboarding-availability {
   align-self: flex-start;
-  margin-top: 0.35rem;
-  color: #1d7433;
+  margin-top: 0.4rem;
   font-family: 'SF Pro Rounded', var(--font-sans);
-  font-weight: 400;
-  font-size: 1rem; /* 16px */
-  min-height: 1.25rem;
+  font-weight: 500;
+  font-size: 0.875rem; /* 14px */
+  min-height: 1.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  line-height: 1.25;
+}
+
+.onboarding-availability--valid {
+  color: #1d7433;
+}
+
+.onboarding-availability--invalid {
+  color: #c5283d;
+}
+
+.onboarding-availability--checking {
+  color: #71717a;
 }
 
 /* Next button (Step 1) — centered below input */

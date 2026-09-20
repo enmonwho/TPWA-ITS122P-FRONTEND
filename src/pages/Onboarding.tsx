@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
 import { usePageLoader } from '../context/PageLoaderContext';
 import { ROUTES } from '../lib/constants';
 import { fetchExchangeRates } from '../lib/currency';
 import { preferencesApi } from '../services/api';
+import {
+  validateUsernameFormat,
+  checkUsernameAvailability,
+} from '../lib/usernameValidation';
 import lakbyeLogo from '../assets/lakbye-logo.png';
 import cloud1 from '../assets/cloud-1.svg';
 import cloud2 from '../assets/cloud-2.svg';
@@ -17,7 +21,7 @@ import cloud5 from '../assets/cloud-5.svg';
 /**
  * Onboarding — single page at /onboarding with internal step state.
  *
- * Step 1 ("username"):  Enter a username with live "Available" indicator.
+ * Step 1 ("username"):  Enter a username with live "Available" indicator and strict proper name rules.
  * Step 2 ("preferences"): Set Time Format, Date Format, Currency, Distance Unit.
  *
  * Persists preferences to backend API and resilient local storage cache, then routes to Dashboard.
@@ -45,6 +49,8 @@ const clouds: CloudConfig[] = [
   { src: cloud4, top: '62%', left: '4%', width: '165px', opacity: 0.55 },
 ];
 
+type UsernameStatus = 'idle' | 'checking' | 'valid' | 'invalid' | 'taken';
+
 /* ────────── Component ────────── */
 
 export default function Onboarding() {
@@ -56,6 +62,15 @@ export default function Onboarding() {
 
   /* Step 1 state */
   const [username, setUsername] = useState('');
+  const [availabilityResult, setAvailabilityResult] = useState<{
+    usernameChecked: string;
+    isChecking: boolean;
+    available?: boolean;
+    error?: string;
+  }>({
+    usernameChecked: '',
+    isChecking: false,
+  });
 
   /* Step 2 state */
   const [preferences, setPreferences] = useState({
@@ -86,6 +101,64 @@ export default function Onboarding() {
     };
   }, [user?.id]);
 
+  const trimmedUsername = username.trim();
+  const formatCheck = trimmedUsername ? validateUsernameFormat(username) : null;
+
+  // Derive username validation & availability status without cascading renders
+  let usernameStatus: UsernameStatus = 'idle';
+  let usernameError = '';
+
+  if (!trimmedUsername) {
+    usernameStatus = 'idle';
+  } else if (formatCheck && !formatCheck.isValid) {
+    usernameStatus = 'invalid';
+    usernameError = formatCheck.error || 'Invalid username format.';
+  } else if (
+    availabilityResult.usernameChecked !== trimmedUsername ||
+    availabilityResult.isChecking
+  ) {
+    usernameStatus = 'checking';
+  } else if (availabilityResult.available === false) {
+    usernameStatus = 'taken';
+    usernameError = availabilityResult.error || 'This username is already taken.';
+  } else if (availabilityResult.available === true) {
+    usernameStatus = 'valid';
+  }
+
+  // Asynchronous debounced username availability verification
+  useEffect(() => {
+    if (!trimmedUsername || !formatCheck?.isValid) {
+      return;
+    }
+
+    let isMounted = true;
+    const timer = setTimeout(async () => {
+      try {
+        const availability = await checkUsernameAvailability(trimmedUsername, user?.id);
+        if (!isMounted) return;
+
+        setAvailabilityResult({
+          usernameChecked: trimmedUsername,
+          isChecking: false,
+          available: availability.available,
+          error: availability.error,
+        });
+      } catch {
+        if (!isMounted) return;
+        setAvailabilityResult({
+          usernameChecked: trimmedUsername,
+          isChecking: false,
+          available: true,
+        });
+      }
+    }, 350);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [trimmedUsername, formatCheck?.isValid, user?.id]);
+
   const handlePreferenceChange = (key: keyof typeof preferences, value: string) => {
     setPreferences((prev) => ({ ...prev, [key]: value }));
     if (key === 'currency' && value) {
@@ -97,6 +170,7 @@ export default function Onboarding() {
   };
 
   const handleNextStep = () => {
+    if (usernameStatus !== 'valid') return;
     triggerTransition(() => {
       setStep('preferences');
     }, 550);
@@ -172,24 +246,69 @@ export default function Onboarding() {
             Double check! You won&apos;t be able to change it.
           </p>
 
-          <div className="onboarding-input-container">
+          <div
+            className={`onboarding-input-container${
+              usernameStatus === 'valid'
+                ? ' onboarding-input-container--valid'
+                : usernameStatus === 'invalid' || usernameStatus === 'taken'
+                  ? ' onboarding-input-container--error'
+                  : ''
+            }`}
+          >
             <input
               type="text"
               className="onboarding-input"
               placeholder="Username"
               value={username}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               onChange={(e) => setUsername(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && usernameStatus === 'valid') {
+                  e.preventDefault();
+                  handleNextStep();
+                }
+              }}
             />
           </div>
 
-          {/* Availability indicator — visible only when ≥1 char */}
-          <span className="onboarding-availability">
-            {username.length > 0 ? 'Available' : '\u00A0'}
-          </span>
+          {/* Availability indicator */}
+          <div
+            className={`onboarding-availability${
+              usernameStatus === 'valid'
+                ? ' onboarding-availability--valid'
+                : usernameStatus === 'checking'
+                  ? ' onboarding-availability--checking'
+                  : usernameStatus === 'invalid' || usernameStatus === 'taken'
+                    ? ' onboarding-availability--invalid'
+                    : ''
+            }`}
+          >
+            {usernameStatus === 'checking' && (
+              <>
+                <Loader2 className="animate-spin text-zinc-500" size={15} />
+                <span>Checking availability...</span>
+              </>
+            )}
+            {usernameStatus === 'valid' && (
+              <>
+                <CheckCircle2 size={15} />
+                <span>Available</span>
+              </>
+            )}
+            {(usernameStatus === 'invalid' || usernameStatus === 'taken') && (
+              <>
+                <AlertCircle size={15} />
+                <span>{usernameError}</span>
+              </>
+            )}
+            {usernameStatus === 'idle' && <span>&nbsp;</span>}
+          </div>
 
           <button
             className="onboarding-btn-next"
-            disabled={username.trim().length === 0}
+            disabled={usernameStatus !== 'valid'}
             onClick={handleNextStep}
           >
             Next
