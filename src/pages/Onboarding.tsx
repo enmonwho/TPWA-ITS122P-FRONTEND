@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Camera } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
+import { userApi } from '../services/api';
 import { usePageLoader } from '../context/PageLoaderContext';
 import { ROUTES, STORAGE_KEYS } from '../lib/constants';
 import { fetchExchangeRates } from '../lib/currency';
@@ -17,7 +18,8 @@ import cloud5 from '../assets/cloud-5.svg';
  * Onboarding — single page at /onboarding with internal step state.
  *
  * Step 1 ("username"):  Enter a username with live "Available" indicator.
- * Step 2 ("preferences"): Set Time Format, Date Format, Currency, Distance Unit.
+ * Step 2 ("avatar"):    Upload a profile picture (Optional).
+ * Step 3 ("preferences"): Set Time Format, Date Format, Currency, Distance Unit.
  *
  * No back navigation between steps; no redirect after completion.
  */
@@ -47,16 +49,22 @@ const clouds: CloudConfig[] = [
 /* ────────── Component ────────── */
 
 export default function Onboarding() {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const { triggerTransition } = usePageLoader();
   const navigate = useNavigate();
 
-  const [step, setStep] = useState<'username' | 'preferences'>('username');
+  // Updated steps
+  const [step, setStep] = useState<'username' | 'avatar' | 'preferences'>('username');
 
   /* Step 1 state */
   const [username, setUsername] = useState('');
 
   /* Step 2 state */
+  const [avatarUrl, setAvatarUrl] = useState<string>('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* Step 3 state */
   const [preferences, setPreferences] = useState({
     timeFormat: '',
     dateFormat: '',
@@ -67,52 +75,87 @@ export default function Onboarding() {
   const handlePreferenceChange = (key: keyof typeof preferences, value: string) => {
     setPreferences((prev) => ({ ...prev, [key]: value }));
     if (key === 'currency' && value) {
-      // Pre-fetch and cache exchange rates in the background for selected currency
       fetchExchangeRates(value).catch((err) => {
         console.warn('Failed to pre-cache exchange rates on currency change:', err);
       });
     }
   };
 
-  const handleNextStep = () => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMessage('Image file must be smaller than 5MB.');
+      return;
+    }
+    
+    setErrorMessage(null);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setAvatarUrl(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleNextStep = (nextStep: 'avatar' | 'preferences') => {
     triggerTransition(() => {
-      setStep('preferences');
+      setStep(nextStep);
     }, 550);
   };
 
-  const handleDone = () => {
-    /**
-     * NOTE: The backend users table currently has no columns for username,
-     * timeFormat, dateFormat, currency, or distanceUnit.
-     * This is a client-side localStorage stopgap until backend support is added.
-     *
-     * Direct access note: If a user navigates to /onboarding while already
-     * having preferences saved, this will re-run and overwrite the existing entry.
-     */
+  const handleDone = async () => {
     const chosenCurrency = preferences.currency || 'PHP';
-    // Ensure base exchange rates are cached
     fetchExchangeRates(chosenCurrency).catch(() => {});
     fetchExchangeRates('PHP').catch(() => {});
 
-    triggerTransition(() => {
-      const userId = user?.id;
-      if (userId) {
-        const userPreferences = {
-          username,
-          timeFormat: preferences.timeFormat,
-          dateFormat: preferences.dateFormat,
-          currency: chosenCurrency,
-          distanceUnit: preferences.distanceUnit,
-        };
-        localStorage.setItem(
-          STORAGE_KEYS.USER_PREFERENCES(userId),
-          JSON.stringify(userPreferences),
-        );
+    const userId = user?.id;
+    if (userId) {
+      try {
+        // Sync username and avatar to the backend database!
+        await userApi.updateProfile(userId, {
+          username: username.trim(),
+          ...(avatarUrl && { avatar_url: avatarUrl }),
+        });
+
+        // Update local session context so the header picks up the new avatar immediately
+        // Update local session context safely
+        if (user) {
+                  setUser({
+                    ...user,
+                    username: username.trim(),
+                    ...(avatarUrl && { avatar_url: avatarUrl }),
+                  } as typeof user & { username: string; avatar_url?: string });
+                }
+
+      } catch (err) {
+        console.warn('Failed to sync profile to backend during onboarding:', err);
       }
 
+      const userPreferences = {
+        username: username.trim(),
+        timeFormat: preferences.timeFormat,
+        dateFormat: preferences.dateFormat,
+        currency: chosenCurrency,
+        distanceUnit: preferences.distanceUnit,
+      };
+      localStorage.setItem(
+        STORAGE_KEYS.USER_PREFERENCES(userId),
+        JSON.stringify(userPreferences),
+      );
+    }
+
+    triggerTransition(() => {
       navigate(ROUTES.HOME);
     }, 700);
   };
+
+  const initials = (user?.full_name || user?.email || 'U')
+    .split(' ')
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 
   return (
     <div className="onboarding-root">
@@ -141,7 +184,7 @@ export default function Onboarding() {
         className="onboarding-logo animate-fade-in-up"
       />
 
-      {step === 'username' ? (
+      {step === 'username' && (
         /* ──────── Step 1: Username ──────── */
         <div className="onboarding-card animate-fade-in-up delay-100">
           <h1 className="onboarding-heading">Enter a Username</h1>
@@ -159,7 +202,6 @@ export default function Onboarding() {
             />
           </div>
 
-          {/* Availability indicator — visible only when ≥1 char */}
           <span className="onboarding-availability">
             {username.length > 0 ? 'Available' : '\u00A0'}
           </span>
@@ -167,13 +209,126 @@ export default function Onboarding() {
           <button
             className="onboarding-btn-next"
             disabled={username.trim().length === 0}
-            onClick={handleNextStep}
+            onClick={() => handleNextStep('avatar')}
           >
             Next
           </button>
         </div>
-      ) : (
-        /* ──────── Step 2: Preferences ──────── */
+      )}
+
+      {step === 'avatar' && (
+        /* ──────── Step 2: Avatar Upload ──────── */
+        <div className="onboarding-card animate-fade-in-up delay-100">
+          <h1 className="onboarding-heading">Choose a Profile Picture</h1>
+          <p className="onboarding-subtext">
+            Upload a photo so fellow travelers can recognize you.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '2rem 0' }}>
+            <div 
+              role="button"
+              tabIndex={0}
+              onClick={() => fileInputRef.current?.click()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  fileInputRef.current?.click();
+                }
+              }}
+              style={{
+                width: '120px',
+                height: '120px',
+                borderRadius: '50%',
+                backgroundColor: '#f1f5f9',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '2.5rem',
+                fontWeight: 'bold',
+                color: '#94a3b8',
+                position: 'relative',
+                cursor: 'pointer',
+                overflow: 'hidden',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+              }}
+              title="Click to upload image"
+            >
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt="Avatar preview"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <div>{initials}</div>
+              )}
+              <div 
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  width: '100%',
+                  backgroundColor: 'rgba(0,0,0,0.5)',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  padding: '6px 0'
+                }}
+              >
+                <Camera size={18} color="#fff" />
+              </div>
+            </div>
+
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="image/png, image/jpeg, image/webp"
+              style={{ display: 'none' }}
+            />
+
+            {errorMessage && (
+              <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '1rem', textAlign: 'center' }}>
+                {errorMessage}
+              </p>
+            )}
+            
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#0ea5e9',
+                fontWeight: 600,
+                fontSize: '14px',
+                marginTop: '1rem',
+                cursor: 'pointer'
+              }}
+            >
+              Upload from computer
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <button
+              className="onboarding-btn-next"
+              style={{ backgroundColor: '#f1f5f9', color: '#64748b' }}
+              onClick={() => handleNextStep('preferences')}
+            >
+              Skip
+            </button>
+            <button
+              className="onboarding-btn-next"
+              disabled={!avatarUrl}
+              onClick={() => handleNextStep('preferences')}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === 'preferences' && (
+        /* ──────── Step 3: Preferences ──────── */
         <div className="onboarding-card animate-fade-in-up delay-100">
           <h1 className="onboarding-heading">Set your Preferences</h1>
           <p className="onboarding-subtext onboarding-subtext-alt">
@@ -181,7 +336,6 @@ export default function Onboarding() {
           </p>
 
           <div className="onboarding-selects-group">
-            {/* Time Format */}
             <SelectField
               label="Time Format"
               value={preferences.timeFormat}
@@ -191,8 +345,6 @@ export default function Onboarding() {
                 { value: '24h', label: '24-hour' },
               ]}
             />
-
-            {/* Date Format */}
             <SelectField
               label="Date Format"
               value={preferences.dateFormat}
@@ -203,8 +355,6 @@ export default function Onboarding() {
                 { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },
               ]}
             />
-
-            {/* Currency */}
             <SelectField
               label="Currency"
               value={preferences.currency}
@@ -217,8 +367,6 @@ export default function Onboarding() {
                 { value: 'JPY', label: 'JPY (¥)' },
               ]}
             />
-
-            {/* Distance Unit */}
             <SelectField
               label="Distance Unit"
               value={preferences.distanceUnit}

@@ -141,4 +141,16 @@ export const mockAuthApi = {
       user: userWithoutSensitive as User,
     };
   },
+  forgotPassword: async (_email: string): Promise<{ message: string; devResetUrl?: string }> => {
+    return {
+      message: 'Reset instructions dispatched (mock mode).',
+      devResetUrl: 'http://localhost:5173/reset-password?token=mock-token-123',
+    };
+  },
+
+  resetPassword: async (_payload: { token: string; password: string }): Promise<{ message: string }> => {
+    return {
+      message: 'Password reset successfully (mock mode).',
+    };
+  },
 };

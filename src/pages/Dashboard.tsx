@@ -32,7 +32,6 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('all');
   const [isCreateTripModalOpen, setIsCreateTripModalOpen] = useState(false);
 
-  // Fetch trips from backend when user is available
   useEffect(() => {
     if (!user) return;
 
@@ -68,33 +67,6 @@ export default function Dashboard() {
                 nights: 6,
                 daysUntil: 26,
               },
-              {
-                id: 2,
-                name: 'El Nido & Coron Island Hopping',
-                startDate: '2026-11-05',
-                endDate: '2026-11-12',
-                totalBudget: 60000,
-                status: 'planning',
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                countries: ['Philippines'],
-                travelType: 'Friends',
-                nights: 7,
-                daysUntil: 50,
-              },
-              {
-                id: 3,
-                name: 'Batanes Heritage & Hills Expedition',
-                startDate: '2026-08-01',
-                endDate: '2026-08-07',
-                totalBudget: 55000,
-                status: 'completed',
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                countries: ['Philippines'],
-                travelType: 'Couple',
-                nights: 6,
-              },
             ];
             setTrips(sampleTrips);
             localStorage.setItem(tripKey, JSON.stringify(sampleTrips));
@@ -115,23 +87,26 @@ export default function Dashboard() {
     };
   }, [user]);
 
-  /**
-   * Map backend status to display categories.
-   * planning/confirmed → 'upcoming', ongoing → 'ongoing', completed/cancelled → 'completed'
-   */
   const getDisplayStatus = (trip: Trip): string => {
-    switch (trip.status) {
-      case 'planning':
-      case 'confirmed':
-        return 'upcoming';
-      case 'ongoing':
-        return 'ongoing';
-      case 'completed':
-      case 'cancelled':
-        return 'completed';
-      default:
-        return 'upcoming';
+    if (trip.status === 'cancelled') return 'past';
+    
+    // Check strict date boundaries to accurately mark past trips (Fix #12)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (trip.endDate) {
+      const end = new Date(trip.endDate);
+      end.setHours(23, 59, 59, 999);
+      if (end < today) return 'past';
+    } else if (trip.startDate) {
+      const start = new Date(trip.startDate);
+      start.setHours(23, 59, 59, 999);
+      if (start < today) return 'past';
     }
+
+    if (trip.status === 'completed') return 'past';
+    if (trip.status === 'ongoing') return 'ongoing';
+    return 'upcoming';
   };
 
   const filteredTrips = trips.filter((trip) => {
@@ -141,17 +116,31 @@ export default function Dashboard() {
 
   const firstName = user?.full_name?.split(' ')[0] || 'Traveler';
 
-  // Compute stats from real trip data
   const countriesExplored = Array.from(
     new Set(trips.flatMap((t) => t.countries || [])),
   ).length;
+  
   const totalBookings = trips.length;
+  
   const nextTrip = trips
     .filter((t) => getDisplayStatus(t) === 'upcoming')
     .sort((a, b) => (a.daysUntil || 9999) - (b.daysUntil || 9999))[0];
-  const totalSpent = trips.reduce((sum, t) => sum + (t.totalBudget || 0), 0);
+  
+  // Actually aggregates spent items from budget local storage (Fix #10)
+  const totalSpent = trips.reduce((sum, t) => {
+    try {
+      const stored = localStorage.getItem(`lakbye_budget_${t.id}`);
+      if (stored) {
+        const bd = JSON.parse(stored);
+        const spent = bd.expenses.reduce((s: number, e: { cost: string | number }) => s + (Number(e.cost) || 0), 0);
+        return sum + spent;
+      }
+    } catch(err) {
+      console.warn("Failed to parse budget for trip", t.id);
+    }
+    return sum;
+  }, 0);
 
-  /** Called by CreateTripModal after successful API creation to refresh the list. */
   const handleTripCreated = () => {
     if (user) {
       tripsApi
@@ -164,7 +153,6 @@ export default function Dashboard() {
   return (
     <div className="dashboard-page">
       <div className="dashboard-container">
-        {/* Greeting Header */}
         <div className="dashboard-greeting-wrapper">
           <div className="dashboard-greeting">
             <span>Greetings,</span>
@@ -178,67 +166,28 @@ export default function Dashboard() {
           <p className="dashboard-greeting-sub">Where does your journey take you next?</p>
         </div>
 
-        {/* Stat Cards */}
         <div className="dashboard-stats-row">
           <StatCard
             gradient="--gradient-stat-countries"
-            icon={
-              <Globe size={175} strokeWidth={1} className="dash-stat-icon-countries" />
-            }
+            icon={<Globe size={175} strokeWidth={1} className="dash-stat-icon-countries" />}
             value={countriesExplored > 0 ? countriesExplored.toString() : undefined}
-            title={
-              countriesExplored === 0 ? (
-                <>
-                  Start
-                  <br />
-                  exploring
-                </>
-              ) : undefined
-            }
+            title={countriesExplored === 0 ? <><br/>exploring</> : undefined}
             subtitle="Countries Explored"
           />
           <StatCard
             gradient="--gradient-stat-bookings"
-            icon={
-              <Ticket size={148} strokeWidth={1} className="dash-stat-icon-bookings" />
-            }
+            icon={<Ticket size={148} strokeWidth={1} className="dash-stat-icon-bookings" />}
             value={totalBookings > 0 ? totalBookings.toString() : undefined}
-            title={
-              totalBookings === 0 ? (
-                <>
-                  Plan one
-                  <br />
-                  now
-                </>
-              ) : undefined
-            }
+            title={totalBookings === 0 ? <><br/>now</> : undefined}
             subtitle="Bookings"
             iconButton={planNowIcon}
-            onClick={() => setIsCreateTripModalOpen(true)}
+            onClick={() => navigate('/dashboard/bookings')} // Route corrected (Fix #14)
           />
           <StatCard
             gradient="--gradient-stat-countdown"
-            icon={
-              <Hourglass
-                size={148}
-                strokeWidth={1}
-                className="dash-stat-icon-countdown"
-              />
-            }
-            value={
-              nextTrip?.daysUntil !== undefined
-                ? nextTrip.daysUntil.toString()
-                : undefined
-            }
-            title={
-              nextTrip?.daysUntil === undefined ? (
-                <>
-                  None
-                  <br />
-                  scheduled
-                </>
-              ) : undefined
-            }
+            icon={<Hourglass size={148} strokeWidth={1} className="dash-stat-icon-countdown" />}
+            value={nextTrip?.daysUntil !== undefined ? nextTrip.daysUntil.toString() : undefined}
+            title={nextTrip?.daysUntil === undefined ? <><br/>scheduled</> : undefined}
             subtitle="Until Next Trip"
             iconButton={tripSchedIcon}
             onClick={() => setIsCreateTripModalOpen(true)}
@@ -260,7 +209,6 @@ export default function Dashboard() {
         </div>
 
         <div className="dashboard-bottom-row">
-          {/* Profile Section */}
           <div className="dashboard-profile-column">
             <div className="dashboard-profile-section">
               <button
@@ -272,17 +220,28 @@ export default function Dashboard() {
               >
                 <ChevronRight size={22} color="#FFFFFF" strokeWidth={2.5} />
               </button>
-              <div className="dashboard-profile-header">
-                <div className="dashboard-profile-avatar">
-                  <User size={32} color="var(--color-neutral-500)" />
-                </div>
-                <div>
-                  <div className="dashboard-profile-name">
-                    {user?.full_name || 'Traveler'}
-                  </div>
-                  <div className="dashboard-profile-location">Not specified</div>
-                </div>
-              </div>
+             <div className="dashboard-profile-header">
+               <div 
+                 className="dashboard-profile-avatar" 
+                 style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+               >
+                 {(user as { avatar_url?: string } | null)?.avatar_url ? (
+                   <img 
+                     src={(user as { avatar_url?: string }).avatar_url} 
+                     alt={user?.full_name || 'Traveler'} 
+                     style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                   />
+                 ) : (
+                   <User size={32} color="var(--color-neutral-500)" />
+                 )}
+               </div>
+               <div>
+                 <div className="dashboard-profile-name">
+                   {user?.full_name || 'Traveler'}
+                 </div>
+                 {/* Removed 'Not specified' label to clean UI (Fix #11) */}
+               </div>
+             </div>
               <div className="dashboard-profile-stats">
                 <div className="dashboard-profile-stat-item">
                   <div className="dashboard-profile-stat-value">{trips.length}</div>
@@ -306,7 +265,6 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Trips Section */}
           <div className="dashboard-trips-section">
             <div className="dashboard-trips-header-row">
               <h2 className="dashboard-trips-title">My Journeys</h2>
@@ -365,7 +323,7 @@ export default function Dashboard() {
                       <img src={createTripBtnIcon} alt="" />
                       Create a Trip
                     </button>
-                    <button className="dashboard-btn-browse">
+                    <button className="dashboard-btn-browse" onClick={() => navigate('/dashboard/explore')}>
                       <img src={browseDestIcon} alt="" />
                       Browse Destinations
                     </button>
@@ -456,7 +414,7 @@ export default function Dashboard() {
                               className="trip-row-options"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                console.log('Options clicked');
+                                alert('Trip Options functionality coming soon!'); // Feedback fix (#13)
                               }}
                               aria-label="Trip options"
                             >

@@ -49,6 +49,7 @@ export default function CustomerProfile() {
   }
 
   const userName = user?.full_name || 'Traveler';
+  const avatarUrl = user && 'avatar_url' in user ? (user as { avatar_url?: string }).avatar_url : undefined;
 
   // Compute initials for the avatar circle
   const initials = userName
@@ -154,7 +155,20 @@ export default function CustomerProfile() {
         <div className="customer-profile-left-col">
           {/* Profile Card (#590:191) */}
           <div className="customer-profile-card">
-            <div className="customer-profile-avatar-circle">{initials}</div>
+            <div 
+              className="customer-profile-avatar-circle" 
+              style={{ overflow: 'hidden', display: 'flex', padding: 0 }}
+            >
+              {avatarUrl ? (
+                <img 
+                  src={avatarUrl} 
+                  alt={userName} 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                />
+              ) : (
+                initials
+              )}
+            </div>
             <h1 className="customer-profile-user-name">{userName}</h1>
 
             <div className="customer-profile-stats-row">

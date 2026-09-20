@@ -24,6 +24,9 @@ export interface Destination {
   longitude?: number;
 }
 
+// Rigid inline css grid enforces clean un-smudgeable column arrays globally (Fix #17)
+const workspaceGridStyle = { display: 'grid', gridTemplateColumns: '1.5fr 0.75fr 2fr 2fr 1.5fr', gap: '1rem', alignItems: 'center' };
+
 export default function TripWorkspace() {
   const { tripId } = useParams<{ tripId: string }>();
   const navigate = useNavigate();
@@ -34,15 +37,12 @@ export default function TripWorkspace() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  // Destinations state
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [newDestInput, setNewDestInput] = useState('');
   const [activeDestinationId, setActiveDestinationId] = useState<string | null>(null);
 
-  // Fetch trip from backend
   useEffect(() => {
     if (!user || !tripId) return;
-
     let cancelled = false;
 
     const fetchTrip = async () => {
@@ -55,17 +55,13 @@ export default function TripWorkspace() {
         const merged = mergeTripWithExtras(apiTrip);
         setTrip(merged);
 
-        // Initialize destinations from extras countries with coordinates
         const initialDests: Destination[] = (merged.countries || []).map((c, i) => {
           const coords = getCoordinatesForName(c);
           return {
             id: `dest-${i + 1}`,
             name: c,
             country: c,
-            nights: Math.max(
-              1,
-              Math.floor(merged.nights / (merged.countries.length || 1)),
-            ),
+            nights: Math.max(1, Math.floor(merged.nights / (merged.countries.length || 1))),
             accommodation: 'Selected Hotel',
             activities: 'Sightseeing & Culture',
             transportation: 'Flight / Express Train',
@@ -74,15 +70,10 @@ export default function TripWorkspace() {
           };
         });
         setDestinations(initialDests);
-        if (initialDests.length > 0) {
-          setActiveDestinationId(initialDests[0].id);
-        }
+        if (initialDests.length > 0) setActiveDestinationId(initialDests[0].id);
       } catch (err) {
         if (cancelled) return;
-        if (
-          axios.isAxiosError(err) &&
-          (err.response?.status === 403 || err.response?.status === 404)
-        ) {
+        if (axios.isAxiosError(err) && (err.response?.status === 403 || err.response?.status === 404)) {
           setNotFound(true);
         } else {
           setNotFound(true);
@@ -94,9 +85,7 @@ export default function TripWorkspace() {
     };
 
     fetchTrip();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [user, tripId]);
 
   const handleAddDestination = (e: React.FormEvent) => {
@@ -123,69 +112,38 @@ export default function TripWorkspace() {
     setNewDestInput('');
   };
 
-  // Convert destinations to Mapbox globe markers
   const globeMarkers = destinations
     .map((dest, index) => {
       const coords =
         dest.longitude != null && dest.latitude != null
           ? ([dest.longitude, dest.latitude] as [number, number])
-          : getCoordinatesForName(dest.name) ||
-            (dest.country ? getCoordinatesForName(dest.country) : null);
+          : getCoordinatesForName(dest.name) || (dest.country ? getCoordinatesForName(dest.country) : null);
 
       if (!coords) return null;
 
-      return {
-        id: dest.id,
-        lng: coords[0],
-        lat: coords[1],
-        title: `${index + 1}. ${dest.name}`,
-      };
+      return { id: dest.id, lng: coords[0], lat: coords[1], title: `${index + 1}. ${dest.name}` };
     })
-    .filter(
-      (m): m is { id: string; lng: number; lat: number; title: string } => m !== null,
-    );
+    .filter((m): m is { id: string; lng: number; lat: number; title: string } => m !== null);
 
   const handleDeleteDestination = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const updated = destinations.filter((d) => d.id !== id);
     setDestinations(updated);
-    if (activeDestinationId === id) {
-      setActiveDestinationId(updated.length > 0 ? updated[0].id : null);
-    }
+    if (activeDestinationId === id) setActiveDestinationId(updated.length > 0 ? updated[0].id : null);
   };
 
   if (loading) {
-    return (
-      <div className="workspace-page">
-        <div className="workspace-main-card">Loading...</div>
-      </div>
-    );
+    return <div className="workspace-page"><div className="workspace-main-card">Loading...</div></div>;
   }
 
   if (!trip || notFound) {
     return (
-      <div
-        className="workspace-page"
-        style={{
-          justifyContent: 'center',
-          alignItems: 'center',
-          display: 'flex',
-          minHeight: '100vh',
-        }}
-      >
+      <div className="workspace-page" style={{ justifyContent: 'center', alignItems: 'center', display: 'flex', minHeight: '100vh' }}>
         <div className="dashboard-empty-state" style={{ margin: 'auto' }}>
           <h3 className="dashboard-empty-title">Trip not found</h3>
-          <p className="dashboard-empty-text">
-            We couldn't find the trip you're looking for. It might have been deleted or
-            belongs to another user.
-          </p>
+          <p className="dashboard-empty-text">We couldn't find the trip you're looking for. It might have been deleted or belongs to another user.</p>
           <div className="dashboard-empty-actions">
-            <button
-              onClick={() => navigate(ROUTES.DASHBOARD)}
-              className="btn-create-trip dashboard-btn-create"
-            >
-              Back to Dashboard
-            </button>
+            <button onClick={() => navigate(ROUTES.DASHBOARD)} className="btn-create-trip dashboard-btn-create">Back to Dashboard</button>
           </div>
         </div>
       </div>
@@ -194,40 +152,22 @@ export default function TripWorkspace() {
 
   return (
     <div className="workspace-page">
-      {/* Header Card */}
       <header className="workspace-header-card animate-slide-up">
         <h1 className="workspace-trip-title">{trip.name}</h1>
-
         <div className="workspace-header-actions">
-          <div className="workspace-pill-date">
-            {formatDateOnly(trip.startDate)} - {formatDateOnly(trip.endDate)}
-          </div>
+          <div className="workspace-pill-date">{formatDateOnly(trip.startDate)} - {formatDateOnly(trip.endDate)}</div>
         </div>
       </header>
 
-      {/* Main Workspace Card */}
       <div className="workspace-main-card">
-        {/* Itinerary Zone (Left) */}
         <div className="workspace-itinerary-zone animate-slide-up delay-150">
           <div className="workspace-tabs-container">
-            <button
-              className={`pill-tab ${activeTab === 'route' ? 'pill-tab--active' : ''}`}
-              onClick={() => setActiveTab('route')}
-            >
-              <img src={routeIcon} alt="" className="workspace-tab-icon" />
-              Route
-            </button>
-            <button
-              className={`pill-tab ${activeTab === 'day' ? 'pill-tab--active' : ''}`}
-              onClick={() => setActiveTab('day')}
-            >
-              <img src={dayByDayIcon} alt="" className="workspace-tab-icon" />
-              Day by day
-            </button>
+            <button className={`pill-tab ${activeTab === 'route' ? 'pill-tab--active' : ''}`} onClick={() => setActiveTab('route')}><img src={routeIcon} alt="" className="workspace-tab-icon" />Route</button>
+            <button className={`pill-tab ${activeTab === 'day' ? 'pill-tab--active' : ''}`} onClick={() => setActiveTab('day')}><img src={dayByDayIcon} alt="" className="workspace-tab-icon" />Day by day</button>
           </div>
 
           <div className="workspace-itinerary-table">
-            <div className="workspace-table-header-row">
+            <div className="workspace-table-header-row" style={workspaceGridStyle}>
               <div className="workspace-col-destination">Destination</div>
               <div className="workspace-col-nights">Nights</div>
               <div className="workspace-col-accommodation">Accommodation</div>
@@ -235,7 +175,6 @@ export default function TripWorkspace() {
               <div className="workspace-col-transportation">Transportation</div>
             </div>
 
-            {/* Destination Rows */}
             <div className="workspace-destination-rows">
               {destinations.map((dest, index) => (
                 <div
@@ -243,72 +182,37 @@ export default function TripWorkspace() {
                   role="button"
                   tabIndex={0}
                   onClick={() => setActiveDestinationId(dest.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setActiveDestinationId(dest.id);
-                    }
-                  }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveDestinationId(dest.id); } }}
                   className={`workspace-destination-row ${activeDestinationId === dest.id ? 'active' : ''}`}
+                  style={workspaceGridStyle}
                 >
                   <div className="workspace-col-destination flex items-center gap-2">
                     <span className="dest-index-badge">{index + 1}</span>
                     <span className="font-semibold text-slate-800">{dest.name}</span>
                   </div>
                   <div className="workspace-col-nights text-slate-600">{dest.nights}</div>
-                  <div className="workspace-col-accommodation text-slate-600 truncate">
-                    {dest.accommodation}
-                  </div>
-                  <div className="workspace-col-activities text-slate-600 truncate">
-                    {dest.activities}
-                  </div>
+                  <div className="workspace-col-accommodation text-slate-600 truncate">{dest.accommodation}</div>
+                  <div className="workspace-col-activities text-slate-600 truncate">{dest.activities}</div>
                   <div className="workspace-col-transportation text-slate-600 truncate flex items-center justify-between">
                     <span>{dest.transportation}</span>
-                    <button
-                      onClick={(e) => handleDeleteDestination(dest.id, e)}
-                      className="workspace-delete-dest-btn"
-                      title="Remove Destination"
-                    >
-                      ✕
-                    </button>
+                    <button onClick={(e) => handleDeleteDestination(dest.id, e)} className="workspace-delete-dest-btn" title="Remove Destination">✕</button>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Add Destination Input Form */}
-            <form
-              onSubmit={handleAddDestination}
-              className="workspace-add-destination-row"
-            >
+            <form onSubmit={handleAddDestination} className="workspace-add-destination-row">
               <img src={magnifierIcon} alt="Search" className="workspace-search-icon" />
-              <input
-                type="text"
-                value={newDestInput}
-                onChange={(e) => setNewDestInput(e.target.value)}
-                placeholder="Add destination (e.g. Tokyo, Paris, Rome, Kyoto)..."
-                className="workspace-add-input"
-              />
-              {newDestInput.trim() && (
-                <button type="submit" className="workspace-add-btn">
-                  Add +
-                </button>
-              )}
+              <input type="text" value={newDestInput} onChange={(e) => setNewDestInput(e.target.value)} placeholder="Add destination (e.g. Tokyo, Paris, Rome, Kyoto)..." className="workspace-add-input" />
+              {newDestInput.trim() && <button type="submit" className="workspace-add-btn">Add +</button>}
             </form>
           </div>
         </div>
 
-        {/* Vertical Divider */}
         <div className="workspace-vertical-divider"></div>
 
-        {/* Map Zone (Right) */}
         <div className="workspace-map-zone animate-slide-up delay-300">
-          <GlobeMap
-            markers={globeMarkers}
-            activeMarkerId={activeDestinationId}
-            onMarkerClick={(id) => setActiveDestinationId(id)}
-            showRouteLines={activeTab === 'route'}
-          />
+          <GlobeMap markers={globeMarkers} activeMarkerId={activeDestinationId} onMarkerClick={(id) => setActiveDestinationId(id)} showRouteLines={activeTab === 'route'} />
         </div>
       </div>
     </div>

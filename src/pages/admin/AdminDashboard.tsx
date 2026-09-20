@@ -10,6 +10,8 @@ import {
   MoreVertical,
   Edit,
   Download,
+  Activity,
+  Briefcase,
   Plus,
   CheckCircle,
   XCircle,
@@ -27,6 +29,8 @@ import type { Trip } from '../../types/trip';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import '../../styles/Admin.css';
+import { div } from 'three/src/nodes/tsl/TSLBase.js';
+
 
 type Tab = 'systems' | 'users' | 'categories' | 'master';
 
@@ -129,95 +133,134 @@ export default function AdminDashboard() {
 // TAB 1: Systems Report (FR-ADM-03, FR-ADM-04)
 // ============================================================================
 function SystemsReportTab() {
+  const [metrics, setMetrics] = useState<{
+    totalUsers: number;
+    totalTrips: number;
+    totalBookings: number;
+    activeTrips: number;
+  } | null>(null);
+
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadMetrics() {
+      const data = await adminApi.getReports();
+      setMetrics(data);
+      setLoading(false);
+    }
+    loadMetrics();
+  }, []);
+
+  const formatK = (num: number | undefined | null) => {
+    const val = Number(num) || 0;
+    if (val >= 1_000_000) return (val / 1_000_000).toFixed(1) + 'M';
+    if (val >= 1_000) return (val / 1_000).toFixed(1) + 'K';
+    return val.toLocaleString();
+  };
+
   return (
-    <div className="admin-card-panel">
-      <div className="admin-panel-header">
-        <h1 className="admin-panel-title">LakBye Systems Report</h1>
+    <div className="admin-card-panel flex-1 flex flex-col">
+      {/* Header */}
+      <div className="admin-panel-header items-center pb-4">
+        <h1 className="text-2xl font-bold text-black font-sans">LakBye Systems Report</h1>
         <button
           type="button"
-          className="btn-admin-pill-gradient"
-          disabled
-          style={{ opacity: 0.5, cursor: 'not-allowed' }}
-          title="Export unavailable until backend reporting routes are deployed"
+          onClick={() => alert('Report generation feature coming soon.')}
+          className="flex items-center gap-2 px-4 py-2 border border-stone-200 rounded-full text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
         >
-          <Download size={13} /> Export Report
+          <Download size={14} /> Export Report
         </button>
       </div>
 
-      <div className="admin-header-rule" />
+      <div className="admin-header-rule mb-6" />
 
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '60px 24px',
-          textAlign: 'center',
-          height: 'calc(100% - 60px)',
-          boxSizing: 'border-box',
-        }}
-      >
-        <div
-          style={{
-            width: '64px',
-            height: '64px',
-            borderRadius: '50%',
-            backgroundColor: '#FFF7ED',
-            border: '1px solid #FFEDD5',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: '20px',
-            color: '#EA580C',
-          }}
-        >
-          <AlertTriangle size={32} />
+      {loading ? (
+        <div className="flex-1 flex items-center justify-center text-stone-500">
+          Compiling system analytics...
         </div>
-        <h2
-          style={{
-            fontFamily: 'Poppins, var(--font-sans)',
-            fontWeight: 700,
-            fontSize: '20px',
-            color: '#1F2937',
-            marginBottom: '8px',
-          }}
-        >
-          Systems Report Not Available Yet
-        </h2>
-        <p
-          style={{
-            fontFamily: 'SF Pro Rounded, var(--font-sans)',
-            fontSize: '14px',
-            color: '#6B7280',
-            maxWidth: '460px',
-            lineHeight: 1.6,
-            marginBottom: '24px',
-          }}
-        >
-          Aggregated analytics and system reporting are currently{' '}
-          <strong style={{ color: '#9A3412' }}>blocked on backend implementation</strong>.
-          The backend does not yet provide dedicated reporting or metrics endpoints
-          (FR-ADM-03 / FR-ADM-04).
-        </p>
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontSize: '11px',
-            fontWeight: 700,
-            color: '#9A3412',
-            backgroundColor: '#FFEDD5',
-            padding: '6px 16px',
-            borderRadius: '20px',
-            letterSpacing: '0.4px',
-            textTransform: 'uppercase',
-          }}
-        >
-          <span>BLOCKED — NEEDS BACKEND ROUTE</span>
+      ) : metrics ? (
+        <div className="flex flex-col md:flex-row gap-6 flex-1 min-h-[500px]">
+          {/* LEFT COLUMN: Stat Cards */}
+          <div className="flex flex-col gap-4 w-full md:w-[280px] shrink-0 border-r border-stone-100 pr-6">
+            {/* Card 1: Total Registered Users */}
+            <div
+              className="rounded-xl p-5 text-white shadow-md flex flex-col justify-center flex-1"
+              style={{ background: 'linear-gradient(135deg, #FDBA74 0%, #EA580C 100%)' }}
+            >
+              <span className="text-[10px] font-bold uppercase tracking-wider opacity-90 leading-tight mb-1">
+                Total<br />Registered Users
+              </span>
+              <span className="text-5xl font-bold tracking-tight">
+                {formatK(metrics?.totalUsers)}
+              </span>
+            </div>
+
+            {/* Card 2: Total Trips Planned */}
+            <div
+              className="rounded-xl p-5 text-white shadow-md flex flex-col justify-center flex-1"
+              style={{ background: 'linear-gradient(135deg, #FDBA74 0%, #EA580C 100%)' }}
+            >
+              <span className="text-[10px] font-bold uppercase tracking-wider opacity-90 leading-tight mb-1">
+                Total<br />Trips Planned
+              </span>
+              <span className="text-5xl font-bold tracking-tight">
+                {formatK(metrics?.totalTrips)}
+              </span>
+            </div>
+
+            {/* Card 3: Total Bookings Made */}
+            <div
+              className="rounded-xl p-5 text-white shadow-md flex flex-col justify-center flex-1"
+              style={{ background: 'linear-gradient(135deg, #FDBA74 0%, #EA580C 100%)' }}
+            >
+              <span className="text-[10px] font-bold uppercase tracking-wider opacity-90 leading-tight mb-1">
+                Total<br />Bookings Made
+              </span>
+              <span className="text-5xl font-bold tracking-tight">
+                {formatK(metrics?.totalBookings)}
+              </span>
+            </div>
+
+            {/* Card 4: Active Ongoing Trips */}
+            <div
+              className="rounded-xl p-5 text-white shadow-md flex flex-col justify-center flex-1"
+              style={{ background: 'linear-gradient(135deg, #FDBA74 0%, #EA580C 100%)' }}
+            >
+              <span className="text-[10px] font-bold uppercase tracking-wider opacity-90 leading-tight mb-1">
+                Total<br />Active Trips
+              </span>
+              <span className="text-5xl font-bold tracking-tight">
+                {formatK(metrics?.activeTrips)}
+              </span>
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN: Figma Chart Grid Placeholders */}
+          <div className="flex-1 grid grid-cols-2 grid-rows-3 gap-4">
+            <div className="bg-[#D1D5DB] rounded-xl flex items-center justify-center text-white text-lg font-medium shadow-inner">
+              Users (New, Active, Inactive)
+            </div>
+            <div className="bg-[#D1D5DB] rounded-xl flex items-center justify-center text-white text-lg font-medium shadow-inner">
+              Monthly Planned Budget
+            </div>
+
+            <div className="bg-[#D1D5DB] rounded-xl flex items-center justify-center text-white text-lg font-medium shadow-inner">
+              Monthly Bookings
+            </div>
+            <div className="bg-[#D1D5DB] rounded-xl flex items-center justify-center text-white text-lg font-medium shadow-inner row-span-2">
+              Top 5 Most Requested Destinations
+            </div>
+
+            <div className="bg-[#D1D5DB] rounded-xl flex items-center justify-center text-white text-lg font-medium shadow-inner">
+              Avg. Session Duration
+            </div>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="p-12 text-center text-red-500 font-semibold">
+          Failed to load metrics. Ensure backend server is running.
+        </div>
+      )}
     </div>
   );
 }
