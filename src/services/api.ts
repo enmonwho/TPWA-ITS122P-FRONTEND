@@ -22,11 +22,26 @@ import { STORAGE_KEYS } from '../lib/constants';
 import { mockAuthApi } from './mockAuthApi';
 
 /**
+ * Resolves the base URL for API requests.
+ * Normalizes any onrender.com URL to relative '/api' so that all client requests
+ * route through the Vercel (or Vite dev) reverse proxy.
+ * This guarantees that ISP DNS/IP blocks (e.g. PLDT, Smart in the Philippines)
+ * on onrender.com will never cause net::ERR_CONNECTION_TIMED_OUT in users' browsers.
+ */
+const resolveBaseUrl = (): string => {
+  const envUrl = import.meta.env.VITE_API_URL as string | undefined;
+  if (!envUrl || envUrl.includes('onrender.com')) {
+    return '/api';
+  }
+  return envUrl;
+};
+
+/**
  * Centralized Axios instance for all API calls.
- * Reads VITE_API_URL from environment variables with fallback to hosted backend.
+ * Reads VITE_API_URL from environment variables with fallback to hosted backend proxy.
  */
 const api = axios.create({
-  baseURL: (import.meta.env.VITE_API_URL as string) || '/api',
+  baseURL: resolveBaseUrl(),
   withCredentials: true,
   timeout: 60_000,
   headers: {
