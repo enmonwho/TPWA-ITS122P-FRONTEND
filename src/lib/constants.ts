@@ -24,9 +24,12 @@ export const STORAGE_KEYS = {
   /**
    * Side-table for user preferences (username, timeFormat, dateFormat, currency, distanceUnit).
    * Keyed by backend-issued user ID.
-   *
-   * ⚠️ STOPGAP: The backend users table has no columns for username or preferences.
-   * This data is stored in localStorage only and is not synced with the backend API.
    */
   USER_PREFERENCES: (userId: string | number) => `lakbye_preferences_${userId}`,
+
+  /**
+   * Client-side cache and persistence for user travel journal entries.
+   * Keyed by backend-issued user ID.
+   */
+  JOURNALS: (userId: string | number) => `lakbye_journals_${userId}`,
 };

@@ -72,8 +72,10 @@ export default function Header() {
     }
   };
 
-  // Extract first name for "Hello, {firstName}"
-  const firstName = user?.full_name ? user.full_name.trim().split(/\s+/)[0] : 'Traveler';
+  // Extract display name for "Hello, {firstName}" prioritizing username
+  const firstName =
+    user?.username ||
+    (user?.full_name ? user.full_name.trim().split(/\s+/)[0] : 'Traveler');
 
   // Compute initials
   const initials = user?.full_name

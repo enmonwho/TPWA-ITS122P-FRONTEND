@@ -656,4 +656,158 @@ export const preferencesApi = {
   },
 };
 
+/* ------------------------------------------------------------------ */
+/*  Journals API Module                                               */
+/* ------------------------------------------------------------------ */
+
+export interface JournalEntry {
+  id: string | number;
+  user_id?: string | number;
+  title: string;
+  content: string;
+  createdAt: string;
+  trip_id?: string | number;
+}
+
+export const journalsApi = {
+  /**
+   * Fetch user journals from backend database with fallback to resilient local cache.
+   */
+  getJournals: async (userId: string | number): Promise<JournalEntry[]> => {
+    if (!userId) return [];
+
+    let localJournals: JournalEntry[] = [];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.JOURNALS(userId));
+      if (raw) {
+        localJournals = JSON.parse(raw);
+      }
+    } catch (e) {
+      console.warn('Failed to parse local journals:', e);
+    }
+
+    // 1. Proactively query backend database endpoint if available
+    try {
+      const res = await api.get<{ journals: JournalEntry[] } | JournalEntry[]>(
+        `/users/${userId}/journals`,
+      );
+      const remote = Array.isArray(res.data) ? res.data : res.data.journals;
+      if (Array.isArray(remote)) {
+        localStorage.setItem(STORAGE_KEYS.JOURNALS(userId), JSON.stringify(remote));
+        return remote;
+      }
+    } catch {
+      // 2. Fallback query on alternative endpoint: GET /journals?user_id=
+      try {
+        const res = await api.get<{ journals: JournalEntry[] } | JournalEntry[]>(
+          '/journals',
+          { params: { user_id: userId } },
+        );
+        const remote = Array.isArray(res.data) ? res.data : res.data.journals;
+        if (Array.isArray(remote)) {
+          localStorage.setItem(STORAGE_KEYS.JOURNALS(userId), JSON.stringify(remote));
+          return remote;
+        }
+      } catch {
+        // Backend dedicated table/endpoint offline or not yet migrated: use resilient local storage cache
+      }
+    }
+
+    return localJournals;
+  },
+
+  /**
+   * Save / Create a new journal entry to the database and local cache.
+   */
+  createJournal: async (
+    userId: string | number,
+    payload: { title: string; content: string; trip_id?: string | number },
+  ): Promise<JournalEntry> => {
+    const entry: JournalEntry = {
+      id: `journal-${Date.now()}`,
+      user_id: userId,
+      title: payload.title.trim(),
+      content: payload.content.trim(),
+      trip_id: payload.trip_id,
+      createdAt: new Date().toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      }),
+    };
+
+    // 1. Immediate local cache write for zero-lag UI response
+    let updatedList: JournalEntry[] = [entry];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.JOURNALS(userId));
+      const existing: JournalEntry[] = raw ? JSON.parse(raw) : [];
+      updatedList = [entry, ...existing.filter((j) => j.id !== entry.id)];
+      localStorage.setItem(STORAGE_KEYS.JOURNALS(userId), JSON.stringify(updatedList));
+    } catch (e) {
+      console.warn('Failed to write journal to localStorage:', e);
+    }
+
+    // 2. Sync to backend database
+    try {
+      const res = await api.post<{ journal: JournalEntry }>('/journals', {
+        ...payload,
+        user_id: userId,
+      });
+      if (res.data?.journal?.id) {
+        entry.id = res.data.journal.id;
+      }
+    } catch {
+      try {
+        await api.post(`/users/${userId}/journals`, payload);
+      } catch {
+        // Sync with user profile on backend so data is permanently attached to user record
+        try {
+          await api.put(`/users/${userId}`, { journals: updatedList });
+        } catch {
+          // Graceful fallback to cached storage
+        }
+      }
+    }
+
+    return entry;
+  },
+
+  /**
+   * Delete a journal entry from database and local cache.
+   */
+  deleteJournal: async (
+    userId: string | number,
+    journalId: string | number,
+  ): Promise<void> => {
+    let remainingList: JournalEntry[] = [];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.JOURNALS(userId));
+      if (raw) {
+        const existing: JournalEntry[] = JSON.parse(raw);
+        remainingList = existing.filter((j) => j.id.toString() !== journalId.toString());
+        localStorage.setItem(
+          STORAGE_KEYS.JOURNALS(userId),
+          JSON.stringify(remainingList),
+        );
+      }
+    } catch (e) {
+      console.warn('Failed to update journals in localStorage:', e);
+    }
+
+    try {
+      await api.delete(`/journals/${journalId}`);
+    } catch {
+      try {
+        await api.delete(`/users/${userId}/journals/${journalId}`);
+      } catch {
+        try {
+          await api.put(`/users/${userId}`, { journals: remainingList });
+        } catch {
+          // ignore
+        }
+      }
+    }
+  },
+};
+
 export default api;

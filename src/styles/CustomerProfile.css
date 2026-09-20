@@ -135,6 +135,15 @@
   text-align: center;
 }
 
+.customer-profile-user-fullname {
+  font-family: 'SF Pro Rounded', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: #666666;
+  margin: 2px 0 0 0;
+  text-align: center;
+}
+
 .customer-profile-stats-row {
   width: 100%;
   display: flex;

@@ -3,25 +3,23 @@ import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Plus, ChevronDown, X, BookOpen, Calendar } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
-import { ROUTES } from '../lib/constants';
-import { tripsApi } from '../services/api';
+import { ROUTES, STORAGE_KEYS } from '../lib/constants';
+import {
+  tripsApi,
+  journalsApi,
+  preferencesApi,
+  type JournalEntry,
+} from '../services/api';
 import { mergeTripsWithExtras } from '../lib/tripExtras';
 import { getCoordinatesForName } from '../constants/coordinates';
 import { GlobeMap } from '../components';
 import type { Trip } from '../types/trip';
 import '../styles/CustomerProfile.css';
 
-interface JournalEntry {
-  id: string;
-  title: string;
-  content: string;
-  createdAt: string;
-}
-
 function getStoredJournals(userId?: string | number): JournalEntry[] {
   if (!userId) return [];
   try {
-    const stored = localStorage.getItem(`lakbye_journals_${userId}`);
+    const stored = localStorage.getItem(STORAGE_KEYS.JOURNALS(userId));
     if (stored) return JSON.parse(stored);
   } catch (e) {
     console.warn('Failed to load stored journals:', e);
@@ -30,7 +28,7 @@ function getStoredJournals(userId?: string | number): JournalEntry[] {
 }
 
 export default function CustomerProfile() {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const navigate = useNavigate();
 
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -48,11 +46,38 @@ export default function CustomerProfile() {
     setJournals(getStoredJournals(user?.id));
   }
 
-  const userName = user?.full_name || 'Traveler';
+  // Ensure username is loaded if session initialized before preferences were cached
+  useEffect(() => {
+    if (user?.id && !user.username) {
+      preferencesApi.getPreferences(user.id).then((saved) => {
+        if (saved?.username && setUser) {
+          setUser((prev) => (prev ? { ...prev, username: saved.username } : null));
+        }
+      });
+    }
+  }, [user?.id, user?.username, setUser]);
+
+  // Fetch journals from database with fallback to local cache
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    journalsApi.getJournals(user.id).then((items) => {
+      if (!cancelled) setJournals(items);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const displayName = user?.username
+    ? `@${user.username}`
+    : user?.full_name || 'Traveler';
+  const fullName = user?.full_name || 'Traveler';
 
   // Compute initials for the avatar circle
-  const initials = userName
-    .split(' ')
+  const initials = (user?.full_name || user?.username || 'Traveler')
+    .trim()
+    .split(/\s+/)
     .map((n) => n[0])
     .slice(0, 2)
     .join('')
@@ -104,27 +129,19 @@ export default function CustomerProfile() {
 
   const placesCount = globeMarkers.length;
 
-  const handleCreateJournal = (e: React.FormEvent) => {
+  const handleCreateJournal = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newJournalTitle.trim() || !user) return;
+    if (!newJournalTitle.trim() || !user?.id) return;
 
-    const entry: JournalEntry = {
-      id: `journal-${Date.now()}`,
-      title: newJournalTitle.trim(),
-      content: newJournalContent.trim(),
-      createdAt: new Date().toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      }),
-    };
-
-    const updated = [entry, ...journals];
-    setJournals(updated);
     try {
-      localStorage.setItem(`lakbye_journals_${user.id}`, JSON.stringify(updated));
-    } catch (e) {
-      console.warn('Failed to save journal to localStorage:', e);
+      const entry = await journalsApi.createJournal(user.id, {
+        title: newJournalTitle.trim(),
+        content: newJournalContent.trim(),
+      });
+
+      setJournals((prev) => [entry, ...prev.filter((j) => j.id !== entry.id)]);
+    } catch (err) {
+      console.warn('Failed to create journal via journalsApi:', err);
     }
 
     setNewJournalTitle('');
@@ -155,7 +172,10 @@ export default function CustomerProfile() {
           {/* Profile Card (#590:191) */}
           <div className="customer-profile-card">
             <div className="customer-profile-avatar-circle">{initials}</div>
-            <h1 className="customer-profile-user-name">{userName}</h1>
+            <h1 className="customer-profile-user-name">{displayName}</h1>
+            {user?.username && user?.full_name && (
+              <p className="customer-profile-user-fullname">{user.full_name}</p>
+            )}
 
             <div className="customer-profile-stats-row">
               {/* Trips */}
@@ -170,7 +190,9 @@ export default function CustomerProfile() {
               {/* Journal Entry */}
               <div className="customer-profile-stat-box">
                 <div className="customer-profile-stat-number">{journals.length}</div>
-                <div className="customer-profile-stat-label">Journal Entry</div>
+                <div className="customer-profile-stat-label">
+                  {journals.length === 1 ? 'Journal Entry' : 'Journal Entries'}
+                </div>
               </div>
             </div>
           </div>
@@ -187,7 +209,9 @@ export default function CustomerProfile() {
 
           {/* Journal Section (#691:64) */}
           <div className="customer-profile-journal-section">
-            <h2 className="customer-profile-journal-title">{userName}’s Journal</h2>
+            <h2 className="customer-profile-journal-title">
+              {user?.username ? `@${user.username}` : fullName}’s Journal
+            </h2>
 
             {/* Journal Card Container (#691:74) */}
             <div className="customer-profile-journal-card">
@@ -236,7 +260,9 @@ export default function CustomerProfile() {
           {/* Map Card Footer Bar */}
           <div className="customer-profile-map-footer">
             <div className="customer-profile-map-info">
-              <h3 className="customer-profile-map-title">{userName}’s Map</h3>
+              <h3 className="customer-profile-map-title">
+                {user?.username ? `@${user.username}` : fullName}’s Map
+              </h3>
               <p className="customer-profile-map-subtitle">
                 {trips.length} Lists | {placesCount} Places
               </p>

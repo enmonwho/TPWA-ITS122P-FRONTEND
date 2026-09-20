@@ -4,7 +4,7 @@ import { ChevronDown, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
 import { usePageLoader } from '../context/PageLoaderContext';
-import { ROUTES } from '../lib/constants';
+import { ROUTES, STORAGE_KEYS } from '../lib/constants';
 import { fetchExchangeRates } from '../lib/currency';
 import { preferencesApi } from '../services/api';
 import {
@@ -171,6 +171,23 @@ export default function Onboarding() {
 
   const handleNextStep = () => {
     if (usernameStatus !== 'valid') return;
+    const cleanUsername = username.trim();
+    if (user?.id) {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEYS.USER_PREFERENCES(user.id));
+        const current = stored ? JSON.parse(stored) : {};
+        current.username = cleanUsername;
+        localStorage.setItem(
+          STORAGE_KEYS.USER_PREFERENCES(user.id),
+          JSON.stringify(current),
+        );
+      } catch (err) {
+        console.warn('Failed to save interim username:', err);
+      }
+      if (setUser) {
+        setUser((prev) => (prev ? { ...prev, username: cleanUsername } : null));
+      }
+    }
     triggerTransition(() => {
       setStep('preferences');
     }, 550);

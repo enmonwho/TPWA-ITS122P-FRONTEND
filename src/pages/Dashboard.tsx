@@ -20,17 +20,51 @@ import createTripBtnIcon from '../assets/create-trip-button.svg';
 import browseDestIcon from '../assets/browse-destination.svg';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../lib/constants';
-import { tripsApi } from '../services/api';
+import { tripsApi, journalsApi, preferencesApi } from '../services/api';
 import { mergeTripsWithExtras, formatDateOnly } from '../lib/tripExtras';
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const navigate = useNavigate();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [isCreateTripModalOpen, setIsCreateTripModalOpen] = useState(false);
+  const [journalCount, setJournalCount] = useState<number>(() => {
+    if (!user?.id) return 0;
+    try {
+      const raw = localStorage.getItem(`lakbye_journals_${user.id}`);
+      return raw ? JSON.parse(raw).length : 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  // Ensure username is loaded if session initialized before preferences were cached
+  useEffect(() => {
+    if (user?.id && !user.username) {
+      preferencesApi.getPreferences(user.id).then((saved) => {
+        if (saved?.username && setUser) {
+          setUser((prev) => (prev ? { ...prev, username: saved.username } : null));
+        }
+      });
+    }
+  }, [user?.id, user?.username, setUser]);
+
+  // Fetch true journal count from backend database and local cache
+  useEffect(() => {
+    if (!user?.id) return;
+    let isMounted = true;
+    journalsApi.getJournals(user.id).then((items) => {
+      if (isMounted) {
+        setJournalCount(items.length);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
 
   // Fetch trips from backend when user is available
   useEffect(() => {
@@ -139,7 +173,10 @@ export default function Dashboard() {
     return getDisplayStatus(trip) === activeTab;
   });
 
-  const firstName = user?.full_name?.split(' ')[0] || 'Traveler';
+  const greetingName = user?.username || user?.full_name?.split(' ')[0] || 'Traveler';
+  const profileDisplayName = user?.username
+    ? `@${user.username}`
+    : user?.full_name || 'Traveler';
 
   // Compute stats from real trip data
   const countriesExplored = Array.from(
@@ -172,7 +209,7 @@ export default function Dashboard() {
               className="dashboard-greeting-name"
               style={{ filter: "url('#text-inner-shadow')" }}
             >
-              {firstName}!
+              {greetingName}!
             </span>
           </div>
           <p className="dashboard-greeting-sub">Where does your journey take you next?</p>
@@ -277,10 +314,10 @@ export default function Dashboard() {
                   <User size={32} color="var(--color-neutral-500)" />
                 </div>
                 <div>
-                  <div className="dashboard-profile-name">
-                    {user?.full_name || 'Traveler'}
+                  <div className="dashboard-profile-name">{profileDisplayName}</div>
+                  <div className="dashboard-profile-location">
+                    {user?.username && user?.full_name ? user.full_name : 'Not specified'}
                   </div>
-                  <div className="dashboard-profile-location">Not specified</div>
                 </div>
               </div>
               <div className="dashboard-profile-stats">
@@ -290,8 +327,10 @@ export default function Dashboard() {
                 </div>
                 <div className="dashboard-profile-stat-divider"></div>
                 <div className="dashboard-profile-stat-item">
-                  <div className="dashboard-profile-stat-value">{totalBookings}</div>
-                  <div className="dashboard-profile-stat-label">Journal Entry</div>
+                  <div className="dashboard-profile-stat-value">{journalCount}</div>
+                  <div className="dashboard-profile-stat-label">
+                    {journalCount === 1 ? 'Journal Entry' : 'Journal Entries'}
+                  </div>
                 </div>
               </div>
             </div>
