@@ -22,6 +22,7 @@ import staffChevronDown from '../../assets/staff/staff_chevron_down.png';
 
 import { useAuth } from '../../context/AuthContext';
 import { bookingsApi, activitiesApi, adminApi } from '../../services/api';
+import { STORAGE_KEYS } from '../../lib/constants';
 import type { Booking, Activity, BookingStatus } from '../../types/booking';
 import type { AdminUser } from '../../services/api';
 import '../../styles/Staff.css';
@@ -72,36 +73,6 @@ function formatDate(dateStr?: string | null): string {
   });
 }
 
-/**
- * Known customer names from the design specification or seed records.
- */
-const DEFAULT_CUSTOMER_NAMES: Record<number, string> = {
-  1: 'Gilbert Jacinta',
-  2: 'Mark Vincent Chua',
-  3: 'Sarah Jenkins',
-  4: 'Adrian Santos',
-  5: 'Elena Rostova',
-  6: 'David Kim',
-  7: 'Chloe Alcantara',
-  8: 'Rafael Mendoza',
-  20: 'Gilbert Jacinta',
-  23: 'Juan Dela Cruz',
-  30: 'Maria Santos',
-};
-
-const FALLBACK_CUSTOMER_NAMES = [
-  'Gilbert Jacinta',
-  'Mark Vincent Chua',
-  'Sarah Jenkins',
-  'Adrian Santos',
-  'Elena Rostova',
-  'David Kim',
-  'Chloe Alcantara',
-  'Rafael Mendoza',
-  'Sofia Reyes',
-  'Gabriel Torres',
-];
-
 function getCustomerDisplayName(booking: Booking, user?: AdminUser): string {
   // 1. Direct customer name on booking (e.g. from backend JOIN or payload)
   if (
@@ -131,15 +102,12 @@ function getCustomerDisplayName(booking: Booking, user?: AdminUser): string {
     }
   }
 
-  // 4. Default Figma customer name mapping by user ID
-  if (DEFAULT_CUSTOMER_NAMES[booking.user_id]) {
-    return DEFAULT_CUSTOMER_NAMES[booking.user_id];
+  // 4. Dynamic fallback
+  if (booking.user_id) {
+    return `Customer #${booking.user_id}`;
   }
 
-  // 5. Deterministic fallback name from design directory (never a customer number)
-  const idx =
-    Math.abs(booking.user_id || booking.id || 1) % FALLBACK_CUSTOMER_NAMES.length;
-  return FALLBACK_CUSTOMER_NAMES[idx];
+  return 'Guest Customer';
 }
 
 export default function StaffDashboard() {
@@ -311,8 +279,8 @@ export default function StaffDashboard() {
     if (logout) {
       logout();
     } else {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      localStorage.removeItem(STORAGE_KEYS.TOKEN);
+      localStorage.removeItem(STORAGE_KEYS.USER);
     }
     navigate('/login');
   };
@@ -477,9 +445,7 @@ export default function StaffDashboard() {
 
   return (
     <div className="staff-layout-root">
-      {/* ===================================================================
-          Sidebar Navigation (Exact 145px width matching Figma specs)
-          =================================================================== */}
+      {/* Sidebar Navigation */}
       <aside className="staff-sidebar">
         <div className="staff-logo-container">
           <img src={lakbyeLogo} alt="LakBye" className="staff-logo-img" />
@@ -523,9 +489,7 @@ export default function StaffDashboard() {
         </div>
       </aside>
 
-      {/* ===================================================================
-          Main Canvas Panel & Inner White Card
-          =================================================================== */}
+      {/* Main Canvas Panel & Inner White Card */}
       <main className="staff-main-canvas">
         <div className="staff-inner-card">
           {/* Centered Watermark Logo */}
@@ -655,9 +619,7 @@ export default function StaffDashboard() {
             </div>
           </div>
 
-          {/* ===============================================================
-              Table Data View
-              =============================================================== */}
+          {/* Table Data View */}
           <div className="staff-table-container">
             {loading && bookings.length === 0 ? (
               <div className="staff-empty-state">
@@ -913,9 +875,7 @@ export default function StaffDashboard() {
         </div>
       </main>
 
-      {/* ===================================================================
-          Details Modal for Processed Booking
-          =================================================================== */}
+      {/* Details Modal for Processed Booking */}
       {selectedBookingForModal && (
         <div className="staff-modal-backdrop">
           <button

@@ -1,6 +1,4 @@
-/* ==========================================================================
-   Customer Dashboard (PROFILE) - Figma Frame 691:10
-   ========================================================================== */
+/* Customer Dashboard (Profile) */
 
 .customer-profile-page {
   width: 100%;
@@ -14,7 +12,7 @@
   flex-direction: column;
 }
 
-/* Top Back Navigation matching Figma #691:49 */
+/* Top Back Navigation */
 .customer-profile-back-nav {
   display: inline-flex;
   align-items: center;
@@ -56,7 +54,7 @@
   color: rgba(72, 42, 19, 0.95);
 }
 
-/* Main Grid Layout matching Figma #691:10 (602px left, 543px right, 36px gap) */
+/* Main Grid Layout (Left Profile / Right Map) */
 .customer-profile-grid {
   display: grid;
   grid-template-columns: 602px 543px;
@@ -84,16 +82,14 @@
   }
 }
 
-/* ==========================================================================
-   Left Column: Profile Card, CTA Button, Journal Section (#691:55, #691:43, #691:74)
-   ========================================================================== */
+/* Left Column: Profile Card, CTA Button, Journal Section */
 .customer-profile-left-col {
   display: flex;
   flex-direction: column;
   width: 100%;
 }
 
-/* Profile Card #691:55 */
+/* Profile Card */
 .customer-profile-card {
   width: 100%;
   height: clamp(180px, 22vh, 210px);
@@ -181,7 +177,7 @@
   background-color: rgba(64, 28, 2, 0.25);
 }
 
-/* "Create a Journal Entry" Gradient CTA Button #691:43 */
+/* "Create a Journal Entry" Gradient CTA Button */
 .customer-profile-create-journal-btn {
   width: 100%;
   height: clamp(36px, 4.2vh, 40px);
@@ -220,7 +216,7 @@
   transform: translateY(0);
 }
 
-/* Journal Section Heading #691:64 */
+/* Journal Section Heading */
 .customer-profile-journal-section {
   display: flex;
   flex-direction: column;
@@ -236,7 +232,7 @@
   margin: 0 0 8px 0;
 }
 
-/* Journal Card Container #691:74 */
+/* Journal Card Container */
 .customer-profile-journal-card {
   width: 100%;
   min-height: clamp(260px, 32vh, 320px);
@@ -330,9 +326,7 @@
   line-height: 1.4;
 }
 
-/* ==========================================================================
-   Right Column: Map Card #691:65
-   ========================================================================== */
+/* Right Column: Map Card */
 .customer-profile-map-card {
   width: 100%;
   height: clamp(540px, 66vh, 610px);
@@ -346,7 +340,7 @@
   box-sizing: border-box;
 }
 
-/* Mapbox Globe Container #691:66 */
+/* Mapbox Globe Container */
 .customer-profile-globe-container {
   width: 100%;
   flex: 1;
@@ -356,7 +350,7 @@
   background-color: #b2b2b2;
 }
 
-/* Map Card Footer Bar #691:67 */
+/* Map Card Footer Bar */
 .customer-profile-map-footer {
   width: 100%;
   height: 64px;
@@ -392,7 +386,7 @@
   margin: 0;
 }
 
-/* Explore Pill Button #691:70 (84.67px x 29.38px) */
+/* Explore Pill Button */
 .customer-profile-map-explore-btn {
   display: inline-flex;
   align-items: center;
@@ -419,9 +413,7 @@
   color: #000000;
 }
 
-/* ==========================================================================
-   Create Journal Modal
-   ========================================================================== */
+/* Create Journal Modal */
 .journal-modal-overlay {
   position: fixed;
   inset: 0;

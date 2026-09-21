@@ -1,4 +1,3 @@
-// src/pages/TripPacking.tsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { tripsApi } from '../services/api';
@@ -183,7 +182,7 @@ export default function TripPacking() {
             </p>
           </div>
 
-          <div className="space-y-2 mb-6 max-h-[500px] overflow-y-auto pr-2">
+          <div className="space-y-2 mb-6 max-h-125 overflow-y-auto pr-2">
             {activeItems.length === 0 ? (
               <p className="text-slate-400 italic">No items in this category yet.</p>
             ) : (

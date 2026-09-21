@@ -501,9 +501,7 @@ body {
   background: var(--color-brand-warm-cream);
 }
 
-/* ============================== */
-/*          Typography            */
-/* ============================== */
+/* Typography */
 
 h1,
 h2,
@@ -515,9 +513,7 @@ h6 {
   line-height: 1.2;
 }
 
-/* ============================== */
-/*        Sticky Navbar            */
-/* ============================== */
+/* Sticky Navbar */
 
 .site-header {
   position: fixed;
@@ -642,9 +638,7 @@ h6 {
   outline: none;
 }
 
-/* ========================================================================== */
-/*  Authenticated Landing Page Header & Dropdown (Priority 2)                */
-/* ========================================================================== */
+/* Authenticated Landing Page Header & Dropdown */
 
 .header-auth-skeleton {
   width: 140px;
@@ -5145,9 +5139,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   transform: scale(1.05);
 }
 
-/* ==========================================================================
-   Trip Workspace — Budget Page (Figma Node 578:10)
-   ========================================================================== */
+/* Trip Workspace — Budget Page */
 
 .budget-main-card {
   display: flex;
@@ -5969,9 +5961,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   line-height: 1.4;
 }
 
-/* ==========================================================================
-   LakBye Brand Palette & Gradient Tokens (Explore, Map, Bookings)
-   ========================================================================== */
+/* LakBye Brand Palette & Gradient Tokens */
 :root {
   --lakbye-blue: #255f85;
   --lakbye-orange: #e9724c;
@@ -5993,9 +5983,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   );
 }
 
-/* ==========================================================================
-   EXPLORE PAGE STYLES
-   ========================================================================== */
+/* Explore Page Styles */
 .explore-page-wrapper {
   background: #f8f3ec;
   padding: 12px 16px;
@@ -6708,9 +6696,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   gap: 16px;
 }
 
-/* ==========================================================================
-   MAP VIEW PAGE STYLES
-   ========================================================================== */
+/* Map View Page Styles */
 .map-page-wrapper {
   background: #f8f3ec;
   padding: 12px 16px;
@@ -6931,9 +6917,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   position: relative;
 }
 
-/* ==========================================================================
-   SHARED MODAL STYLES (Explore & Map)
-   ========================================================================== */
+/* Shared Modal Styles (Explore & Map) */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -7063,9 +7047,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   z-index: 0;
 }
 
-/* ==========================================================================
-   BOOKINGS PAGE STYLES (Figma 402:15 & 422:298)
-   ========================================================================== */
+/* Bookings Page Styles */
 .bookings-page-wrapper {
   padding: 14px 24px;
   width: 100%;
@@ -7526,9 +7508,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   max-width: 320px;
 }
 
-/* ==========================================================================
-   RESPONSIVE LAYOUT SWITCHING FOR BOOKINGS & EXPLORE (Mobile & iPad Support)
-   ========================================================================== */
+/* Responsive Layout for Bookings & Explore */
 
 /* Desktop Display (≥1025px) */
 .bookings-desktop-content {
@@ -8147,9 +8127,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   transform: scale(0.96);
 }
 
-/* ==========================================================================
-   TABLET & MOBILE MEDIA QUERIES (≤1024px)
-   ========================================================================== */
+/* Tablet & Mobile Media Queries (≤1024px) */
 
 @media (max-width: 1024px) {
   /* Toggle Visibility */

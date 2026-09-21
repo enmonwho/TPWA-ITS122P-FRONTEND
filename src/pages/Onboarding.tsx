@@ -29,7 +29,7 @@ import type { UserPreferences } from '../types';
  * Persists preferences to backend API and resilient local storage cache, then routes to Dashboard.
  */
 
-/* ────────── Cloud layout data ────────── */
+// Cloud layout data
 interface CloudConfig {
   src: string;
   top?: string;
@@ -52,8 +52,6 @@ const clouds: CloudConfig[] = [
 ];
 
 type UsernameStatus = 'idle' | 'checking' | 'valid' | 'invalid' | 'taken';
-
-/* ────────── Component ────────── */
 
 export default function Onboarding() {
   const { user, setUser } = useAuth();
@@ -302,7 +300,7 @@ export default function Onboarding() {
       />
 
       {step === 'username' && (
-        /* ──────── Step 1: Username ──────── */
+        /* Step 1: Username */
         <div className="onboarding-card animate-fade-in-up delay-100">
           <h1 className="onboarding-heading">Enter a Username</h1>
           <p className="onboarding-subtext">
@@ -380,7 +378,7 @@ export default function Onboarding() {
       )}
 
       {step === 'avatar' && (
-        /* ──────── Step 2: Avatar Upload ──────── */
+        /* Step 2: Avatar Upload */
         <div className="onboarding-card animate-fade-in-up delay-100">
           <h1 className="onboarding-heading">Choose a Profile Picture</h1>
           <p className="onboarding-subtext">
@@ -505,7 +503,7 @@ export default function Onboarding() {
       )}
 
       {step === 'preferences' && (
-        /* ──────── Step 3: Preferences ──────── */
+        /* Step 3: Preferences */
         <div className="onboarding-card animate-fade-in-up delay-100">
           <h1 className="onboarding-heading">Set your Preferences</h1>
           <p className="onboarding-subtext onboarding-subtext-alt">
@@ -564,8 +562,7 @@ export default function Onboarding() {
   );
 }
 
-/* ────────── Internal SelectField ────────── */
-
+// Internal SelectField
 interface SelectFieldProps {
   label: string;
   value: string;

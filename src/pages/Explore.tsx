@@ -539,9 +539,7 @@ export default function Explore() {
               )}
             </div>
 
-            {/* =========================================================================
-                SEARCH MODE: Flat Results Grid or Empty State
-               ========================================================================= */}
+            {/* Search Mode: Results Grid or Empty State */}
             {isSearchMode ? (
               <div className="explore-mode-transition flex flex-col gap-5">
                 <div className="flex items-center justify-between pb-1 border-b border-stone-200/70">
@@ -769,9 +767,7 @@ export default function Explore() {
                 )}
               </div>
             ) : (
-              /* =========================================================================
-                  BROWSE MODE: Featured, Companion, All Countries, Top Islands
-                 ========================================================================= */
+              /* Browse Mode: Featured, Companion, All Countries, Top Islands */
               <div className="explore-mode-transition flex flex-col gap-6">
                 {popularPlace && (
                   <div>

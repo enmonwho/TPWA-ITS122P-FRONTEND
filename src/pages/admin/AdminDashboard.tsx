@@ -26,6 +26,7 @@ import type {
 import type { Trip } from '../../types/trip';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { STORAGE_KEYS } from '../../lib/constants';
 import '../../styles/Admin.css';
 
 type Tab = 'systems' | 'users' | 'categories' | 'master';
@@ -47,8 +48,8 @@ export default function AdminDashboard() {
   }, [user, isLoading, navigate]);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    localStorage.removeItem(STORAGE_KEYS.TOKEN);
+    localStorage.removeItem(STORAGE_KEYS.USER);
     if (setUser) setUser(null);
     navigate('/login');
   };
@@ -125,9 +126,7 @@ export default function AdminDashboard() {
   );
 }
 
-// ============================================================================
-// TAB 1: Systems Report (FR-ADM-03, FR-ADM-04)
-// ============================================================================
+// Tab 1: Systems Report
 function SystemsReportTab() {
   const [metrics, setMetrics] = useState<{
     totalUsers: number;
@@ -269,9 +268,7 @@ function SystemsReportTab() {
   );
 }
 
-// ============================================================================
-// TAB 2: User Management (FR-ADM-01)
-// ============================================================================
+// Tab 2: User Management
 function UserManagementTab() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [search, setSearch] = useState('');
@@ -493,9 +490,7 @@ function UserManagementTab() {
   );
 }
 
-// ============================================================================
-// TAB 3: Categories & Activities (FR-ADM-02)
-// ============================================================================
+// Tab 3: Categories & Activities
 function CategoriesActivitiesTab() {
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [activities, setActivities] = useState<AdminActivity[]>([]);
@@ -955,9 +950,7 @@ function CategoriesActivitiesTab() {
   );
 }
 
-// ============================================================================
-// TAB 4: Master Records Override (FR-ADM-01, FR-ADM-05)
-// ============================================================================
+// Tab 4: Master Records Override
 function MasterRecordsTab() {
   const [tripSearch, setTripSearch] = useState('');
   const [userSearch, setUserSearch] = useState('');

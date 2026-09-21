@@ -3,8 +3,6 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import StaffDashboard from './pages/staff/StaffDashboard';
 import { BaseLayout, DashboardLayout, TripWorkspaceLayout, RootLayout } from './layouts';
 import { ProtectedRoute, PublicOnlyRoute } from './components';
-import PublicProfile from './pages/PublicProfile';
-import TripPacking from './pages/TripPacking';
 import {
   Home,
   Login,
@@ -21,6 +19,8 @@ import {
   Settings,
   ProfileSettings,
   CustomerProfile,
+  TripPacking,
+  PublicProfile,
 } from './pages';
 
 /**

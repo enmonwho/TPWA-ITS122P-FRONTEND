@@ -3,7 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { generateGeodesicArc } from '../constants/coordinates';
 
-mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
+mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
 export interface MarkerData {
   id: string;
@@ -39,6 +39,7 @@ export default function GlobeMap({
 
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
+    if (!mapboxgl.accessToken) return;
 
     const mapInstance = new mapboxgl.Map({
       container: mapContainer.current,

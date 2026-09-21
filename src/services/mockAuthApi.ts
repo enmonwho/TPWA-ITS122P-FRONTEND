@@ -1,5 +1,6 @@
 import { AxiosError } from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
+import { STORAGE_KEYS } from '../lib/constants';
 import type {
   RegisterPayload,
   LoginPayload,
@@ -8,10 +9,6 @@ import type {
   User,
   UserPreferences,
 } from '../types';
-
-const MOCK_USERS_KEY = 'lakbye_mock_users';
-const MOCK_SESSION_KEY = 'lakbye_mock_session';
-const MOCK_PREFS_PREFIX = 'lakbye_mock_prefs_';
 
 // Helper to simulate Axios errors exactly how the frontend expects them
 const throwAxiosError = (status: number, message: string) => {
@@ -38,12 +35,12 @@ const throwAxiosError = (status: number, message: string) => {
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const getMockUsers = (): (User & { _password?: string })[] => {
-  const users = localStorage.getItem(MOCK_USERS_KEY);
+  const users = localStorage.getItem(STORAGE_KEYS.MOCK_USERS);
   return users ? JSON.parse(users) : [];
 };
 
 const saveMockUsers = (users: (User & { _password?: string })[]) => {
-  localStorage.setItem(MOCK_USERS_KEY, JSON.stringify(users));
+  localStorage.setItem(STORAGE_KEYS.MOCK_USERS, JSON.stringify(users));
 };
 
 export const mockAuthApi = {
@@ -73,7 +70,7 @@ export const mockAuthApi = {
     saveMockUsers(users);
 
     const token = `mock-jwt-token-${newUser.id}-${Date.now()}`;
-    localStorage.setItem(MOCK_SESSION_KEY, newUser.id.toString());
+    localStorage.setItem(STORAGE_KEYS.MOCK_SESSION, newUser.id.toString());
 
     return {
       message: 'Registration successful.',
@@ -96,7 +93,7 @@ export const mockAuthApi = {
     }
 
     const token = `mock-jwt-token-${userRecord.id}-${Date.now()}`;
-    localStorage.setItem(MOCK_SESSION_KEY, userRecord.id.toString());
+    localStorage.setItem(STORAGE_KEYS.MOCK_SESSION, userRecord.id.toString());
 
     const { _password, ...userWithoutSensitive } = userRecord;
 
@@ -115,13 +112,13 @@ export const mockAuthApi = {
 
   logout: async (): Promise<{ message: string }> => {
     await delay(300);
-    localStorage.removeItem(MOCK_SESSION_KEY);
+    localStorage.removeItem(STORAGE_KEYS.MOCK_SESSION);
     return { message: 'Logged out successfully.' };
   },
 
   getMe: async (): Promise<MeResponse> => {
     await delay(300);
-    const sessionId = localStorage.getItem(MOCK_SESSION_KEY);
+    const sessionId = localStorage.getItem(STORAGE_KEYS.MOCK_SESSION);
 
     if (!sessionId) {
       throwAxiosError(401, 'Unauthorized');
@@ -132,14 +129,14 @@ export const mockAuthApi = {
     const userRecord = users.find((u) => u.id.toString() === sessionId);
 
     if (!userRecord) {
-      localStorage.removeItem(MOCK_SESSION_KEY);
+      localStorage.removeItem(STORAGE_KEYS.MOCK_SESSION);
       throwAxiosError(401, 'Unauthorized');
       throw new Error('Unreachable');
     }
 
     const { _password, ...userWithoutSensitive } = userRecord;
 
-    const storedPrefsRaw = localStorage.getItem(`${MOCK_PREFS_PREFIX}${sessionId}`);
+    const storedPrefsRaw = localStorage.getItem(STORAGE_KEYS.MOCK_PREFS(sessionId));
     const userPrefs: UserPreferences | undefined = storedPrefsRaw
       ? JSON.parse(storedPrefsRaw)
       : userRecord.preferences;
@@ -170,14 +167,14 @@ export const mockAuthApi = {
       saveMockUsers(users);
     }
 
-    localStorage.setItem(`${MOCK_PREFS_PREFIX}${userId}`, JSON.stringify(preferences));
+    localStorage.setItem(STORAGE_KEYS.MOCK_PREFS(userId), JSON.stringify(preferences));
 
     return preferences;
   },
 
   getPreferences: async (userId: number | string): Promise<UserPreferences | null> => {
     await delay(200);
-    const stored = localStorage.getItem(`${MOCK_PREFS_PREFIX}${userId}`);
+    const stored = localStorage.getItem(STORAGE_KEYS.MOCK_PREFS(userId));
     if (stored) {
       try {
         return JSON.parse(stored);
@@ -199,9 +196,15 @@ export const mockAuthApi = {
     accountFound?: boolean;
     emailSent?: boolean;
   }> => {
+    const origin =
+      typeof window !== 'undefined' && window.location.origin
+        ? window.location.origin
+        : '';
     return {
       message: 'Reset instructions dispatched (mock mode).',
-      devResetUrl: 'http://localhost:5173/reset-password?token=mock-token-123',
+      devResetUrl: origin
+        ? `${origin}/reset-password?token=mock-token-123`
+        : '/reset-password?token=mock-token-123',
       accountFound: true,
       emailSent: false,
     };

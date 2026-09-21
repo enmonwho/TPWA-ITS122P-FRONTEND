@@ -12,7 +12,7 @@ import { tripsApi } from '../services/api';
 import { mergeTripWithExtras, formatDateOnly } from '../lib/tripExtras';
 import axios from 'axios';
 
-export interface Destination {
+export interface WorkspaceDestination {
   id: string;
   name: string;
   country?: string;
@@ -42,7 +42,7 @@ export default function TripWorkspace() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [destinations, setDestinations] = useState<WorkspaceDestination[]>([]);
   const [newDestInput, setNewDestInput] = useState('');
   const [activeDestinationId, setActiveDestinationId] = useState<string | null>(null);
 
@@ -60,23 +60,25 @@ export default function TripWorkspace() {
         const merged = mergeTripWithExtras(apiTrip);
         setTrip(merged);
 
-        const initialDests: Destination[] = (merged.countries || []).map((c, i) => {
-          const coords = getCoordinatesForName(c);
-          return {
-            id: `dest-${i + 1}`,
-            name: c,
-            country: c,
-            nights: Math.max(
-              1,
-              Math.floor(merged.nights / (merged.countries.length || 1)),
-            ),
-            accommodation: 'Selected Hotel',
-            activities: 'Sightseeing & Culture',
-            transportation: 'Flight / Express Train',
-            latitude: coords ? coords[1] : undefined,
-            longitude: coords ? coords[0] : undefined,
-          };
-        });
+        const initialDests: WorkspaceDestination[] = (merged.countries || []).map(
+          (c, i) => {
+            const coords = getCoordinatesForName(c);
+            return {
+              id: `dest-${i + 1}`,
+              name: c,
+              country: c,
+              nights: Math.max(
+                1,
+                Math.floor(merged.nights / (merged.countries.length || 1)),
+              ),
+              accommodation: 'Selected Hotel',
+              activities: 'Sightseeing & Culture',
+              transportation: 'Flight / Express Train',
+              latitude: coords ? coords[1] : undefined,
+              longitude: coords ? coords[0] : undefined,
+            };
+          },
+        );
         setDestinations(initialDests);
         if (initialDests.length > 0) setActiveDestinationId(initialDests[0].id);
       } catch (err) {
@@ -108,7 +110,7 @@ export default function TripWorkspace() {
     const name = newDestInput.trim();
     const coords = getCoordinatesForName(name);
 
-    const newDest: Destination = {
+    const newDest: WorkspaceDestination = {
       id: `dest-custom-${Date.now()}`,
       name,
       nights: 3,
@@ -127,7 +129,7 @@ export default function TripWorkspace() {
 
   const handleUpdateDestination = (
     id: string,
-    field: keyof Destination,
+    field: keyof WorkspaceDestination,
     value: string | number,
   ) => {
     setDestinations((prev) =>
