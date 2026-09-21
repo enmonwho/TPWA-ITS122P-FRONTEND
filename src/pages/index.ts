@@ -11,3 +11,5 @@ export { default as Explore } from './Explore';
 export { default as Bookings } from './Bookings';
 export { default as ProfileSettings } from './ProfileSettings';
 export { default as CustomerProfile } from './CustomerProfile';
+export { default as ForgotPassword } from './ForgotPassword';
+export { default as ResetPassword } from './ResetPassword';

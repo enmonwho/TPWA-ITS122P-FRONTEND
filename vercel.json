@@ -1,8 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "https://tpwa-its122p-backend.onrender.com/api/:path*"
+      "source": "/api/(.*)",
+      "destination": "https://tpwa-its122p-backend.onrender.com/api/$1"
     },
     {
       "source": "/(.*)",
