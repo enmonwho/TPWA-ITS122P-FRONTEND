@@ -2,13 +2,13 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 
 import AuthLayout from '../components/AuthLayout';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoader } from '../context/PageLoaderContext';
 import { ROUTES } from '../lib/constants';
-import { authApi, preferencesApi } from '../services/api';
+import { preferencesApi } from '../services/api';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -16,15 +16,6 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-
-  // Forgot password modal state
-  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotSending, setForgotSending] = useState(false);
-  const [forgotStatusMsg, setForgotStatusMsg] = useState<{
-    type: 'success' | 'error';
-    text: string;
-  } | null>(null);
 
   // Validate required inputs
   const isFormValid = email.trim() !== '' && password.trim() !== '';
@@ -75,32 +66,6 @@ export default function Login() {
       }
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleRequestReset = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!forgotEmail.trim()) return;
-
-    setForgotSending(true);
-    setForgotStatusMsg(null);
-
-    try {
-      const res = await authApi.forgotPassword(forgotEmail.trim());
-      setForgotStatusMsg({
-        type: 'success',
-        text: res.devResetUrl
-          ? 'Reset instructions dispatched! (Check backend terminal for dev URL)'
-          : 'If an account exists, a reset link has been dispatched to your email.',
-      });
-    } catch (err: unknown) {
-      const msg =
-        axios.isAxiosError(err) && err.response?.data?.message
-          ? err.response.data.message
-          : 'Failed to dispatch reset instructions. Please try again.';
-      setForgotStatusMsg({ type: 'error', text: msg });
-    } finally {
-      setForgotSending(false);
     }
   };
 
@@ -177,17 +142,9 @@ export default function Login() {
         </div>
 
         <div className="forgot-password-container animate-fade-in-up delay-200">
-          <button
-            type="button"
-            onClick={() => {
-              setForgotEmail(email);
-              setForgotStatusMsg(null);
-              setIsForgotModalOpen(true);
-            }}
-            className="forgot-password-link bg-transparent border-none p-0 cursor-pointer"
-          >
+          <Link to="/forgot-password" className="forgot-password-link">
             Forgot password?
-          </button>
+          </Link>
         </div>
 
         <div className="auth-submit-container animate-fade-in-up delay-150">
@@ -196,7 +153,7 @@ export default function Login() {
             disabled={!isFormValid || isLoading}
             className={`auth-submit ${
               !isFormValid || isLoading
-                ? 'opacity-50 cursor-not-allowed !bg-gray-400'
+                ? 'opacity-50 cursor-not-allowed bg-gray-400!'
                 : ''
             }`}
           >
@@ -206,7 +163,8 @@ export default function Login() {
 
         {errorMessage && (
           <div className="auth-error-banner animate-fade-in-up" role="alert">
-            {errorMessage}
+            <AlertCircle size={15} className="shrink-0" />
+            <span>{errorMessage}</span>
           </div>
         )}
 
@@ -217,95 +175,6 @@ export default function Login() {
           </Link>
         </div>
       </form>
-
-      {/* Forgot Password Modal */}
-      {isForgotModalOpen && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="forgot-modal-title"
-        >
-          <button
-            type="button"
-            className="modal-backdrop-dismiss"
-            onClick={() => setIsForgotModalOpen(false)}
-            aria-label="Close modal backdrop"
-          />
-          <div
-            className="start-trip-modal-card"
-            style={{ maxWidth: '420px', zIndex: 10 }}
-          >
-            <button
-              type="button"
-              onClick={() => setIsForgotModalOpen(false)}
-              className="modal-close-btn"
-              aria-label="Close modal"
-            >
-              <X size={18} />
-            </button>
-
-            <h2 id="forgot-modal-title" className="text-xl font-bold text-stone-900 mb-1">
-              Reset Password
-            </h2>
-            <p className="text-xs text-stone-500 mb-4">
-              Enter your registered email address and we'll dispatch a link to reset your
-              account password.
-            </p>
-
-            {forgotStatusMsg && (
-              <div
-                className={`p-3 rounded-xl text-xs flex items-center gap-2 mb-4 ${
-                  forgotStatusMsg.type === 'success'
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                    : 'bg-rose-50 text-rose-800 border border-rose-200'
-                }`}
-              >
-                {forgotStatusMsg.type === 'success' ? (
-                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-                ) : (
-                  <AlertCircle size={16} className="text-rose-600 shrink-0" />
-                )}
-                <span>{forgotStatusMsg.text}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleRequestReset} className="flex flex-col gap-4">
-              <div>
-                <label htmlFor="forgot-email" className="modal-label">
-                  Email Address
-                </label>
-                <input
-                  id="forgot-email"
-                  type="email"
-                  required
-                  placeholder="yourname@email.com"
-                  value={forgotEmail}
-                  onChange={(e) => setForgotEmail(e.target.value)}
-                  className="modal-input-gradient"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsForgotModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 rounded-full transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={forgotSending}
-                  className="btn-start-planning-modal text-xs py-2 px-5"
-                >
-                  {forgotSending ? 'Sending...' : 'Send Reset Link'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </AuthLayout>
   );
 }

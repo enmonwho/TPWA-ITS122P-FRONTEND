@@ -193,10 +193,17 @@ export const mockAuthApi = {
 
   forgotPassword: async (
     _email: string,
-  ): Promise<{ message: string; devResetUrl?: string }> => {
+  ): Promise<{
+    message: string;
+    devResetUrl?: string;
+    accountFound?: boolean;
+    emailSent?: boolean;
+  }> => {
     return {
       message: 'Reset instructions dispatched (mock mode).',
       devResetUrl: 'http://localhost:5173/reset-password?token=mock-token-123',
+      accountFound: true,
+      emailSent: false,
     };
   },
 

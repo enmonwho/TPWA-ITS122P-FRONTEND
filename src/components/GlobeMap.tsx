@@ -15,11 +15,12 @@ export interface MarkerData {
 export interface GlobeMapProps {
   markers?: MarkerData[];
   activeMarkerId?: string | null;
-  focusView?: [number, number] | null; 
+  focusView?: [number, number] | null;
   onMarkerClick?: (markerId: string) => void;
   showRouteLines?: boolean;
   className?: string;
   style?: React.CSSProperties;
+  searchMode?: boolean;
 }
 
 export default function GlobeMap({
@@ -30,6 +31,7 @@ export default function GlobeMap({
   showRouteLines = false,
   className = '',
   style,
+  searchMode = false,
 }: GlobeMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -74,7 +76,12 @@ export default function GlobeMap({
           type: 'line',
           source: 'route-lines',
           layout: { 'line-join': 'round', 'line-cap': 'round' },
-          paint: { 'line-color': '#FFFAF2', 'line-width': 2, 'line-opacity': 0.95, 'line-dasharray': [2, 2] },
+          paint: {
+            'line-color': '#FFFAF2',
+            'line-width': 2,
+            'line-opacity': 0.95,
+            'line-dasharray': [2, 2],
+          },
         });
       }
     });
@@ -103,7 +110,9 @@ export default function GlobeMap({
       markerEl.style.borderRadius = '50%';
       markerEl.style.backgroundColor = isActive ? '#C5283D' : '#E9724C';
       markerEl.style.border = '2.5px solid #ffffff';
-      markerEl.style.boxShadow = isActive ? '0 0 14px rgba(197, 40, 61, 0.9), 0 2px 4px rgba(0,0,0,0.3)' : '0 0 8px rgba(233, 114, 76, 0.6), 0 2px 4px rgba(0,0,0,0.3)';
+      markerEl.style.boxShadow = isActive
+        ? '0 0 14px rgba(197, 40, 61, 0.9), 0 2px 4px rgba(0,0,0,0.3)'
+        : '0 0 8px rgba(233, 114, 76, 0.6), 0 2px 4px rgba(0,0,0,0.3)';
       markerEl.style.cursor = 'pointer';
       markerEl.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
       markerEl.style.transform = isActive ? 'scale(1.25)' : 'scale(1)';
@@ -131,7 +140,8 @@ export default function GlobeMap({
   useEffect(() => {
     if (!map.current) return;
     const updateRouteLines = () => {
-      const source = map.current?.getSource('route-lines') as mapboxgl.GeoJSONSource | undefined;
+      const source = map.current?.getSource('route-lines') as
+        mapboxgl.GeoJSONSource | undefined;
       if (!source) return;
       if (!showRouteLines || markers.length < 2) {
         source.setData({ type: 'FeatureCollection', features: [] });
@@ -146,7 +156,11 @@ export default function GlobeMap({
       }
       source.setData({
         type: 'FeatureCollection',
-        features: arcCoordinates.map((coords) => ({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } })),
+        features: arcCoordinates.map((coords) => ({
+          type: 'Feature',
+          properties: {},
+          geometry: { type: 'LineString', coordinates: coords },
+        })),
       });
     };
     if (map.current.isStyleLoaded()) updateRouteLines();
@@ -157,7 +171,12 @@ export default function GlobeMap({
     if (!map.current || !activeMarkerId) return;
     const active = markers.find((m) => m.id === activeMarkerId);
     if (active) {
-      map.current.flyTo({ center: [active.lng, active.lat], zoom: Math.max(map.current.getZoom(), 3.5), duration: 1600, essential: true });
+      map.current.flyTo({
+        center: [active.lng, active.lat],
+        zoom: Math.max(map.current.getZoom(), 3.5),
+        duration: 1600,
+        essential: true,
+      });
     }
   }, [activeMarkerId, markers]);
 
@@ -168,20 +187,73 @@ export default function GlobeMap({
   }, [focusView]);
 
   const hasFittedBoundsRef = useRef(false);
+  const prevSearchModeRef = useRef(false);
 
   useEffect(() => {
-    if (!map.current || markers.length === 0 || activeMarkerId || hasFittedBoundsRef.current) return;
+    if (!map.current) return;
+
+    if (searchMode) {
+      if (markers.length === 1) {
+        map.current.flyTo({
+          center: [markers[0].lng, markers[0].lat],
+          zoom: 4,
+          duration: 1300,
+          essential: true,
+        });
+      } else if (markers.length > 1) {
+        const bounds = new mapboxgl.LngLatBounds();
+        markers.forEach((m) => bounds.extend([m.lng, m.lat]));
+        map.current.fitBounds(bounds, { padding: 60, maxZoom: 4.5, duration: 1500 });
+      }
+    } else if (prevSearchModeRef.current && !searchMode) {
+      // Return to default camera position when search mode is cleared
+      map.current.flyTo({
+        center: [0, 20],
+        zoom: 1.5,
+        duration: 1400,
+        essential: true,
+      });
+    }
+
+    prevSearchModeRef.current = Boolean(searchMode);
+  }, [searchMode, markers]);
+
+  useEffect(() => {
+    if (
+      !map.current ||
+      markers.length === 0 ||
+      activeMarkerId ||
+      hasFittedBoundsRef.current ||
+      searchMode
+    )
+      return;
     hasFittedBoundsRef.current = true;
     if (markers.length === 1) {
-      map.current.flyTo({ center: [markers[0].lng, markers[0].lat], zoom: 3, duration: 1400, essential: true });
+      map.current.flyTo({
+        center: [markers[0].lng, markers[0].lat],
+        zoom: 3,
+        duration: 1400,
+        essential: true,
+      });
     } else if (markers.length > 1) {
       const bounds = new mapboxgl.LngLatBounds();
       markers.forEach((m) => bounds.extend([m.lng, m.lat]));
       map.current.fitBounds(bounds, { padding: 60, maxZoom: 4, duration: 1600 });
     }
-  }, [markers, activeMarkerId]);
+  }, [markers, activeMarkerId, searchMode]);
 
   return (
-    <div ref={mapContainer} className={className} style={{ width: '100%', height: '100%', minHeight: '100%', borderRadius: '15px', overflow: 'hidden', ...style }} />
+    <div
+      ref={mapContainer}
+      className={className}
+      style={{
+        width: '100%',
+        height: '100%',
+        minHeight: '100%',
+        borderRadius: '15px',
+        overflow: 'hidden',
+        ...style,
+      }}
+    />
   );
 }

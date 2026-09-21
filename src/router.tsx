@@ -4,13 +4,14 @@ import StaffDashboard from './pages/staff/StaffDashboard';
 import { BaseLayout, DashboardLayout, TripWorkspaceLayout, RootLayout } from './layouts';
 import { ProtectedRoute, PublicOnlyRoute } from './components';
 import PublicProfile from './pages/PublicProfile';
-import ResetPassword from './pages/ResetPassword';
 import TripPacking from './pages/TripPacking';
 import {
   Home,
   Login,
   Onboarding,
   SignUp,
+  ForgotPassword,
+  ResetPassword,
   Dashboard,
   Bookings,
   Explore,
@@ -111,6 +112,10 @@ const router = createBrowserRouter([
             <SignUp />
           </PublicOnlyRoute>
         ),
+      },
+      {
+        path: 'forgot-password',
+        element: <ForgotPassword />,
       },
       {
         path: 'reset-password',

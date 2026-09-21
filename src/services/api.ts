@@ -91,11 +91,18 @@ const realAuthApi = {
 
   forgotPassword: async (
     email: string,
-  ): Promise<{ message: string; devResetUrl?: string }> => {
-    const response = await api.post<{ message: string; devResetUrl?: string }>(
-      '/auth/forgot-password',
-      { email },
-    );
+  ): Promise<{
+    message: string;
+    devResetUrl?: string;
+    accountFound?: boolean;
+    emailSent?: boolean;
+  }> => {
+    const response = await api.post<{
+      message: string;
+      devResetUrl?: string;
+      accountFound?: boolean;
+      emailSent?: boolean;
+    }>('/auth/forgot-password', { email });
     return response.data;
   },
 
