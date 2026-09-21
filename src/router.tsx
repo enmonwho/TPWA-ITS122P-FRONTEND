@@ -3,6 +3,8 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import StaffDashboard from './pages/staff/StaffDashboard';
 import { BaseLayout, DashboardLayout, TripWorkspaceLayout, RootLayout } from './layouts';
 import { ProtectedRoute, PublicOnlyRoute } from './components';
+import PublicProfile from './pages/PublicProfile';
+import ResetPassword from './pages/ResetPassword';
 import {
   Home,
   Login,
@@ -110,6 +112,11 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: 'reset-password',
+        element: <ResetPassword />, 
+      },
+     
+      {
         path: 'onboarding',
         element: (
           <ProtectedRoute>
@@ -136,6 +143,24 @@ const router = createBrowserRouter([
           {
             path: 'settings',
             element: <Settings />,
+          },
+        ],
+      },
+      {
+        path: '/profile/:username',
+        element: <PublicProfile />,
+      },
+      {
+        path: ':username', // Wildcard route placed at the very bottom
+        element: (
+          <ProtectedRoute>
+            <DashboardLayout />
+          </ProtectedRoute>
+        ),
+        children: [
+          {
+            index: true,
+            element: <PublicProfile />,
           },
         ],
       },

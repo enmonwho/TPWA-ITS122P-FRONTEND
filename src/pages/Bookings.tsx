@@ -40,9 +40,6 @@ interface BookingLedgerItem {
   status: BookingStatus;
 }
 
-/**
- * Executes an async network call with one automatic retry (~800ms delay) on failure.
- */
 async function withRetry<T>(fn: () => Promise<T>, delayMs = 800): Promise<T> {
   try {
     return await fn();
@@ -53,59 +50,40 @@ async function withRetry<T>(fn: () => Promise<T>, delayMs = 800): Promise<T> {
   }
 }
 
-/**
- * Renders an accessible status badge for all 4 seeded/API booking statuses:
- * 'pending' | 'confirmed' | 'completed' | 'cancelled'
- */
 function renderStatusBadge(status: BookingStatus) {
   const norm = (status || 'pending').toLowerCase();
   switch (norm) {
     case 'confirmed':
       return (
-        <span
-          title="Confirmed"
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shrink-0"
-        >
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shrink-0">
           <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
           <span>Confirmed</span>
         </span>
       );
     case 'pending':
       return (
-        <span
-          title="Pending"
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/80 shrink-0"
-        >
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/80 shrink-0">
           <Clock className="w-3 h-3 text-amber-600 shrink-0" />
           <span>Pending</span>
         </span>
       );
     case 'completed':
       return (
-        <span
-          title="Completed"
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/80 shrink-0"
-        >
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/80 shrink-0">
           <CheckCircle2 className="w-3 h-3 text-blue-600 shrink-0" />
           <span>Completed</span>
         </span>
       );
     case 'cancelled':
       return (
-        <span
-          title="Cancelled"
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/80 shrink-0"
-        >
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/80 shrink-0">
           <XCircle className="w-3 h-3 text-rose-600 shrink-0" />
           <span>Cancelled</span>
         </span>
       );
     default:
       return (
-        <span
-          title={status}
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-stone-100 text-stone-700 border border-stone-200 shrink-0"
-        >
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-stone-100 text-stone-700 border border-stone-200 shrink-0">
           <span>{status}</span>
         </span>
       );
@@ -115,14 +93,12 @@ function renderStatusBadge(status: BookingStatus) {
 export default function Bookings() {
   const navigate = useNavigate();
 
-  // Trips list state
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTripId, setSelectedTripId] = useState<string | number | null>(null);
   const [isCreateTripModalOpen, setIsCreateTripModalOpen] = useState(false);
 
-  // Selected trip detailed backend state
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [tripDestinations, setTripDestinations] = useState<Destination[]>([]);
   const [allDestinations, setAllDestinations] = useState<Destination[]>([]);
@@ -130,18 +106,14 @@ export default function Bookings() {
   const [catalogActivities, setCatalogActivities] = useState<Activity[]>([]);
   const [userBookings, setUserBookings] = useState<Booking[]>([]);
 
-  // Sync failure notice state (auto-dismiss after 6s)
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (!syncNotice) return;
-    const timer = setTimeout(() => {
-      setSyncNotice(null);
-    }, 6000);
+    const timer = setTimeout(() => setSyncNotice(null), 6000);
     return () => clearTimeout(timer);
   }, [syncNotice]);
 
-  // Booking modal state
   const [isBookActivityOpen, setIsBookActivityOpen] = useState(false);
   const [selectedActivityId, setSelectedActivityId] = useState<number | ''>('');
   const [bookingDate, setBookingDate] = useState('');
@@ -149,7 +121,6 @@ export default function Bookings() {
   const [bookingSuccessMsg, setBookingSuccessMsg] = useState<string | null>(null);
   const [bookingErrorMsg, setBookingErrorMsg] = useState<string | null>(null);
 
-  // Fetch all trips for authenticated user
   const loadTrips = useCallback(async () => {
     try {
       const data = await tripsApi.getTrips();
@@ -158,8 +129,8 @@ export default function Bookings() {
       if (mergedTrips.length > 0) {
         setSelectedTripId((prev) => (prev ? prev : mergedTrips[0].id));
       }
-    } catch (err) {
-      console.error('Failed to load trips for bookings:', err);
+    } catch {
+      /* ignore error */
     } finally {
       setLoading(false);
     }
@@ -177,8 +148,8 @@ export default function Bookings() {
         if (mergedTrips.length > 0) {
           setSelectedTripId((prev) => (prev ? prev : mergedTrips[0].id));
         }
-      } catch (err) {
-        if (!cancelled) console.error('Failed to load trips for bookings:', err);
+      } catch {
+        /* ignore error */
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -190,10 +161,8 @@ export default function Bookings() {
     };
   }, []);
 
-  // Active tab for status filtering ('all' | 'upcoming' | 'completed')
   const [activeTab, setActiveTab] = useState<'all' | 'upcoming' | 'completed'>('all');
 
-  // Compute status for trip cards
   const getTripDisplayStatus = useCallback(
     (trip: Trip): 'upcoming' | 'ongoing' | 'completed' => {
       const today = new Date();
@@ -211,7 +180,6 @@ export default function Bookings() {
     [],
   );
 
-  // Filter trips by search query
   const filteredTrips = useMemo(() => {
     if (!searchQuery.trim()) return trips;
     const q = searchQuery.toLowerCase();
@@ -222,7 +190,6 @@ export default function Bookings() {
     );
   }, [trips, searchQuery]);
 
-  // Filter trips by active tab
   const filteredTripsByTab = useMemo(() => {
     return filteredTrips.filter((trip) => {
       if (activeTab === 'all') return true;
@@ -233,7 +200,6 @@ export default function Bookings() {
     });
   }, [filteredTrips, activeTab, getTripDisplayStatus]);
 
-  // Dynamic trip cover image matching Figma style
   const getTripImage = useCallback((trip: Trip, idx: number): string => {
     const nameLower = (trip.name || '').toLowerCase();
     const countryLower = (trip.countries || []).join(' ').toLowerCase();
@@ -270,13 +236,11 @@ export default function Bookings() {
     return fallbackList[idx % fallbackList.length];
   }, []);
 
-  // Active selected trip
   const selectedTrip = useMemo(() => {
     if (!selectedTripId) return filteredTrips[0] || null;
     return trips.find((t) => t.id === selectedTripId) || filteredTrips[0] || null;
   }, [trips, filteredTrips, selectedTripId]);
 
-  // Schedule overview calculation
   const scheduleDays = useMemo(() => {
     const baseDate = selectedTrip?.startDate
       ? new Date(selectedTrip.startDate)
@@ -306,17 +270,12 @@ export default function Bookings() {
         return d >= start && d <= end;
       });
 
-      return {
-        label: daysLabels[i],
-        dateNum,
-        isHighlighted,
-      };
+      return { label: daysLabels[i], dateNum, isHighlighted };
     });
 
     return { monthName, days };
   }, [selectedTrip, trips]);
 
-  // Load detailed backend data whenever selected trip changes
   useEffect(() => {
     if (!selectedTrip) return;
 
@@ -341,27 +300,20 @@ export default function Bookings() {
           setAllDestinations(allDestData);
         }
 
-        // Retry-then-notice pattern on bookings fetch
         try {
           const bookingsData = await withRetry(() => bookingsApi.getAll());
           if (!cancelled) {
             setUserBookings(bookingsData);
             setSyncNotice(null);
           }
-        } catch (bErr) {
-          console.error('Failed to sync bookings after retry:', bErr);
-          if (!cancelled) {
+        } catch {
+          if (!cancelled)
             setSyncNotice('Unable to reach server — could not load latest bookings.');
-          }
         }
-      } catch (err) {
-        if (!cancelled) {
-          console.error('Error fetching trip booking details:', err);
-        }
+      } catch {
+        /* ignore error */
       } finally {
-        if (!cancelled) {
-          setDetailsLoading(false);
-        }
+        if (!cancelled) setDetailsLoading(false);
       }
     };
 
@@ -371,16 +323,13 @@ export default function Bookings() {
     };
   }, [selectedTrip]);
 
-  // Synthesize ledger items from real backend data (destinations, expenses, bookings, catalog)
   const ledgerItems = useMemo<BookingLedgerItem[]>(() => {
     if (!selectedTrip) return [];
 
-    // Identify user bookings matching this trip
-    const tripBookings = userBookings.filter(
-      (b) => b.trip_id === selectedTrip.id || !b.trip_id,
-    );
+    // Correctly enforces trip specificity so activities don't bleed across active trips (Fix #16)
+    const tripBookings = userBookings.filter((b) => b.trip_id === selectedTrip.id);
 
-    const bookingsToRender = tripBookings.length > 0 ? tripBookings : userBookings;
+    const bookingsToRender = tripBookings;
 
     const accommodationExpenses = tripExpenses.filter(
       (e) => e.category?.toLowerCase() === 'accommodation',
@@ -389,18 +338,13 @@ export default function Bookings() {
       (e) => e.category?.toLowerCase() === 'activities',
     );
 
-    // When real bookings exist, display each booking
     if (bookingsToRender.length > 0) {
       const destLookup = new Map<number, string>();
       allDestinations.forEach((d) => {
-        if (d.id && d.location_name) {
-          destLookup.set(Number(d.id), d.location_name);
-        }
+        if (d.id && d.location_name) destLookup.set(Number(d.id), d.location_name);
       });
       tripDestinations.forEach((d) => {
-        if (d.id && d.location_name) {
-          destLookup.set(Number(d.id), d.location_name);
-        }
+        if (d.id && d.location_name) destLookup.set(Number(d.id), d.location_name);
       });
 
       return bookingsToRender.map((b, idx) => {
@@ -454,7 +398,6 @@ export default function Bookings() {
       });
     }
 
-    // Fallback when no real bookings exist yet: preview itinerary from trip destinations
     const destList: string[] =
       tripDestinations.length > 0
         ? tripDestinations.map((d) => d.location_name)
@@ -492,11 +435,8 @@ export default function Bookings() {
       }
 
       let itemStatus: BookingStatus = 'confirmed';
-      if (selectedTrip.status === 'completed') {
-        itemStatus = 'completed';
-      } else if (selectedTrip.status === 'planning') {
-        itemStatus = 'pending';
-      }
+      if (selectedTrip.status === 'completed') itemStatus = 'completed';
+      else if (selectedTrip.status === 'planning') itemStatus = 'pending';
 
       return {
         id: `${selectedTrip.id}-stop-${idx + 1}`,
@@ -517,11 +457,8 @@ export default function Bookings() {
     allDestinations,
   ]);
 
-  const handleTripCreated = () => {
-    loadTrips();
-  };
+  const handleTripCreated = () => loadTrips();
 
-  // Handle booking an activity for the selected trip
   const handleOpenBookModal = () => {
     if (!selectedTrip) return;
     setBookingDate(selectedTrip.startDate || new Date().toISOString().split('T')[0]);
@@ -570,13 +507,11 @@ export default function Bookings() {
         setIsBookActivityOpen(false);
         setBookingSuccessMsg(null);
       }, 1500);
-    } catch (err) {
-      console.error('Failed to submit booking after retry:', err);
+    } catch {
       const errMsg =
         'Unable to reach server — booking submission failed. Please try again.';
       setBookingErrorMsg(errMsg);
       setSyncNotice(errMsg);
-      // Keep modal open so the user retains their selected activity & date input to retry
     } finally {
       setBookingSubmitting(false);
     }
@@ -585,7 +520,6 @@ export default function Bookings() {
   return (
     <div className="bookings-page-wrapper">
       <div className="bookings-container-card">
-        {/* Sync Failure Notice Banner matching Budget.tsx */}
         {syncNotice && (
           <div
             role="status"
@@ -623,22 +557,16 @@ export default function Bookings() {
                 color: '#92400E',
                 opacity: 0.7,
               }}
-              aria-label="Dismiss notice"
             >
               <X size={15} />
             </button>
           </div>
         )}
 
-        {/* Desktop View (≥1025px) */}
         <div className="bookings-desktop-content">
           <h1 className="bookings-header-title">My Bookings</h1>
           <div className="bookings-content-grid">
-            {/* =========================================================
-                Left Column — Trip Selector Panel (Figma 402:15 & 422:298)
-               ========================================================= */}
             <div className="bookings-trip-selector-card">
-              {/* Search Input Box */}
               <div className="bookings-search-container">
                 <div className="bookings-search-input-box">
                   <img src={magnifierIcon} alt="Search" className="w-4 h-4 opacity-50" />
@@ -657,7 +585,6 @@ export default function Bookings() {
                   Loading trips...
                 </div>
               ) : trips.length === 0 ? (
-                /* Empty State (Figma Frame 402:15) */
                 <div className="bookings-empty-selector">
                   <h3 className="bookings-empty-title">No trips yet?</h3>
                   <p className="bookings-empty-desc">
@@ -688,7 +615,6 @@ export default function Bookings() {
                   <p>No trips match "{searchQuery}"</p>
                 </div>
               ) : (
-                /* Populated Trip Rows List (Figma Frame 422:298) */
                 <div className="bookings-trips-list">
                   {filteredTrips.map((t) => {
                     const isSelected = selectedTrip?.id === t.id;
@@ -696,7 +622,6 @@ export default function Bookings() {
                       t.startDate && t.endDate
                         ? `${formatDateOnly(t.startDate)} - ${formatDateOnly(t.endDate)}`
                         : 'Flexible Dates';
-
                     const nightsCount = t.nights > 0 ? t.nights : 1;
 
                     return (
@@ -723,9 +648,6 @@ export default function Bookings() {
               )}
             </div>
 
-            {/* =========================================================
-                Right Column — Bookings Ledger Table (Figma 402:15 & 422:298)
-               ========================================================= */}
             <div className="bookings-ledger-card">
               {selectedTrip ? (
                 <>
@@ -833,7 +755,6 @@ export default function Bookings() {
           </div>
         </div>
 
-        {/* Mobile & Tablet View (≤1024px) - Figma Node 23:5 */}
         <div className="bookings-mobile-content">
           <div className="bookings-mobile-header-section">
             <div className="flex items-center justify-between">
@@ -855,7 +776,6 @@ export default function Bookings() {
             </div>
           </div>
 
-          {/* Search Box */}
           <div className="bookings-mobile-search-box">
             <img src={magnifierIcon} alt="Search" className="w-4 h-4 opacity-50" />
             <input
@@ -877,7 +797,6 @@ export default function Bookings() {
             )}
           </div>
 
-          {/* Filter Pills */}
           <div className="bookings-mobile-filter-tabs">
             <button
               type="button"
@@ -902,7 +821,6 @@ export default function Bookings() {
             </button>
           </div>
 
-          {/* Cards List / Responsive Grid */}
           {loading ? (
             <div className="bookings-mobile-loading">Loading bookings...</div>
           ) : filteredTripsByTab.length === 0 ? (
@@ -998,7 +916,6 @@ export default function Bookings() {
             </div>
           )}
 
-          {/* Schedule Overview Component (Figma Frame 23:67) */}
           <div className="bookings-schedule-overview-card">
             <div className="bookings-schedule-header">
               <h3 className="bookings-schedule-title">Schedule Overview</h3>
@@ -1019,14 +936,12 @@ export default function Bookings() {
         </div>
       </div>
 
-      {/* Create Trip Modal */}
       <CreateTripModal
         isOpen={isCreateTripModalOpen}
         onClose={() => setIsCreateTripModalOpen(false)}
         onTripCreated={handleTripCreated}
       />
 
-      {/* Book Activity Modal */}
       {isBookActivityOpen && selectedTrip && (
         <div className="modal-overlay">
           <button

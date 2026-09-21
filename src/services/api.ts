@@ -50,10 +50,6 @@ const api = axios.create({
   },
 });
 
-/* ------------------------------------------------------------------ */
-/*  Request & Response Interceptors                                   */
-/* ------------------------------------------------------------------ */
-
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     if (typeof window !== 'undefined') {
@@ -71,10 +67,6 @@ api.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError) => Promise.reject(error),
 );
-
-/* ------------------------------------------------------------------ */
-/*  Auth API Module                                                   */
-/* ------------------------------------------------------------------ */
 
 const realAuthApi = {
   register: async (payload: RegisterPayload): Promise<AuthResponse> => {
@@ -96,8 +88,25 @@ const realAuthApi = {
     const response = await api.get<MeResponse>('/auth/me');
     return response.data;
   },
-};
 
+  forgotPassword: async (
+    email: string,
+  ): Promise<{ message: string; devResetUrl?: string }> => {
+    const response = await api.post<{ message: string; devResetUrl?: string }>(
+      '/auth/forgot-password',
+      { email },
+    );
+    return response.data;
+  },
+
+  resetPassword: async (payload: {
+    token: string;
+    password: string;
+  }): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>('/auth/reset-password', payload);
+    return response.data;
+  },
+};
 const useMockAuth = import.meta.env.VITE_USE_MOCK_AUTH === 'true';
 
 if (useMockAuth) {
@@ -108,10 +117,6 @@ if (useMockAuth) {
 
 export const authApi = useMockAuth ? mockAuthApi : realAuthApi;
 
-/* ------------------------------------------------------------------ */
-/*  Trips API Module                                                  */
-/* ------------------------------------------------------------------ */
-/** Map a raw backend trip to the frontend Trip shape. */
 function mapTripFromApi(raw: TripApiResponse): Trip {
   return {
     id: raw.id,
@@ -120,6 +125,8 @@ function mapTripFromApi(raw: TripApiResponse): Trip {
     endDate: raw.end_date ? raw.end_date.split(/[T ]/)[0] : '',
     totalBudget: raw.total_budget ?? 0,
     status: raw.status ? (raw.status.toLowerCase() as TripStatus) : 'planning',
+    cover_photo: raw.cover_photo,
+    visibility: raw.visibility || 'private',
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
     countries: [],
@@ -129,19 +136,14 @@ function mapTripFromApi(raw: TripApiResponse): Trip {
 }
 
 export const tripsApi = {
-  /** GET /trips — returns all trips for the authenticated user. */
   getTrips: async (): Promise<Trip[]> => {
     const response = await api.get<{ trips: TripApiResponse[] }>('/trips');
     return response.data.trips.map(mapTripFromApi);
   },
-
-  /** GET /trips/:id — returns a single trip. */
   getTrip: async (id: string | number): Promise<Trip> => {
     const response = await api.get<{ trip: TripApiResponse }>(`/trips/${id}`);
     return mapTripFromApi(response.data.trip);
   },
-
-  /** POST /trips — create a new trip. */
   createTrip: async (payload: TripApiPayload): Promise<Trip> => {
     const response = await api.post<{ message: string; trip: TripApiResponse }>(
       '/trips',
@@ -149,8 +151,6 @@ export const tripsApi = {
     );
     return mapTripFromApi(response.data.trip);
   },
-
-  /** PUT /trips/:id — update an existing trip. */
   updateTrip: async (id: string | number, payload: TripApiPayload): Promise<Trip> => {
     const response = await api.put<{ message: string; trip: TripApiResponse }>(
       `/trips/${id}`,
@@ -158,35 +158,25 @@ export const tripsApi = {
     );
     return mapTripFromApi(response.data.trip);
   },
-
-  /** DELETE /trips/:id — delete a trip. */
   deleteTrip: async (id: string | number): Promise<{ message: string }> => {
     const response = await api.delete<{ message: string }>(`/trips/${id}`);
     return response.data;
   },
 };
 
-/* ------------------------------------------------------------------ */
-/*  Destinations & Categories API Modules                             */
-/* ------------------------------------------------------------------ */
-
 export const destinationsApi = {
-  /** GET /destinations — returns master destinations with coordinates. */
   getAll: async (): Promise<Destination[]> => {
     try {
       const response = await api.get<{ destinations?: Destination[] } | Destination[]>(
         '/destinations',
       );
-      if (Array.isArray(response.data)) {
-        return response.data;
-      }
-      return response.data.destinations || [];
+      return Array.isArray(response.data)
+        ? response.data
+        : response.data.destinations || [];
     } catch {
       return [];
     }
   },
-
-  /** GET /destinations/:id — returns single destination details. */
   getById: async (id: string | number): Promise<Destination | null> => {
     try {
       const response = await api.get<{ destination: Destination }>(`/destinations/${id}`);
@@ -195,38 +185,33 @@ export const destinationsApi = {
       return null;
     }
   },
-
-  /** GET /destinations?trip_id=:tripId — returns destinations for a specific trip. */
   getByTripId: async (tripId: string | number): Promise<Destination[]> => {
     try {
       const response = await api.get<{ destinations?: Destination[] } | Destination[]>(
         '/destinations',
         { params: { trip_id: tripId } },
       );
-      if (Array.isArray(response.data)) {
-        return response.data;
-      }
-      return response.data.destinations || [];
+      return Array.isArray(response.data)
+        ? response.data
+        : response.data.destinations || [];
     } catch {
       return [];
     }
   },
-
-  /** GET /categories — returns master travel categories/tags. */
   getCategories: async (): Promise<Category[]> => {
     try {
       const response = await api.get<{ categories?: Category[] } | Category[]>(
         '/categories',
       );
-      if (Array.isArray(response.data)) {
-        return response.data;
-      }
-      return response.data.categories || [];
+      return Array.isArray(response.data)
+        ? response.data
+        : response.data.categories || [];
     } catch {
       return [];
     }
   },
 };
+
 export interface ExpenseApiResponse {
   id: number | string;
   trip_id?: number | string;
@@ -244,13 +229,10 @@ export interface BudgetApiResponse {
 }
 
 export const budgetApi = {
-  /** GET /trips/:tripId/budget — get trip balance and expense items */
   getBudget: async (tripId: string | number): Promise<BudgetApiResponse> => {
     const response = await api.get<BudgetApiResponse>(`/trips/${tripId}/budget`);
     return response.data;
   },
-
-  /** POST /trips/:tripId/budget/balance — add balance to trip total_budget */
   addBalance: async (
     tripId: string | number,
     amount: number,
@@ -261,8 +243,6 @@ export const budgetApi = {
     );
     return response.data;
   },
-
-  /** POST /trips/:tripId/budget/expenses — add expense item and deduct from budget */
   addExpense: async (
     tripId: string | number,
     payload: {
@@ -280,8 +260,6 @@ export const budgetApi = {
     }>(`/trips/${tripId}/budget/expenses`, payload);
     return response.data;
   },
-
-  /** DELETE /trips/:tripId/budget/expenses/:expenseId — delete expense item and refund to budget */
   deleteExpense: async (
     tripId: string | number,
     expenseId: string | number,
@@ -293,12 +271,7 @@ export const budgetApi = {
   },
 };
 
-/* ------------------------------------------------------------------ */
-/*  Activities API Module                                             */
-/* ------------------------------------------------------------------ */
-
 export const activitiesApi = {
-  /** GET /activities — returns bookable activities catalog */
   getAll: async (params?: {
     destination_id?: number | string;
     category_id?: number | string;
@@ -309,16 +282,13 @@ export const activitiesApi = {
         '/activities',
         { params },
       );
-      if (Array.isArray(response.data)) {
-        return response.data;
-      }
-      return response.data.activities || [];
+      return Array.isArray(response.data)
+        ? response.data
+        : response.data.activities || [];
     } catch {
       return [];
     }
   },
-
-  /** GET /activities/:id — returns a single activity */
   getById: async (id: number | string): Promise<Activity | null> => {
     try {
       const response = await api.get<{ activity: Activity }>(`/activities/${id}`);
@@ -329,23 +299,13 @@ export const activitiesApi = {
   },
 };
 
-/* ------------------------------------------------------------------ */
-/*  Bookings API Module                                               */
-/* ------------------------------------------------------------------ */
-
 export const bookingsApi = {
-  /** GET /bookings?status= — returns user's bookings */
   getAll: async (status?: BookingStatus): Promise<Booking[]> => {
     const response = await api.get<{ bookings?: Booking[] } | Booking[]>('/bookings', {
       params: status ? { status } : undefined,
     });
-    if (Array.isArray(response.data)) {
-      return response.data;
-    }
-    return response.data.bookings || [];
+    return Array.isArray(response.data) ? response.data : response.data.bookings || [];
   },
-
-  /** POST /bookings — submit a new booking */
   create: async (payload: BookingCreatePayload): Promise<Booking> => {
     const response = await api.post<{ message: string; booking: Booking }>(
       '/bookings',
@@ -353,8 +313,6 @@ export const bookingsApi = {
     );
     return response.data.booking;
   },
-
-  /** PUT /bookings/:id — update booking status */
   updateStatus: async (id: number | string, status: BookingStatus): Promise<Booking> => {
     const response = await api.put<{ message: string; booking: Booking }>(
       `/bookings/${id}`,
@@ -363,10 +321,6 @@ export const bookingsApi = {
     return response.data.booking;
   },
 };
-
-/* ------------------------------------------------------------------ */
-/*  Admin Dashboard API                                               */
-/* ------------------------------------------------------------------ */
 
 export interface AdminUser {
   id: number;
@@ -407,19 +361,18 @@ export interface SystemAuditLog {
 }
 
 export const adminApi = {
-  // Systems Report Analytics (FR-ADM-03) — Blocked: no dedicated backend reports route
   getReports: async () => {
-    return null;
+    try {
+      const res = await api.get('/admin/reports');
+      return res.data.metrics;
+    } catch {
+      return null;
+    }
   },
-
-  // User Management (FR-ADM-01) — Real routes: GET /users, PUT /users/:id
   getUsers: async (): Promise<AdminUser[]> => {
     try {
       const res = await api.get<{ users: AdminUser[] } | AdminUser[]>('/users');
-      if (Array.isArray(res.data)) {
-        return res.data;
-      }
-      return res.data.users || [];
+      return Array.isArray(res.data) ? res.data : res.data.users || [];
     } catch {
       return [];
     }
@@ -430,8 +383,6 @@ export const adminApi = {
     });
     return res.data;
   },
-
-  // Categories & Activities (FR-ADM-02) — Real routes: GET/POST /categories, GET/POST /activities
   getCategories: async (): Promise<AdminCategory[]> => {
     try {
       const res = await api.get<{ categories: AdminCategory[] } | AdminCategory[]>(
@@ -460,10 +411,7 @@ export const adminApi = {
       const res = await api.get<{ activities: AdminActivity[] } | AdminActivity[]>(
         '/activities',
       );
-      if (Array.isArray(res.data)) {
-        return res.data;
-      }
-      return res.data.activities || [];
+      return Array.isArray(res.data) ? res.data : res.data.activities || [];
     } catch {
       return [];
     }
@@ -483,15 +431,10 @@ export const adminApi = {
     );
     return res.data;
   },
-
-  // Master Override & Audit Logs (FR-ADM-05) — Real routes: GET /logs, DELETE /trips/:id
   getAuditLogs: async (): Promise<SystemAuditLog[]> => {
     try {
       const res = await api.get<{ logs: SystemAuditLog[] } | SystemAuditLog[]>('/logs');
-      if (Array.isArray(res.data)) {
-        return res.data;
-      }
-      return res.data.logs || [];
+      return Array.isArray(res.data) ? res.data : res.data.logs || [];
     } catch {
       return [];
     }
@@ -504,23 +447,27 @@ export const adminApi = {
   },
 };
 
-/* ------------------------------------------------------------------ */
-/*  User Profile API Module                                           */
-/* ------------------------------------------------------------------ */
-
 export interface UpdateUserProfilePayload {
   name?: string;
   full_name?: string;
   username?: string;
   bio?: string;
+  avatar_url?: string;
   password?: string;
   is_active?: boolean;
   role?: string;
   preferences?: UserPreferences;
 }
+export interface PublicProfileResponse {
+  id: number;
+  full_name: string;
+  username: string;
+  bio?: string;
+  avatar_url?: string;
+  trips?: Trip[];
+}
 
 export const userApi = {
-  /** PUT /users/:id — update user profile / status / credentials */
   updateProfile: async (
     userId: number | string,
     payload: UpdateUserProfilePayload,
@@ -530,6 +477,24 @@ export const userApi = {
       payload,
     );
     return res.data;
+  },
+  searchUsers: async (
+    query: string,
+  ): Promise<{ id: number; full_name: string; username: string }[]> => {
+    try {
+      const res = await api.get('/users/search', { params: { q: query } });
+      return Array.isArray(res.data) ? res.data : res.data.users || [];
+    } catch {
+      return [];
+    }
+  },
+  getUserByUsername: async (username: string): Promise<PublicProfileResponse | null> => {
+    try {
+      const res = await api.get<PublicProfileResponse>(`/users/profile/${username}`);
+      return res.data;
+    } catch {
+      return null;
+    }
   },
 };
 
@@ -807,6 +772,34 @@ export const journalsApi = {
         }
       }
     }
+  },
+};
+
+/**
+ * Stopgap Frontend Packing API since backend routes for packing lists don't exist yet.
+ */
+export interface PackingItem {
+  id: string;
+  name: string;
+  category: string;
+  isPacked: boolean;
+  quantity: number;
+}
+
+export const packingApi = {
+  getPackingList: async (tripId: string | number): Promise<PackingItem[]> => {
+    try {
+      const data = localStorage.getItem(`lakbye_packing_${tripId}`);
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  },
+  savePackingList: async (
+    tripId: string | number,
+    list: PackingItem[],
+  ): Promise<void> => {
+    localStorage.setItem(`lakbye_packing_${tripId}`, JSON.stringify(list));
   },
 };
 

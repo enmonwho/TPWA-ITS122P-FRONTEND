@@ -4,9 +4,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 import AuthLayout from '../components/AuthLayout';
-import { ROUTES } from '../lib/constants';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoader } from '../context/PageLoaderContext';
+import { ROUTES } from '../lib/constants';
 
 export default function SignUp() {
   const [firstName, setFirstName] = useState('');
@@ -18,6 +18,12 @@ export default function SignUp() {
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [generalError, setGeneralError] = useState('');
+
+  const isFormValid =
+    firstName.trim() !== '' &&
+    lastName.trim() !== '' &&
+    email.trim() !== '' &&
+    password.trim() !== '';
 
   const { register } = useAuth();
   const { triggerTransition } = usePageLoader();
@@ -155,7 +161,7 @@ export default function SignUp() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"></path>
                 <circle cx="12" cy="12" r="3"></circle>
               </svg>
             ) : (
@@ -182,7 +188,11 @@ export default function SignUp() {
         )}
 
         <div className="auth-submit-container animate-fade-in-up delay-150">
-          <button type="submit" className="auth-submit" disabled={isLoading}>
+          <button
+            type="submit"
+            disabled={!isFormValid || isLoading}
+            className={`auth-submit ${!isFormValid || isLoading ? 'opacity-50 cursor-not-allowed !bg-gray-400' : ''}`}
+          >
             {isLoading ? 'Creating Account...' : 'Create Account'}
           </button>
         </div>

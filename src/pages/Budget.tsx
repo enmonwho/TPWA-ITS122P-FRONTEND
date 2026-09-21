@@ -15,7 +15,6 @@ import {
   formatCurrency,
 } from '../lib/currency';
 
-// Figma Icons downloaded directly from Node 578:10
 import bedIcon from '../assets/budget/bed.png';
 import busIcon from '../assets/budget/bus.png';
 import activityIcon from '../assets/budget/activity.png';
@@ -43,7 +42,6 @@ interface CategoryConfig {
   icon: string;
 }
 
-// Categories ordered and colored exactly as specified in Figma node 578:10
 const BUDGET_CATEGORIES: CategoryConfig[] = [
   { name: 'Accomodation', color: '#C5283D', icon: bedIcon },
   { name: 'Transport', color: '#E9724C', icon: busIcon },
@@ -57,7 +55,7 @@ function getCategoryConfig(catName: string): CategoryConfig {
   const found = BUDGET_CATEGORIES.find(
     (c) => c.name.toLowerCase().replace(/m+/, 'm') === norm,
   );
-  return found || BUDGET_CATEGORIES[4]; // Default to Other
+  return found || BUDGET_CATEGORIES[4];
 }
 
 function getDonutFontSize(len: number): string {
@@ -79,16 +77,14 @@ export function Budget() {
       const stored = localStorage.getItem(budgetKey);
       if (stored) return JSON.parse(stored) as BudgetData;
     } catch {
-      // Corrupted data — fallback to defaults
+      /* ignore error */
     }
     return { balance: 0, expenses: [] };
   });
 
-  // Modal States
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [isAddBalanceOpen, setIsAddBalanceOpen] = useState(false);
 
-  // Currency & Exchange Rate State (Display-Layer Only)
   const [displayCurrency, setDisplayCurrency] = useState<string>(() => {
     if (tripId) {
       const savedTripCurrency = localStorage.getItem(`lakbye_display_currency_${tripId}`);
@@ -102,11 +98,12 @@ export function Budget() {
           if (prefs.currency) return prefs.currency;
         }
       } catch {
-        // ignore
+        /* ignore error */
       }
     }
     return 'PHP';
   });
+
   const [fxRates, setFxRates] = useState<Record<string, number>>({
     PHP: 1,
     USD: 0.0175,
@@ -117,9 +114,6 @@ export function Budget() {
   const [isFxStale, setIsFxStale] = useState(false);
   const [fxDate, setFxDate] = useState('');
 
-  // Live exchange rates from Frankfurter API (cached daily in localStorage)
-
-  // Fetch live exchange rates from Frankfurter API (cached daily)
   useEffect(() => {
     let cancelled = false;
     fetchExchangeRates('PHP')
@@ -130,9 +124,7 @@ export function Budget() {
           setFxDate(res.date);
         }
       })
-      .catch((err) => {
-        console.warn('Failed to fetch exchange rates:', err);
-      });
+      .catch((err) => console.warn('Failed to fetch exchange rates:', err));
     return () => {
       cancelled = true;
     };
@@ -145,7 +137,6 @@ export function Budget() {
     }
   };
 
-  // Form Inputs
   const [expenseName, setExpenseName] = useState('');
   const [expenseItemRows, setExpenseItemRows] = useState<
     { name: string; quantity: string }[]
@@ -173,7 +164,6 @@ export function Budget() {
     );
   };
 
-  // Fetch trip details & backend budget data
   useEffect(() => {
     if (!user || !tripId) return;
 
@@ -185,10 +175,8 @@ export function Budget() {
         if (!cancelled) {
           setTrip(mergeTripWithExtras(apiTrip));
         }
-      } catch (err) {
-        if (!cancelled) {
-          console.error('Failed to fetch trip for budget:', err);
-        }
+      } catch {
+        /* ignore error */
       }
 
       try {
@@ -210,24 +198,17 @@ export function Budget() {
           setBudget(loadedBudget);
           localStorage.setItem(budgetKey, JSON.stringify(loadedBudget));
         }
-      } catch (err) {
-        if (!cancelled) {
-          console.warn(
-            'Backend budget fetch failed or not yet initialized, using local fallback:',
-            err,
-          );
-        }
+      } catch {
+        /* ignore error */
       }
     };
 
     fetchData();
-
     return () => {
       cancelled = true;
     };
   }, [user, tripId, budgetKey]);
 
-  // Close modals on Escape key
   useEffect(() => {
     if (!isAddExpenseOpen && !isAddBalanceOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -250,7 +231,6 @@ export function Budget() {
     const enteredAmount = parseFloat(balanceInput);
     if (isNaN(enteredAmount) || enteredAmount <= 0) return;
 
-    // Convert from display currency back to canonical base PHP for ledger storage
     const amountInPhp =
       displayCurrency === 'PHP'
         ? enteredAmount
@@ -276,8 +256,8 @@ export function Budget() {
             return reconciled;
           });
         }
-      } catch (err) {
-        console.warn('Backend addBalance failed, kept local state:', err);
+      } catch {
+        /* ignore error */
       }
     }
   };
@@ -288,7 +268,6 @@ export function Budget() {
     const enteredCost = parseFloat(expenseCost);
     if (isNaN(enteredCost) || enteredCost <= 0) return;
 
-    // Convert from display currency back to canonical base PHP for ledger storage
     const costInPhp =
       displayCurrency === 'PHP'
         ? enteredCost
@@ -353,8 +332,8 @@ export function Budget() {
             return reconciled;
           });
         }
-      } catch (err) {
-        console.warn('Backend addExpense failed, kept local state:', err);
+      } catch {
+        /* ignore error */
       }
     }
   };
@@ -379,13 +358,12 @@ export function Budget() {
             return reconciled;
           });
         }
-      } catch (err) {
-        console.warn('Backend deleteExpense failed, kept local state:', err);
+      } catch {
+        /* ignore error */
       }
     }
   };
 
-  // Calculate totals per category for donut chart
   const categoryTotals = BUDGET_CATEGORIES.map((cat) => {
     const val = budget.expenses
       .filter((e) => {
@@ -393,7 +371,7 @@ export function Budget() {
         const normCat = cat.name.toLowerCase().replace(/m+/, 'm');
         return normExp === normCat;
       })
-      .reduce((sum, e) => sum + e.cost, 0);
+      .reduce((sum, e) => sum + Number(e.cost), 0);
 
     return {
       name: cat.name,
@@ -402,14 +380,13 @@ export function Budget() {
     };
   }).filter((c) => c.value > 0);
 
-  const totalSpentPhp = budget.expenses.reduce((sum, e) => sum + e.cost, 0);
+  const totalSpentPhp = budget.expenses.reduce((sum, e) => sum + Number(e.cost), 0);
   const convertedTotalSpent = convert(totalSpentPhp, 'PHP', displayCurrency, fxRates);
   const formattedSpent = formatCurrency(convertedTotalSpent, displayCurrency);
 
   const convertedBalance = convert(budget.balance, 'PHP', displayCurrency, fxRates);
   const currentSymbol = getCurrencySymbol(displayCurrency);
 
-  // If no expenses, show light gray placeholder circle
   const chartData =
     categoryTotals.length > 0
       ? categoryTotals
@@ -430,7 +407,6 @@ export function Budget() {
 
   return (
     <div className="workspace-page">
-      {/* Top Header Card (Reusing Planner/Settings shell) */}
       <header className="workspace-header-card animate-slide-up">
         <h1 className="workspace-trip-title">{trip.name}</h1>
         <div className="workspace-header-actions">
@@ -440,27 +416,31 @@ export function Budget() {
         </div>
       </header>
 
-      {/* Main Budget Card — Exact Figma Structure */}
       <div className="budget-main-card animate-slide-up delay-150">
-        {/* ================================================================ */}
-        {/* LEFT ZONE: Budget Analytics & Categories (327px)                 */}
-        {/* ================================================================ */}
         <div className="budget-left-zone">
           <div className="budget-left-header">
             <h2 className="budget-title">Budget</h2>
             <div
               className="budget-currency-pill"
-              title={`Display Currency: ${displayCurrency}. Rates updated: ${fxDate || 'today'}${isFxStale ? ' (Offline / cached rates)' : ''}`}
+              title={`Display Currency: ${displayCurrency}. Rates updated: ${fxDate || 'today'}`}
+              style={{ position: 'relative', overflow: 'hidden' }}
             >
               <label htmlFor="budget-currency-select-id" className="sr-only">
                 Display Currency
               </label>
               <select
                 id="budget-currency-select-id"
-                aria-label="Select display currency"
                 value={displayCurrency}
                 onChange={(e) => handleCurrencyChange(e.target.value)}
                 className="budget-currency-select"
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  opacity: 0,
+                  cursor: 'pointer',
+                  width: '100%',
+                  height: '100%',
+                }}
               >
                 {SUPPORTED_CURRENCIES.map((c) => (
                   <option
@@ -472,24 +452,20 @@ export function Budget() {
                   </option>
                 ))}
               </select>
+              <span style={{ pointerEvents: 'none' }}>{displayCurrency}</span>
               <img
                 src={arrowDownIcon}
                 alt=""
                 className="budget-currency-arrow"
                 aria-hidden="true"
+                style={{ pointerEvents: 'none' }}
               />
             </div>
             {isFxStale && (
-              <span
-                className="budget-currency-stale-badge"
-                title={`Exchange rates are cached from ${fxDate} (ECB Frankfurter rates).`}
-              >
-                Cached ({fxDate})
-              </span>
+              <span className="budget-currency-stale-badge">Cached ({fxDate})</span>
             )}
           </div>
 
-          {/* Donut Chart with Animated Sweep & Centered Total Expenses */}
           <div className="budget-donut-container">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -528,10 +504,8 @@ export function Budget() {
             </div>
           </div>
 
-          {/* By Category Subtitle */}
           <div className="budget-category-header">BY CATEGORY</div>
 
-          {/* Category Badges (Pills) */}
           <div className="budget-category-list">
             {BUDGET_CATEGORIES.map((cat) => (
               <div
@@ -546,14 +520,9 @@ export function Budget() {
           </div>
         </div>
 
-        {/* Vertical Divider */}
         <div className="budget-vertical-divider" />
 
-        {/* ================================================================ */}
-        {/* RIGHT ZONE: Hero Balance & Expenses Table                        */}
-        {/* ================================================================ */}
         <div className="budget-right-zone">
-          {/* Centered Balance Hero Section */}
           <div className="budget-hero-section">
             <div className="budget-balance-amount">
               {formatCurrency(convertedBalance, displayCurrency)}
@@ -578,7 +547,6 @@ export function Budget() {
             )}
             <div className="budget-balance-label">YOUR BALANCE</div>
 
-            {/* Action Buttons: Add Expense & Add Balance */}
             <div className="budget-action-buttons">
               <button
                 type="button"
@@ -600,7 +568,6 @@ export function Budget() {
             </div>
           </div>
 
-          {/* Expenses Table */}
           <div className="budget-table">
             <div className="budget-table-header">
               <div>Name</div>
@@ -682,9 +649,6 @@ export function Budget() {
         </div>
       </div>
 
-      {/* ================================================================ */}
-      {/* MODAL: Add Expense (Exact Figma Node 537:285)                     */}
-      {/* ================================================================ */}
       {isAddExpenseOpen && (
         <div
           className="budget-modal-overlay"
@@ -709,7 +673,6 @@ export function Budget() {
               onSubmit={handleAddExpenseSubmit}
               style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
             >
-              {/* Section 1: Where did you spend? */}
               <div>
                 <label
                   htmlFor="modal-expense-vendor"
@@ -728,7 +691,6 @@ export function Budget() {
                 />
               </div>
 
-              {/* Section 2: Items spent on */}
               <div>
                 <span className="budget-modal-section-title">Items spent on</span>
                 <div className="budget-modal-items-list">
@@ -809,30 +771,13 @@ export function Budget() {
                         onChange={(e) => setExpenseCost(e.target.value)}
                       />
                     </div>
-                    {displayCurrency !== 'PHP' && parseFloat(expenseCost) > 0 && (
-                      <span className="budget-modal-conversion-hint">
-                        ≈ ₱
-                        {convert(
-                          parseFloat(expenseCost),
-                          displayCurrency,
-                          'PHP',
-                          fxRates,
-                        ).toLocaleString('en-US', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}{' '}
-                        stored in base PHP
-                      </span>
-                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Section 3: Category */}
               <div>
                 <span className="budget-modal-section-title">Category</span>
                 <div className="budget-modal-cat-grid">
-                  {/* Row 1: Accomodation, Transportation, Activities */}
                   <div className="budget-modal-cat-row">
                     <button
                       type="button"
@@ -871,8 +816,6 @@ export function Budget() {
                       Activities
                     </button>
                   </div>
-
-                  {/* Row 2: Eat & Drink, Other */}
                   <div className="budget-modal-cat-row">
                     <button
                       type="button"
@@ -902,7 +845,6 @@ export function Budget() {
                 </div>
               </div>
 
-              {/* Submit Button */}
               <button type="submit" className="budget-modal-primary-btn">
                 Add Expense
               </button>
@@ -911,9 +853,6 @@ export function Budget() {
         </div>
       )}
 
-      {/* ================================================================ */}
-      {/* MODAL: Add Balance (Exact Figma Node 537:465)                     */}
-      {/* ================================================================ */}
       {isAddBalanceOpen && (
         <div
           className="budget-modal-overlay"
@@ -979,24 +918,6 @@ export function Budget() {
                   value={balanceInput}
                   onChange={(e) => setBalanceInput(e.target.value)}
                 />
-                {displayCurrency !== 'PHP' && parseFloat(balanceInput) > 0 && (
-                  <span
-                    className="budget-modal-conversion-hint"
-                    style={{ textAlign: 'center', marginTop: '6px' }}
-                  >
-                    ≈ ₱
-                    {convert(
-                      parseFloat(balanceInput),
-                      displayCurrency,
-                      'PHP',
-                      fxRates,
-                    ).toLocaleString('en-US', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}{' '}
-                    will be added to your canonical base balance
-                  </span>
-                )}
                 <span className="budget-balance-helper">
                   Any additional balance entered will be automatically added to your
                   current total balance.

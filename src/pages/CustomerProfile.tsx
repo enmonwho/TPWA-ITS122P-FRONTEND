@@ -73,6 +73,10 @@ export default function CustomerProfile() {
     ? `@${user.username}`
     : user?.full_name || 'Traveler';
   const fullName = user?.full_name || 'Traveler';
+  const avatarUrl =
+    user && 'avatar_url' in user
+      ? (user as { avatar_url?: string }).avatar_url
+      : undefined;
 
   // Compute initials for the avatar circle
   const initials = (user?.full_name || user?.username || 'Traveler')
@@ -151,7 +155,7 @@ export default function CustomerProfile() {
 
   return (
     <div className="customer-profile-page">
-      {/* Top Back Navigation (Figma #691:49) */}
+      {/* Top Back Navigation */}
       <button
         type="button"
         className="customer-profile-back-nav"
@@ -169,9 +173,28 @@ export default function CustomerProfile() {
       <div className="customer-profile-grid">
         {/* Left Column: Profile Card, CTA, & Journals */}
         <div className="customer-profile-left-col">
-          {/* Profile Card (#590:191) */}
+          {/* Profile Card */}
           <div className="customer-profile-card">
-            <div className="customer-profile-avatar-circle">{initials}</div>
+            <div
+              className="customer-profile-avatar-circle"
+              style={{
+                overflow: 'hidden',
+                display: 'flex',
+                padding: 0,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={fullName}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                initials
+              )}
+            </div>
             <h1 className="customer-profile-user-name">{displayName}</h1>
             {user?.username && user?.full_name && (
               <p className="customer-profile-user-fullname">{user.full_name}</p>
@@ -184,7 +207,7 @@ export default function CustomerProfile() {
                 <div className="customer-profile-stat-label">Trips</div>
               </div>
 
-              {/* Divider Line (#590:189) */}
+              {/* Divider Line */}
               <div className="customer-profile-stats-divider"></div>
 
               {/* Journal Entry */}
@@ -197,7 +220,7 @@ export default function CustomerProfile() {
             </div>
           </div>
 
-          {/* "Create a Journal Entry" Gradient CTA (#590:201) */}
+          {/* "Create a Journal Entry" Gradient CTA */}
           <button
             type="button"
             className="customer-profile-create-journal-btn"
@@ -207,16 +230,15 @@ export default function CustomerProfile() {
             <span>Create a Journal Entry</span>
           </button>
 
-          {/* Journal Section (#691:64) */}
+          {/* Journal Section */}
           <div className="customer-profile-journal-section">
             <h2 className="customer-profile-journal-title">
               {user?.username ? `@${user.username}` : fullName}’s Journal
             </h2>
 
-            {/* Journal Card Container (#691:74) */}
+            {/* Journal Card Container */}
             <div className="customer-profile-journal-card">
               {journals.length === 0 ? (
-                /* Empty State (#590:330, #590:331) */
                 <div className="customer-profile-journal-empty">
                   <div className="customer-profile-journal-empty-main">
                     No journal entries published yet
@@ -226,7 +248,6 @@ export default function CustomerProfile() {
                   </div>
                 </div>
               ) : (
-                /* Populated Journal List */
                 <div className="customer-profile-journal-list">
                   {journals.map((j) => (
                     <div key={j.id} className="customer-profile-journal-item">
@@ -250,7 +271,7 @@ export default function CustomerProfile() {
           </div>
         </div>
 
-        {/* Right Column: Interactive Map Card (#590:208) */}
+        {/* Right Column: Interactive Map Card */}
         <div className="customer-profile-map-card">
           {/* 3D Mapbox Globe Container */}
           <div className="customer-profile-globe-container">
@@ -268,7 +289,7 @@ export default function CustomerProfile() {
               </p>
             </div>
 
-            {/* Explore Button Pill (#590:196) */}
+            {/* Explore Button Pill */}
             <Link to="/dashboard/map" className="customer-profile-map-explore-btn">
               <span>Explore</span>
               <ChevronDown size={11} strokeWidth={2.5} />

@@ -1,13 +1,6 @@
 import { STORAGE_KEYS } from './constants';
 import type { Trip } from '../types/trip';
 
-/**
- * Local-only trip metadata that the backend doesn't store yet.
- *
- * ⚠️ STOPGAP: This data lives exclusively in localStorage and is NOT
- * synced to the backend. It will be lost if the user clears browser
- * data or accesses the app from another device/browser.
- */
 export interface TripExtras {
   countries: string[];
   travelType: string;
@@ -15,7 +8,6 @@ export interface TripExtras {
 
 const DEFAULT_EXTRAS: TripExtras = { countries: [], travelType: '' };
 
-/** Read extras for a single trip from localStorage. */
 export function getTripExtras(tripId: string | number): TripExtras {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.TRIP_EXTRAS(tripId));
@@ -26,7 +18,6 @@ export function getTripExtras(tripId: string | number): TripExtras {
   return { ...DEFAULT_EXTRAS };
 }
 
-/** Write extras for a single trip to localStorage. */
 export function saveTripExtras(
   tripId: string | number,
   extras: Partial<TripExtras>,
@@ -36,23 +27,15 @@ export function saveTripExtras(
   localStorage.setItem(STORAGE_KEYS.TRIP_EXTRAS(tripId), JSON.stringify(merged));
 }
 
-/** Remove extras for a single trip from localStorage. */
 export function deleteTripExtras(tripId: string | number): void {
   localStorage.removeItem(STORAGE_KEYS.TRIP_EXTRAS(tripId));
 }
 
-/**
- * Strips time component from a date string, returning only 'YYYY-MM-DD'.
- * Handles ISO strings like "2026-09-22T00:00:00.000Z" -> "2026-09-22".
- */
 export function formatDateOnly(dateStr?: string | null): string {
   if (!dateStr) return '';
   return dateStr.split(/[T ]/)[0];
 }
 
-/**
- * Compute derived fields (nights, daysUntil) from a trip's dates.
- */
 function computeDerived(trip: { startDate: string; endDate: string }): {
   nights: number;
   daysUntil?: number;
@@ -79,9 +62,6 @@ function computeDerived(trip: { startDate: string; endDate: string }): {
   return { nights, daysUntil };
 }
 
-/**
- * Merge an array of API trips with their localStorage extras and derived fields.
- */
 export function mergeTripsWithExtras(trips: Trip[]): Trip[] {
   return trips.map((trip) => {
     const extras = getTripExtras(trip.id);
@@ -96,9 +76,6 @@ export function mergeTripsWithExtras(trips: Trip[]): Trip[] {
   });
 }
 
-/**
- * Merge a single API trip with its localStorage extras and derived fields.
- */
 export function mergeTripWithExtras(trip: Trip): Trip {
   return mergeTripsWithExtras([trip])[0];
 }

@@ -5,25 +5,24 @@ import sidebarPlanner from '../assets/sidebar-planner.png';
 import sidebarBudget from '../assets/sidebar-budget.png';
 import sidebarSettings from '../assets/sidebar-settings.png';
 import leftArrow from '../assets/left-arrow.png';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Backpack, Download } from 'lucide-react';
 
 export default function TripWorkspaceLayout() {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Parse out tripId to build relative active links
   const match = location.pathname.match(/\/trip\/([^/]+)/);
   const tripId = match ? match[1] : '';
 
   const navItems = [
     { name: 'Planner', path: `/trip/${tripId}`, icon: sidebarPlanner },
     { name: 'Budget', path: `/trip/${tripId}/budget`, icon: sidebarBudget },
+    { name: 'Packing', path: `/trip/${tripId}/packing`, isLucide: true, icon: Backpack },
     { name: 'Settings', path: `/trip/${tripId}/settings`, icon: sidebarSettings },
   ];
 
   return (
     <div className="workspace-layout-root">
-      {/* Mobile Header for Hamburger (Visible only < 768px) */}
       <div className="workspace-mobile-header">
         <button
           className="workspace-mobile-toggle"
@@ -38,7 +37,6 @@ export default function TripWorkspaceLayout() {
         <span className="workspace-mobile-title">LakBye Workspace</span>
       </div>
 
-      {/* Sidebar Overlay (Mobile) */}
       {isMobileMenuOpen && (
         <button
           type="button"
@@ -48,7 +46,6 @@ export default function TripWorkspaceLayout() {
         />
       )}
 
-      {/* Sidebar */}
       <aside className={`workspace-sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
         <div className="workspace-sidebar-top-divider"></div>
 
@@ -65,6 +62,8 @@ export default function TripWorkspaceLayout() {
         <nav className="workspace-nav">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
+            const IconComponent = item.isLucide ? (item.icon as React.ElementType) : null;
+
             return (
               <Link
                 key={item.name}
@@ -72,12 +71,26 @@ export default function TripWorkspaceLayout() {
                 className={`workspace-nav-item ${isActive ? 'active' : ''}`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                <img src={item.icon} alt={item.name} className="workspace-nav-icon" />
+                {IconComponent ? (
+                  <IconComponent size={22} color={isActive ? "var(--color-brand-red)" : "var(--color-dash-sidebar-text)"} style={{ marginRight: '16px' }} />
+                ) : (
+                  <img src={item.icon as string} alt={item.name} className="workspace-nav-icon" />
+                )}
                 <span className="workspace-nav-text">{item.name}</span>
               </Link>
             );
           })}
         </nav>
+
+        {/* Export PDF Button Docked at Bottom (#8) */}
+        <div style={{ marginTop: 'auto', padding: '0 24px', marginBottom: '24px' }}>
+           <button 
+             onClick={() => alert("PDF Export interface generating...")}
+             className="w-full flex items-center justify-center gap-2 py-3 bg-amber-50 text-amber-700 font-semibold rounded-xl border border-amber-200 hover:bg-amber-100 transition-colors"
+           >
+             <Download size={16} /> Export PDF
+           </button>
+        </div>
 
         <div className="workspace-sidebar-bottom-divider"></div>
 
@@ -86,7 +99,6 @@ export default function TripWorkspaceLayout() {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="workspace-main-content">
         <Outlet />
       </main>
