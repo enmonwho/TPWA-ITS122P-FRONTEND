@@ -44,12 +44,16 @@ export default function Dashboard() {
           setTrips(mergeTripsWithExtras(apiTrips));
           setLoading(false);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         if (!cancelled) {
-          const tripKey = `lakbye_local_trips_${user.id}`;
+          const tripKey = `lakbye_local_trips_${user?.id ?? 'guest'}`;
           const localSaved = localStorage.getItem(tripKey);
           if (localSaved) {
-            setTrips(JSON.parse(localSaved));
+            try {
+              setTrips(JSON.parse(localSaved));
+            } catch {
+              setTrips([]);
+            }
             setLoading(false);
           } else if (import.meta.env.VITE_USE_MOCK_AUTH === 'true') {
             const sampleTrips: Trip[] = [
@@ -60,12 +64,13 @@ export default function Dashboard() {
                 endDate: '2026-10-18',
                 totalBudget: 45000,
                 status: 'confirmed',
+                cover_photo: '',
+                visibility: 'public',
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 countries: ['Philippines'],
                 travelType: 'Solo',
                 nights: 6,
-                daysUntil: 26,
               },
             ];
             setTrips(sampleTrips);
@@ -89,11 +94,11 @@ export default function Dashboard() {
 
   const getDisplayStatus = (trip: Trip): string => {
     if (trip.status === 'cancelled') return 'past';
-    
+
     // Check strict date boundaries to accurately mark past trips (Fix #12)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     if (trip.endDate) {
       const end = new Date(trip.endDate);
       end.setHours(23, 59, 59, 999);
@@ -119,24 +124,27 @@ export default function Dashboard() {
   const countriesExplored = Array.from(
     new Set(trips.flatMap((t) => t.countries || [])),
   ).length;
-  
+
   const totalBookings = trips.length;
-  
+
   const nextTrip = trips
     .filter((t) => getDisplayStatus(t) === 'upcoming')
     .sort((a, b) => (a.daysUntil || 9999) - (b.daysUntil || 9999))[0];
-  
+
   // Actually aggregates spent items from budget local storage (Fix #10)
   const totalSpent = trips.reduce((sum, t) => {
     try {
       const stored = localStorage.getItem(`lakbye_budget_${t.id}`);
       if (stored) {
         const bd = JSON.parse(stored);
-        const spent = bd.expenses.reduce((s: number, e: { cost: string | number }) => s + (Number(e.cost) || 0), 0);
+        const spent = bd.expenses.reduce(
+          (s: number, e: { cost: string | number }) => s + (Number(e.cost) || 0),
+          0,
+        );
         return sum + spent;
       }
-    } catch(err) {
-      console.warn("Failed to parse budget for trip", t.id);
+    } catch {
+      console.warn('Failed to parse budget for trip', t.id);
     }
     return sum;
   }, 0);
@@ -169,25 +177,60 @@ export default function Dashboard() {
         <div className="dashboard-stats-row">
           <StatCard
             gradient="--gradient-stat-countries"
-            icon={<Globe size={175} strokeWidth={1} className="dash-stat-icon-countries" />}
+            icon={
+              <Globe size={175} strokeWidth={1} className="dash-stat-icon-countries" />
+            }
             value={countriesExplored > 0 ? countriesExplored.toString() : undefined}
-            title={countriesExplored === 0 ? <><br/>exploring</> : undefined}
+            title={
+              countriesExplored === 0 ? (
+                <>
+                  <br />
+                  exploring
+                </>
+              ) : undefined
+            }
             subtitle="Countries Explored"
           />
           <StatCard
             gradient="--gradient-stat-bookings"
-            icon={<Ticket size={148} strokeWidth={1} className="dash-stat-icon-bookings" />}
+            icon={
+              <Ticket size={148} strokeWidth={1} className="dash-stat-icon-bookings" />
+            }
             value={totalBookings > 0 ? totalBookings.toString() : undefined}
-            title={totalBookings === 0 ? <><br/>now</> : undefined}
+            title={
+              totalBookings === 0 ? (
+                <>
+                  <br />
+                  now
+                </>
+              ) : undefined
+            }
             subtitle="Bookings"
             iconButton={planNowIcon}
             onClick={() => navigate('/dashboard/bookings')} // Route corrected (Fix #14)
           />
           <StatCard
             gradient="--gradient-stat-countdown"
-            icon={<Hourglass size={148} strokeWidth={1} className="dash-stat-icon-countdown" />}
-            value={nextTrip?.daysUntil !== undefined ? nextTrip.daysUntil.toString() : undefined}
-            title={nextTrip?.daysUntil === undefined ? <><br/>scheduled</> : undefined}
+            icon={
+              <Hourglass
+                size={148}
+                strokeWidth={1}
+                className="dash-stat-icon-countdown"
+              />
+            }
+            value={
+              nextTrip?.daysUntil !== undefined
+                ? nextTrip.daysUntil.toString()
+                : undefined
+            }
+            title={
+              nextTrip?.daysUntil === undefined ? (
+                <>
+                  <br />
+                  scheduled
+                </>
+              ) : undefined
+            }
             subtitle="Until Next Trip"
             iconButton={tripSchedIcon}
             onClick={() => setIsCreateTripModalOpen(true)}
@@ -220,28 +263,34 @@ export default function Dashboard() {
               >
                 <ChevronRight size={22} color="#FFFFFF" strokeWidth={2.5} />
               </button>
-             <div className="dashboard-profile-header">
-               <div 
-                 className="dashboard-profile-avatar" 
-                 style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-               >
-                 {(user as { avatar_url?: string } | null)?.avatar_url ? (
-                   <img 
-                     src={(user as { avatar_url?: string }).avatar_url} 
-                     alt={user?.full_name || 'Traveler'} 
-                     style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                   />
-                 ) : (
-                   <User size={32} color="var(--color-neutral-500)" />
-                 )}
-               </div>
-               <div>
-                 <div className="dashboard-profile-name">
-                   {user?.full_name || 'Traveler'}
-                 </div>
-                 {/* Removed 'Not specified' label to clean UI (Fix #11) */}
-               </div>
-             </div>
+              <div className="dashboard-profile-header">
+                <div
+                  className="dashboard-profile-avatar"
+                  style={{
+                    overflow: 'hidden',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 0,
+                  }}
+                >
+                  {(user as { avatar_url?: string } | null)?.avatar_url ? (
+                    <img
+                      src={(user as { avatar_url?: string }).avatar_url}
+                      alt={user?.full_name || 'Traveler'}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <User size={32} color="var(--color-neutral-500)" />
+                  )}
+                </div>
+                <div>
+                  <div className="dashboard-profile-name">
+                    {user?.full_name || 'Traveler'}
+                  </div>
+                  {/* Removed 'Not specified' label to clean UI (Fix #11) */}
+                </div>
+              </div>
               <div className="dashboard-profile-stats">
                 <div className="dashboard-profile-stat-item">
                   <div className="dashboard-profile-stat-value">{trips.length}</div>
@@ -323,7 +372,10 @@ export default function Dashboard() {
                       <img src={createTripBtnIcon} alt="" />
                       Create a Trip
                     </button>
-                    <button className="dashboard-btn-browse" onClick={() => navigate('/dashboard/explore')}>
+                    <button
+                      className="dashboard-btn-browse"
+                      onClick={() => navigate('/dashboard/explore')}
+                    >
                       <img src={browseDestIcon} alt="" />
                       Browse Destinations
                     </button>

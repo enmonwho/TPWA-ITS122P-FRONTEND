@@ -56,15 +56,24 @@ export default function PublicProfile() {
   const isOwner = currentUser && profile && String(currentUser.id) === String(profile.id);
 
   if (loading) {
-    return <div className="p-8 text-center text-stone-500 font-medium">Loading profile...</div>;
+    return (
+      <div className="p-8 text-center text-stone-500 font-medium">Loading profile...</div>
+    );
   }
 
   if (notFound || !profile) {
     return (
       <div className="p-12 text-center max-w-md mx-auto">
         <h2 className="text-xl font-bold text-stone-900 mb-2">User Not Found</h2>
-        <p className="text-sm text-stone-500 mb-6">No user exists with the handle @{username?.replace(/^@+/, '')}</p>
-        <button onClick={() => navigate('/')} className="px-6 py-2.5 bg-stone-900 text-white rounded-full text-sm font-semibold">Return Home</button>
+        <p className="text-sm text-stone-500 mb-6">
+          No user exists with the handle @{username?.replace(/^@+/, '')}
+        </p>
+        <button
+          onClick={() => navigate('/')}
+          className="px-6 py-2.5 bg-stone-900 text-white rounded-full text-sm font-semibold"
+        >
+          Return Home
+        </button>
       </div>
     );
   }
@@ -75,7 +84,7 @@ export default function PublicProfile() {
       <div className="flex flex-col items-center text-center bg-white border border-stone-200/80 rounded-3xl p-8 shadow-sm mb-8 relative">
         {/* Only show edit profile button if viewing your own profile */}
         {isOwner && (
-          <button 
+          <button
             onClick={() => navigate('/dashboard/settings')}
             className="absolute top-6 right-6 px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-colors"
           >
@@ -85,14 +94,20 @@ export default function PublicProfile() {
 
         <div className="w-24 h-24 rounded-full bg-stone-200 overflow-hidden flex items-center justify-center text-stone-500 text-2xl font-bold mb-4 shadow-inner">
           {profile.avatar_url ? (
-            <img src={profile.avatar_url} alt={profile.full_name} className="w-full h-full object-cover" />
+            <img
+              src={profile.avatar_url}
+              alt={profile.full_name}
+              className="w-full h-full object-cover"
+            />
           ) : (
             <User size={40} />
           )}
         </div>
         <h1 className="text-2xl font-bold text-stone-900">{profile.full_name}</h1>
         <p className="text-sm text-stone-500 font-medium mt-0.5">@{profile.username}</p>
-        {profile.bio && <p className="text-sm text-stone-600 mt-3 max-w-md">{profile.bio}</p>}
+        {profile.bio && (
+          <p className="text-sm text-stone-600 mt-3 max-w-md">{profile.bio}</p>
+        )}
       </div>
 
       {/* Public Trips Section */}
@@ -108,20 +123,29 @@ export default function PublicProfile() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {profile.trips.map((trip) => (
-              <div 
-                key={trip.id} 
-                className="bg-white border border-stone-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col justify-between"
+              <div
+                key={trip.id}
+                role="button"
+                tabIndex={0}
+                className="..."
                 onClick={() => {
-                  // Only let the owner open the trip in the workspace; others can only view read-only or are blocked if private
-                  if (isOwner) {
-                    navigate(`/trip/${trip.id}`);
+                  if (isOwner) navigate(`/trip/${trip.id}`);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (isOwner) navigate(`/trip/${trip.id}`);
                   }
                 }}
               >
                 <div>
                   {trip.cover_photo && (
                     <div className="w-full h-36 rounded-xl overflow-hidden mb-4 bg-stone-100">
-                      <img src={trip.cover_photo} alt={trip.name} className="w-full h-full object-cover" />
+                      <img
+                        src={trip.cover_photo}
+                        alt={trip.name}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                   )}
                   <h3 className="text-base font-bold text-stone-900 mb-1">{trip.name}</h3>
@@ -134,7 +158,9 @@ export default function PublicProfile() {
                 </div>
 
                 <div className="flex items-center justify-between pt-3 border-t border-stone-100 text-xs font-medium text-stone-500">
-                  <span>{formatDateOnly(trip.startDate)} - {formatDateOnly(trip.endDate)}</span>
+                  <span>
+                    {formatDateOnly(trip.startDate)} - {formatDateOnly(trip.endDate)}
+                  </span>
                   <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-semibold uppercase tracking-wider text-[10px]">
                     {trip.status}
                   </span>

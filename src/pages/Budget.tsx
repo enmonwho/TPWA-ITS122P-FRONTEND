@@ -55,7 +55,7 @@ function getCategoryConfig(catName: string): CategoryConfig {
   const found = BUDGET_CATEGORIES.find(
     (c) => c.name.toLowerCase().replace(/m+/, 'm') === norm,
   );
-  return found || BUDGET_CATEGORIES[4]; 
+  return found || BUDGET_CATEGORIES[4];
 }
 
 function getDonutFontSize(len: number): string {
@@ -77,6 +77,7 @@ export function Budget() {
       const stored = localStorage.getItem(budgetKey);
       if (stored) return JSON.parse(stored) as BudgetData;
     } catch {
+      /* ignore error */
     }
     return { balance: 0, expenses: [] };
   });
@@ -96,11 +97,13 @@ export function Budget() {
           const prefs = JSON.parse(prefsRaw);
           if (prefs.currency) return prefs.currency;
         }
-      } catch {}
+      } catch {
+        /* ignore error */
+      }
     }
     return 'PHP';
   });
-  
+
   const [fxRates, setFxRates] = useState<Record<string, number>>({
     PHP: 1,
     USD: 0.0175,
@@ -122,7 +125,9 @@ export function Budget() {
         }
       })
       .catch((err) => console.warn('Failed to fetch exchange rates:', err));
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleCurrencyChange = (newCurrency: string) => {
@@ -133,7 +138,9 @@ export function Budget() {
   };
 
   const [expenseName, setExpenseName] = useState('');
-  const [expenseItemRows, setExpenseItemRows] = useState<{ name: string; quantity: string }[]>([
+  const [expenseItemRows, setExpenseItemRows] = useState<
+    { name: string; quantity: string }[]
+  >([
     { name: '', quantity: '1' },
     { name: '', quantity: '1' },
   ]);
@@ -168,7 +175,9 @@ export function Budget() {
         if (!cancelled) {
           setTrip(mergeTripWithExtras(apiTrip));
         }
-      } catch (err) {}
+      } catch {
+        /* ignore error */
+      }
 
       try {
         const budgetData = await budgetApi.getBudget(tripId);
@@ -189,11 +198,15 @@ export function Budget() {
           setBudget(loadedBudget);
           localStorage.setItem(budgetKey, JSON.stringify(loadedBudget));
         }
-      } catch (err) {}
+      } catch {
+        /* ignore error */
+      }
     };
 
     fetchData();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [user, tripId, budgetKey]);
 
   useEffect(() => {
@@ -243,7 +256,9 @@ export function Budget() {
             return reconciled;
           });
         }
-      } catch (err) {}
+      } catch {
+        /* ignore error */
+      }
     }
   };
 
@@ -279,7 +294,10 @@ export function Budget() {
     });
 
     setExpenseName('');
-    setExpenseItemRows([{ name: '', quantity: '1' }, { name: '', quantity: '1' }]);
+    setExpenseItemRows([
+      { name: '', quantity: '1' },
+      { name: '', quantity: '1' },
+    ]);
     setExpenseCategory(BUDGET_CATEGORIES[0].name);
     setExpenseCost('');
     setIsAddExpenseOpen(false);
@@ -314,7 +332,9 @@ export function Budget() {
             return reconciled;
           });
         }
-      } catch (err) {}
+      } catch {
+        /* ignore error */
+      }
     }
   };
 
@@ -338,7 +358,9 @@ export function Budget() {
             return reconciled;
           });
         }
-      } catch (err) {}
+      } catch {
+        /* ignore error */
+      }
     }
   };
 
@@ -373,7 +395,10 @@ export function Budget() {
   if (!trip) {
     return (
       <div className="workspace-page">
-        <div className="workspace-main-card" style={{ padding: '40px', textAlign: 'center' }}>
+        <div
+          className="workspace-main-card"
+          style={{ padding: '40px', textAlign: 'center' }}
+        >
           Loading workspace...
         </div>
       </div>
@@ -400,22 +425,41 @@ export function Budget() {
               title={`Display Currency: ${displayCurrency}. Rates updated: ${fxDate || 'today'}`}
               style={{ position: 'relative', overflow: 'hidden' }}
             >
-              <label htmlFor="budget-currency-select-id" className="sr-only">Display Currency</label>
+              <label htmlFor="budget-currency-select-id" className="sr-only">
+                Display Currency
+              </label>
               <select
                 id="budget-currency-select-id"
                 value={displayCurrency}
                 onChange={(e) => handleCurrencyChange(e.target.value)}
                 className="budget-currency-select"
-                style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  opacity: 0,
+                  cursor: 'pointer',
+                  width: '100%',
+                  height: '100%',
+                }}
               >
                 {SUPPORTED_CURRENCIES.map((c) => (
-                  <option key={c.code} value={c.code} style={{ background: '#ffffff', color: '#111827' }}>
+                  <option
+                    key={c.code}
+                    value={c.code}
+                    style={{ background: '#ffffff', color: '#111827' }}
+                  >
                     {c.code}
                   </option>
                 ))}
               </select>
               <span style={{ pointerEvents: 'none' }}>{displayCurrency}</span>
-              <img src={arrowDownIcon} alt="" className="budget-currency-arrow" aria-hidden="true" style={{ pointerEvents: 'none' }} />
+              <img
+                src={arrowDownIcon}
+                alt=""
+                className="budget-currency-arrow"
+                aria-hidden="true"
+                style={{ pointerEvents: 'none' }}
+              />
             </div>
             {isFxStale && (
               <span className="budget-currency-stale-badge">Cached ({fxDate})</span>
@@ -464,7 +508,11 @@ export function Budget() {
 
           <div className="budget-category-list">
             {BUDGET_CATEGORIES.map((cat) => (
-              <div key={cat.name} className="budget-category-badge" style={{ backgroundColor: cat.color }}>
+              <div
+                key={cat.name}
+                className="budget-category-badge"
+                style={{ backgroundColor: cat.color }}
+              >
                 <img src={cat.icon} alt="" className="budget-category-icon" />
                 <span>{cat.name}</span>
               </div>
@@ -480,20 +528,40 @@ export function Budget() {
               {formatCurrency(convertedBalance, displayCurrency)}
             </div>
             {displayCurrency !== 'PHP' && (
-              <div style={{ fontSize: '12px', color: 'rgba(72, 42, 19, 0.65)', marginTop: '-4px', marginBottom: '6px', fontWeight: 500 }}>
+              <div
+                style={{
+                  fontSize: '12px',
+                  color: 'rgba(72, 42, 19, 0.65)',
+                  marginTop: '-4px',
+                  marginBottom: '6px',
+                  fontWeight: 500,
+                }}
+              >
                 ≈ ₱
-                {budget.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} base
+                {budget.balance.toLocaleString('en-US', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}{' '}
+                base
               </div>
             )}
             <div className="budget-balance-label">YOUR BALANCE</div>
 
             <div className="budget-action-buttons">
-              <button type="button" className="budget-btn-add-expense" onClick={() => setIsAddExpenseOpen(true)}>
+              <button
+                type="button"
+                className="budget-btn-add-expense"
+                onClick={() => setIsAddExpenseOpen(true)}
+              >
                 <CirclePlus size={20} color="#ffffff" strokeWidth={2.2} />
                 <span>Add Expense</span>
               </button>
 
-              <button type="button" className="budget-btn-add-balance" onClick={() => setIsAddBalanceOpen(true)}>
+              <button
+                type="button"
+                className="budget-btn-add-balance"
+                onClick={() => setIsAddBalanceOpen(true)}
+              >
                 <CirclePlus size={20} color="rgba(72, 42, 19, 0.85)" strokeWidth={2.2} />
                 <span>Add Balance</span>
               </button>
@@ -513,7 +581,8 @@ export function Budget() {
             <div className="budget-table-rows">
               {budget.expenses.length === 0 ? (
                 <div className="budget-table-empty">
-                  No expenses recorded yet. Click <strong>Add Expense</strong> to start tracking!
+                  No expenses recorded yet. Click <strong>Add Expense</strong> to start
+                  tracking!
                 </div>
               ) : (
                 budget.expenses.map((expense) => {
@@ -521,22 +590,54 @@ export function Budget() {
                   return (
                     <div key={expense.id} className="budget-table-row">
                       <div style={{ fontWeight: 600 }}>{expense.name}</div>
-                      <div style={{ color: 'rgba(0, 0, 0, 0.7)' }}>{expense.items || 1}</div>
+                      <div style={{ color: 'rgba(0, 0, 0, 0.7)' }}>
+                        {expense.items || 1}
+                      </div>
                       <div>
-                        <span className="budget-row-category-badge" style={{ backgroundColor: catConfig.color }}>
-                          <img src={catConfig.icon} alt="" style={{ width: '13px', height: '13px', objectFit: 'contain' }} />
+                        <span
+                          className="budget-row-category-badge"
+                          style={{ backgroundColor: catConfig.color }}
+                        >
+                          <img
+                            src={catConfig.icon}
+                            alt=""
+                            style={{
+                              width: '13px',
+                              height: '13px',
+                              objectFit: 'contain',
+                            }}
+                          />
                           <span>{catConfig.name}</span>
                         </span>
                       </div>
                       <div style={{ fontWeight: 600 }}>
-                        {formatCurrency(convert(expense.cost, 'PHP', displayCurrency, fxRates), displayCurrency)}
+                        {formatCurrency(
+                          convert(expense.cost, 'PHP', displayCurrency, fxRates),
+                          displayCurrency,
+                        )}
                         {displayCurrency !== 'PHP' && (
-                          <span style={{ display: 'block', fontSize: '10.5px', fontWeight: 400, color: 'rgba(0, 0, 0, 0.45)' }}>
-                            ≈ ₱{expense.cost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          <span
+                            style={{
+                              display: 'block',
+                              fontSize: '10.5px',
+                              fontWeight: 400,
+                              color: 'rgba(0, 0, 0, 0.45)',
+                            }}
+                          >
+                            ≈ ₱
+                            {expense.cost.toLocaleString('en-US', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
                           </span>
                         )}
                       </div>
-                      <button type="button" className="budget-row-delete-btn" title="Delete Expense" onClick={() => deleteExpense(expense.id)}>
+                      <button
+                        type="button"
+                        className="budget-row-delete-btn"
+                        title="Delete Expense"
+                        onClick={() => deleteExpense(expense.id)}
+                      >
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -549,17 +650,45 @@ export function Budget() {
       </div>
 
       {isAddExpenseOpen && (
-        <div className="budget-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-add-expense-title">
+        <div
+          className="budget-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-add-expense-title"
+        >
           <div className="budget-modal-card">
-            <h2 id="modal-add-expense-title" className="sr-only">Add Expense</h2>
-            <button type="button" className="budget-modal-close-btn" aria-label="Close modal" onClick={() => setIsAddExpenseOpen(false)}>
+            <h2 id="modal-add-expense-title" className="sr-only">
+              Add Expense
+            </h2>
+            <button
+              type="button"
+              className="budget-modal-close-btn"
+              aria-label="Close modal"
+              onClick={() => setIsAddExpenseOpen(false)}
+            >
               <X size={18} />
             </button>
 
-            <form onSubmit={handleAddExpenseSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <form
+              onSubmit={handleAddExpenseSubmit}
+              style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
+            >
               <div>
-                <label htmlFor="modal-expense-vendor" className="budget-modal-section-title">Where did you spend?</label>
-                <input id="modal-expense-vendor" type="text" required placeholder="Name of shop, restaurant..." className="budget-modal-gradient-input budget-modal-vendor-input" value={expenseName} onChange={(e) => setExpenseName(e.target.value)} />
+                <label
+                  htmlFor="modal-expense-vendor"
+                  className="budget-modal-section-title"
+                >
+                  Where did you spend?
+                </label>
+                <input
+                  id="modal-expense-vendor"
+                  type="text"
+                  required
+                  placeholder="Name of shop, restaurant..."
+                  className="budget-modal-gradient-input budget-modal-vendor-input"
+                  value={expenseName}
+                  onChange={(e) => setExpenseName(e.target.value)}
+                />
               </div>
 
               <div>
@@ -568,12 +697,36 @@ export function Budget() {
                   {expenseItemRows.map((item, index) => (
                     <div key={index} className="budget-modal-item-row">
                       <span className="budget-modal-item-label">Item {index + 1}</span>
-                      <label htmlFor={`modal-item-name-${index}`} className="sr-only">Item {index + 1} Name</label>
-                      <input id={`modal-item-name-${index}`} type="text" placeholder="Name" className="budget-modal-gradient-input budget-modal-item-name" value={item.name} onChange={(e) => updateItemRow(index, 'name', e.target.value)} />
-                      <label htmlFor={`modal-item-qty-${index}`} className="sr-only">Item {index + 1} Quantity</label>
-                      <input id={`modal-item-qty-${index}`} type="number" min="1" placeholder="Quantity" className="budget-modal-gradient-input budget-modal-item-qty" value={item.quantity} onChange={(e) => updateItemRow(index, 'quantity', e.target.value)} />
+                      <label htmlFor={`modal-item-name-${index}`} className="sr-only">
+                        Item {index + 1} Name
+                      </label>
+                      <input
+                        id={`modal-item-name-${index}`}
+                        type="text"
+                        placeholder="Name"
+                        className="budget-modal-gradient-input budget-modal-item-name"
+                        value={item.name}
+                        onChange={(e) => updateItemRow(index, 'name', e.target.value)}
+                      />
+                      <label htmlFor={`modal-item-qty-${index}`} className="sr-only">
+                        Item {index + 1} Quantity
+                      </label>
+                      <input
+                        id={`modal-item-qty-${index}`}
+                        type="number"
+                        min="1"
+                        placeholder="Quantity"
+                        className="budget-modal-gradient-input budget-modal-item-qty"
+                        value={item.quantity}
+                        onChange={(e) => updateItemRow(index, 'quantity', e.target.value)}
+                      />
                       {expenseItemRows.length > 1 && (
-                        <button type="button" className="budget-modal-item-del-btn" aria-label={`Remove Item ${index + 1}`} onClick={() => removeItemRow(index)}>
+                        <button
+                          type="button"
+                          className="budget-modal-item-del-btn"
+                          aria-label={`Remove Item ${index + 1}`}
+                          onClick={() => removeItemRow(index)}
+                        >
                           <Trash2 size={15} />
                         </button>
                       )}
@@ -582,14 +735,41 @@ export function Budget() {
                 </div>
 
                 <div className="budget-modal-items-footer">
-                  <button type="button" className="budget-modal-add-item-btn" onClick={addItemRow}>
-                    <CirclePlus size={16} /><span>Add item</span>
+                  <button
+                    type="button"
+                    className="budget-modal-add-item-btn"
+                    onClick={addItemRow}
+                  >
+                    <CirclePlus size={16} />
+                    <span>Add item</span>
                   </button>
 
-                  <div className="budget-modal-cost-wrap" style={{ flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                  <div
+                    className="budget-modal-cost-wrap"
+                    style={{
+                      flexDirection: 'column',
+                      alignItems: 'flex-end',
+                      gap: '2px',
+                    }}
+                  >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <label htmlFor="modal-expense-cost" className="budget-modal-cost-label">Total Cost:</label>
-                      <input id="modal-expense-cost" type="number" min="0.01" step={displayCurrency === 'JPY' ? '1' : '0.01'} required placeholder={`${currentSymbol} 0.00`} className="budget-modal-gradient-input budget-modal-cost-input" value={expenseCost} onChange={(e) => setExpenseCost(e.target.value)} />
+                      <label
+                        htmlFor="modal-expense-cost"
+                        className="budget-modal-cost-label"
+                      >
+                        Total Cost:
+                      </label>
+                      <input
+                        id="modal-expense-cost"
+                        type="number"
+                        min="0.01"
+                        step={displayCurrency === 'JPY' ? '1' : '0.01'}
+                        required
+                        placeholder={`${currentSymbol} 0.00`}
+                        className="budget-modal-gradient-input budget-modal-cost-input"
+                        value={expenseCost}
+                        onChange={(e) => setExpenseCost(e.target.value)}
+                      />
                     </div>
                   </div>
                 </div>
@@ -599,50 +779,158 @@ export function Budget() {
                 <span className="budget-modal-section-title">Category</span>
                 <div className="budget-modal-cat-grid">
                   <div className="budget-modal-cat-row">
-                    <button type="button" className={`budget-modal-cat-pill cat-accomodation ${expenseCategory === 'Accomodation' ? 'active' : ''}`} style={expenseCategory === 'Accomodation' ? { backgroundColor: '#C5283D' } : undefined} onClick={() => setExpenseCategory('Accomodation')}>Accomodation</button>
-                    <button type="button" className={`budget-modal-cat-pill cat-transportation ${expenseCategory === 'Transport' ? 'active' : ''}`} style={expenseCategory === 'Transport' ? { backgroundColor: '#E9724C' } : undefined} onClick={() => setExpenseCategory('Transport')}>Transportation</button>
-                    <button type="button" className={`budget-modal-cat-pill cat-activities ${expenseCategory === 'Activities' ? 'active' : ''}`} style={expenseCategory === 'Activities' ? { backgroundColor: '#FFC857' } : undefined} onClick={() => setExpenseCategory('Activities')}>Activities</button>
+                    <button
+                      type="button"
+                      className={`budget-modal-cat-pill cat-accomodation ${expenseCategory === 'Accomodation' ? 'active' : ''}`}
+                      style={
+                        expenseCategory === 'Accomodation'
+                          ? { backgroundColor: '#C5283D' }
+                          : undefined
+                      }
+                      onClick={() => setExpenseCategory('Accomodation')}
+                    >
+                      Accomodation
+                    </button>
+                    <button
+                      type="button"
+                      className={`budget-modal-cat-pill cat-transportation ${expenseCategory === 'Transport' ? 'active' : ''}`}
+                      style={
+                        expenseCategory === 'Transport'
+                          ? { backgroundColor: '#E9724C' }
+                          : undefined
+                      }
+                      onClick={() => setExpenseCategory('Transport')}
+                    >
+                      Transportation
+                    </button>
+                    <button
+                      type="button"
+                      className={`budget-modal-cat-pill cat-activities ${expenseCategory === 'Activities' ? 'active' : ''}`}
+                      style={
+                        expenseCategory === 'Activities'
+                          ? { backgroundColor: '#FFC857' }
+                          : undefined
+                      }
+                      onClick={() => setExpenseCategory('Activities')}
+                    >
+                      Activities
+                    </button>
                   </div>
                   <div className="budget-modal-cat-row">
-                    <button type="button" className={`budget-modal-cat-pill cat-dining ${expenseCategory === 'Eat & Drink' ? 'active' : ''}`} style={expenseCategory === 'Eat & Drink' ? { backgroundColor: '#255F85' } : undefined} onClick={() => setExpenseCategory('Eat & Drink')}>Eat & Drink</button>
-                    <button type="button" className={`budget-modal-cat-pill cat-other ${expenseCategory === 'Other' ? 'active' : ''}`} style={expenseCategory === 'Other' ? { backgroundColor: '#8E8E93' } : undefined} onClick={() => setExpenseCategory('Other')}>Other</button>
+                    <button
+                      type="button"
+                      className={`budget-modal-cat-pill cat-dining ${expenseCategory === 'Eat & Drink' ? 'active' : ''}`}
+                      style={
+                        expenseCategory === 'Eat & Drink'
+                          ? { backgroundColor: '#255F85' }
+                          : undefined
+                      }
+                      onClick={() => setExpenseCategory('Eat & Drink')}
+                    >
+                      Eat & Drink
+                    </button>
+                    <button
+                      type="button"
+                      className={`budget-modal-cat-pill cat-other ${expenseCategory === 'Other' ? 'active' : ''}`}
+                      style={
+                        expenseCategory === 'Other'
+                          ? { backgroundColor: '#8E8E93' }
+                          : undefined
+                      }
+                      onClick={() => setExpenseCategory('Other')}
+                    >
+                      Other
+                    </button>
                   </div>
                 </div>
               </div>
 
-              <button type="submit" className="budget-modal-primary-btn">Add Expense</button>
+              <button type="submit" className="budget-modal-primary-btn">
+                Add Expense
+              </button>
             </form>
           </div>
         </div>
       )}
 
       {isAddBalanceOpen && (
-        <div className="budget-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-add-balance-title">
+        <div
+          className="budget-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-add-balance-title"
+        >
           <div className="budget-modal-card">
-            <button type="button" className="budget-modal-close-btn" aria-label="Close modal" onClick={() => setIsAddBalanceOpen(false)}>
+            <button
+              type="button"
+              className="budget-modal-close-btn"
+              aria-label="Close modal"
+              onClick={() => setIsAddBalanceOpen(false)}
+            >
               <X size={18} />
             </button>
 
-            <form onSubmit={handleAddBalanceSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <form
+              onSubmit={handleAddBalanceSubmit}
+              style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
+            >
               <div>
-                <h3 id="modal-add-balance-title" className="budget-modal-section-title">Your Current Balance</h3>
+                <h3 id="modal-add-balance-title" className="budget-modal-section-title">
+                  Your Current Balance
+                </h3>
                 <div className="budget-balance-current-display">
                   {formatCurrency(convertedBalance, displayCurrency)}
                   {displayCurrency !== 'PHP' && (
-                    <div style={{ fontSize: '12px', fontWeight: 400, color: 'rgba(0, 0, 0, 0.45)', marginTop: '2px' }}>
-                      (₱{budget.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} base)
+                    <div
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: 400,
+                        color: 'rgba(0, 0, 0, 0.45)',
+                        marginTop: '2px',
+                      }}
+                    >
+                      (₱
+                      {budget.balance.toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{' '}
+                      base)
                     </div>
                   )}
                 </div>
               </div>
 
               <div>
-                <label htmlFor="modal-balance-amount" className="budget-modal-section-title">Additional Balance ({displayCurrency})</label>
-                <input id="modal-balance-amount" type="number" min="0.01" step={displayCurrency === 'JPY' ? '1' : '0.01'} required placeholder={`Amount in ${displayCurrency} (${currentSymbol})`} className="budget-modal-gradient-input budget-balance-input" value={balanceInput} onChange={(e) => setBalanceInput(e.target.value)} />
-                <span className="budget-balance-helper">Any additional balance entered will be automatically added to your current total balance.</span>
+                <label
+                  htmlFor="modal-balance-amount"
+                  className="budget-modal-section-title"
+                >
+                  Additional Balance ({displayCurrency})
+                </label>
+                <input
+                  id="modal-balance-amount"
+                  type="number"
+                  min="0.01"
+                  step={displayCurrency === 'JPY' ? '1' : '0.01'}
+                  required
+                  placeholder={`Amount in ${displayCurrency} (${currentSymbol})`}
+                  className="budget-modal-gradient-input budget-balance-input"
+                  value={balanceInput}
+                  onChange={(e) => setBalanceInput(e.target.value)}
+                />
+                <span className="budget-balance-helper">
+                  Any additional balance entered will be automatically added to your
+                  current total balance.
+                </span>
               </div>
 
-              <button type="submit" className="budget-modal-primary-btn" style={{ marginTop: '20px' }}>Add Balance</button>
+              <button
+                type="submit"
+                className="budget-modal-primary-btn"
+                style={{ marginTop: '20px' }}
+              >
+                Add Balance
+              </button>
             </form>
           </div>
         </div>

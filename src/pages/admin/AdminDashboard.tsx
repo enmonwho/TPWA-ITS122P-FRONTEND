@@ -10,8 +10,6 @@ import {
   MoreVertical,
   Edit,
   Download,
-  Activity,
-  Briefcase,
   Plus,
   CheckCircle,
   XCircle,
@@ -29,8 +27,6 @@ import type { Trip } from '../../types/trip';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import '../../styles/Admin.css';
-import { div } from 'three/src/nodes/tsl/TSLBase.js';
-
 
 type Tab = 'systems' | 'users' | 'categories' | 'master';
 
@@ -188,7 +184,9 @@ function SystemsReportTab() {
               style={{ background: 'linear-gradient(135deg, #FDBA74 0%, #EA580C 100%)' }}
             >
               <span className="text-[10px] font-bold uppercase tracking-wider opacity-90 leading-tight mb-1">
-                Total<br />Registered Users
+                Total
+                <br />
+                Registered Users
               </span>
               <span className="text-5xl font-bold tracking-tight">
                 {formatK(metrics?.totalUsers)}
@@ -201,7 +199,9 @@ function SystemsReportTab() {
               style={{ background: 'linear-gradient(135deg, #FDBA74 0%, #EA580C 100%)' }}
             >
               <span className="text-[10px] font-bold uppercase tracking-wider opacity-90 leading-tight mb-1">
-                Total<br />Trips Planned
+                Total
+                <br />
+                Trips Planned
               </span>
               <span className="text-5xl font-bold tracking-tight">
                 {formatK(metrics?.totalTrips)}
@@ -214,7 +214,9 @@ function SystemsReportTab() {
               style={{ background: 'linear-gradient(135deg, #FDBA74 0%, #EA580C 100%)' }}
             >
               <span className="text-[10px] font-bold uppercase tracking-wider opacity-90 leading-tight mb-1">
-                Total<br />Bookings Made
+                Total
+                <br />
+                Bookings Made
               </span>
               <span className="text-5xl font-bold tracking-tight">
                 {formatK(metrics?.totalBookings)}
@@ -227,7 +229,9 @@ function SystemsReportTab() {
               style={{ background: 'linear-gradient(135deg, #FDBA74 0%, #EA580C 100%)' }}
             >
               <span className="text-[10px] font-bold uppercase tracking-wider opacity-90 leading-tight mb-1">
-                Total<br />Active Trips
+                Total
+                <br />
+                Active Trips
               </span>
               <span className="text-5xl font-bold tracking-tight">
                 {formatK(metrics?.activeTrips)}
