@@ -5,6 +5,7 @@ import { BaseLayout, DashboardLayout, TripWorkspaceLayout, RootLayout } from './
 import { ProtectedRoute, PublicOnlyRoute } from './components';
 import PublicProfile from './pages/PublicProfile';
 import ResetPassword from './pages/ResetPassword';
+import TripPacking from './pages/TripPacking';
 import {
   Home,
   Login,
@@ -113,9 +114,8 @@ const router = createBrowserRouter([
       },
       {
         path: 'reset-password',
-        element: <ResetPassword />, 
+        element: <ResetPassword />,
       },
-     
       {
         path: 'onboarding',
         element: (
@@ -139,6 +139,10 @@ const router = createBrowserRouter([
           {
             path: 'budget',
             element: <Budget />,
+          },
+          {
+            path: 'packing',
+            element: <TripPacking />,
           },
           {
             path: 'settings',
