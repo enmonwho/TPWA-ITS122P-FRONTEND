@@ -236,6 +236,14 @@ export default function Explore() {
     }
   };
 
+  const handleCloseModal = () => {
+    setIsStartTripOpen(false);
+    setTripName('');
+    setSelectedLocation('');
+    setStartDate('');
+    setEndDate('');
+  };
+
   // Clicking an autocomplete suggestion fills the search bar and triggers full Search Mode
   const handleSelectSuggestion = (place: ExplorePlace) => {
     setSearchQuery(place.name);
@@ -274,6 +282,7 @@ export default function Explore() {
   const handleStartPlanning = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tripName.trim() || !startDate || !endDate) return;
+    if (endDate < startDate) return;
 
     setSubmitting(true);
     try {
@@ -284,11 +293,11 @@ export default function Explore() {
         total_budget: 15000,
         status: 'planning',
       });
-      setIsStartTripOpen(false);
+      handleCloseModal();
       navigate(`/trip/${newTrip.id}`);
     } catch (err) {
       console.error('Failed to create trip:', err);
-      setIsStartTripOpen(false);
+      handleCloseModal();
       navigate('/dashboard');
     } finally {
       setSubmitting(false);
@@ -838,6 +847,10 @@ export default function Explore() {
                         type="button"
                         key={item.type}
                         onClick={() => {
+                          setTripName('');
+                          setSelectedLocation('');
+                          setStartDate('');
+                          setEndDate('');
                           setTravelType(item.type);
                           setIsStartTripOpen(true);
                         }}
@@ -872,7 +885,8 @@ export default function Explore() {
                           onClick={() => {
                             setActiveRegion(region);
                             setActiveMarkerId(null);
-                            setFocusCoords(CONTINENT_CENTERS[region] || null);
+                            const coords = CONTINENT_CENTERS[region];
+                            setFocusCoords(coords ? [coords[0], coords[1]] : null);
                           }}
                           className={`region-chip-btn ${
                             activeRegion === region ? 'active' : ''
@@ -1337,12 +1351,12 @@ export default function Explore() {
             type="button"
             className="modal-backdrop-dismiss"
             aria-label="Close modal"
-            onClick={() => setIsStartTripOpen(false)}
+            onClick={handleCloseModal}
           />
           <div className="start-trip-modal-card">
             <button
               type="button"
-              onClick={() => setIsStartTripOpen(false)}
+              onClick={handleCloseModal}
               className="modal-close-btn"
               aria-label="Close modal"
             >
@@ -1394,15 +1408,23 @@ export default function Explore() {
                     id="explore-start-date"
                     type="date"
                     required
+                    min={new Date().toISOString().split('T')[0]}
                     className="modal-input-gradient flex-1 text-sm"
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setStartDate(val);
+                      if (endDate && endDate < val) {
+                        setEndDate('');
+                      }
+                    }}
                   />
                   <span className="text-sm font-medium text-stone-900">to</span>
                   <input
                     id="explore-end-date"
                     type="date"
                     required
+                    min={startDate || new Date().toISOString().split('T')[0]}
                     aria-label="End date"
                     className="modal-input-gradient flex-1 text-sm"
                     value={endDate}

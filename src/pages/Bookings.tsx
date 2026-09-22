@@ -301,7 +301,9 @@ export default function Bookings() {
         }
 
         try {
-          const bookingsData = await withRetry(() => bookingsApi.getAll());
+          const bookingsData = await withRetry(() =>
+            bookingsApi.getAll(undefined, selectedTrip.id),
+          );
           if (!cancelled) {
             setUserBookings(bookingsData);
             setSyncNotice(null);
@@ -326,19 +328,12 @@ export default function Bookings() {
   const ledgerItems = useMemo<BookingLedgerItem[]>(() => {
     if (!selectedTrip) return [];
 
-    // Correctly enforces trip specificity so activities don't bleed across active trips (Fix #16)
-    const tripBookings = userBookings.filter((b) => b.trip_id === selectedTrip.id);
-
-    const bookingsToRender = tripBookings;
-
-    const accommodationExpenses = tripExpenses.filter(
-      (e) => e.category?.toLowerCase() === 'accommodation',
-    );
-    const activityExpenses = tripExpenses.filter(
-      (e) => e.category?.toLowerCase() === 'activities',
+    // Strictly enforce trip isolation so activities do not bleed across trips (BUG-02 / SEC-06)
+    const tripBookings = userBookings.filter(
+      (b) => String(b.trip_id) === String(selectedTrip.id),
     );
 
-    if (bookingsToRender.length > 0) {
+    if (tripBookings.length > 0) {
       const destLookup = new Map<number, string>();
       allDestinations.forEach((d) => {
         if (d.id && d.location_name) destLookup.set(Number(d.id), d.location_name);
@@ -347,7 +342,11 @@ export default function Bookings() {
         if (d.id && d.location_name) destLookup.set(Number(d.id), d.location_name);
       });
 
-      return bookingsToRender.map((b, idx) => {
+      const accommodationExpenses = tripExpenses.filter(
+        (e) => e.category?.toLowerCase() === 'accommodation',
+      );
+
+      return tripBookings.map((b, idx) => {
         const activity = catalogActivities.find((a) => a.id === b.activity_id);
         const actTitle =
           b.activity_title || activity?.title || `Activity #${b.activity_id}`;
@@ -398,56 +397,7 @@ export default function Bookings() {
       });
     }
 
-    const destList: string[] =
-      tripDestinations.length > 0
-        ? tripDestinations.map((d) => d.location_name)
-        : selectedTrip.countries && selectedTrip.countries.length > 0
-          ? selectedTrip.countries
-          : [selectedTrip.name];
-
-    const totalBudget = selectedTrip.totalBudget || 0;
-    const perStopBudget =
-      destList.length > 0 ? Math.round(totalBudget / destList.length) : 0;
-
-    return destList.map((destName, idx) => {
-      const matchedActivityExp = activityExpenses[idx];
-      const matchedAccomExp = accommodationExpenses[idx];
-
-      let activityLabel = 'Local Exploration & Sightseeing';
-      if (matchedActivityExp) {
-        activityLabel = matchedActivityExp.name;
-      } else if (catalogActivities.length > 0) {
-        const catalogSample = catalogActivities[idx % catalogActivities.length];
-        activityLabel = catalogSample
-          ? `${catalogSample.title}`
-          : 'Sightseeing & Culture Tour';
-      }
-
-      let accomLabel = 'Confirmed Stay / Boutique Hotel';
-      if (matchedAccomExp) {
-        accomLabel = `${matchedAccomExp.name} (₱${Number(matchedAccomExp.cost).toLocaleString()})`;
-      }
-
-      let itemBudgetStr =
-        perStopBudget > 0 ? `₱${perStopBudget.toLocaleString()}` : 'Included';
-      if (matchedActivityExp) {
-        itemBudgetStr = `₱${Number(matchedActivityExp.cost).toLocaleString()}`;
-      }
-
-      let itemStatus: BookingStatus = 'confirmed';
-      if (selectedTrip.status === 'completed') itemStatus = 'completed';
-      else if (selectedTrip.status === 'planning') itemStatus = 'pending';
-
-      return {
-        id: `${selectedTrip.id}-stop-${idx + 1}`,
-        date: formatDateOnly(selectedTrip.startDate) || 'Flexible',
-        destination: destName,
-        activities: activityLabel,
-        accommodation: accomLabel,
-        budget: itemBudgetStr,
-        status: itemStatus,
-      };
-    });
+    return [];
   }, [
     selectedTrip,
     tripDestinations,
@@ -494,6 +444,7 @@ export default function Bookings() {
       setUserBookings((prev) => [
         {
           ...newBooking,
+          trip_id: Number(selectedTrip.id),
           activity_title: activity ? activity.title : `Activity #${selectedActivityId}`,
         },
         ...prev,
@@ -695,7 +646,7 @@ export default function Bookings() {
                           Syncing trip bookings from backend...
                         </span>
                       </div>
-                    ) : (
+                    ) : ledgerItems.length > 0 ? (
                       <table className="bookings-table">
                         <thead>
                           <tr className="bookings-table-header-row">
@@ -736,6 +687,20 @@ export default function Bookings() {
                           ))}
                         </tbody>
                       </table>
+                    ) : (
+                      <div
+                        className="bookings-table-empty"
+                        style={{ padding: '48px 24px' }}
+                      >
+                        <Ticket className="bookings-table-empty-icon" />
+                        <h3 className="bookings-table-empty-title">
+                          No Booked Activities Yet
+                        </h3>
+                        <p className="bookings-table-empty-desc">
+                          You haven&apos;t booked any activities for {selectedTrip.name}{' '}
+                          yet. Click &quot;Book Activity&quot; above to add reservations!
+                        </p>
+                      </div>
                     )}
                   </div>
                 </>

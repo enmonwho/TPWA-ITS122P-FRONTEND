@@ -17,3 +17,4 @@ export { default as FeatureGrid } from './FeatureGrid';
 export { default as StarRating } from './StarRating';
 export { default as StatCard } from './StatCard';
 export { default as Testimonials } from './Testimonials';
+export { default as ExportItineraryModal } from './ExportItineraryModal';

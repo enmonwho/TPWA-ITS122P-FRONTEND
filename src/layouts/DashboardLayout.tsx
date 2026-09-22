@@ -1,11 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Home, Ticket, Compass, Map as MapIcon, Settings, LogOut } from 'lucide-react';
 import lakbyeLogo from '../assets/lakbye-dashboard.png';
-import sidebarHome from '../assets/sidebar-home.png';
-import sidebarBookings from '../assets/sidebar-bookings.png';
-import sidebarExplore from '../assets/sidebar-explore.png';
-import sidebarMap from '../assets/sidebar-map.png';
-import sidebarSettings from '../assets/sidebar-settings.png';
-import sidebarLogout from '../assets/sidebar-logout.png';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../lib/constants';
 
@@ -24,10 +19,10 @@ export default function DashboardLayout() {
   };
 
   const navItems = [
-    { name: 'Home', path: '/dashboard', icon: sidebarHome },
-    { name: 'Bookings', path: '/dashboard/bookings', icon: sidebarBookings },
-    { name: 'Explore', path: '/dashboard/explore', icon: sidebarExplore },
-    { name: 'Map', path: '/dashboard/map', icon: sidebarMap },
+    { name: 'Home', path: '/dashboard', icon: Home },
+    { name: 'Bookings', path: '/dashboard/bookings', icon: Ticket },
+    { name: 'Explore', path: '/dashboard/explore', icon: Compass },
+    { name: 'Map', path: '/dashboard/map', icon: MapIcon },
   ];
 
   return (
@@ -37,15 +32,27 @@ export default function DashboardLayout() {
         <Link to="/dashboard" className="dashboard-mobile-logo-link">
           <img src={lakbyeLogo} alt="LakBye Logo" className="dashboard-mobile-logo" />
         </Link>
-        <Link
-          to={ROUTES.CUSTOMER_PROFILE}
-          className="dashboard-mobile-avatar-btn"
-          aria-label="View Profile"
-        >
-          <span className="dashboard-mobile-avatar-fallback">
-            {(user?.full_name || 'U').charAt(0).toUpperCase()}
-          </span>
-        </Link>
+        <div className="dashboard-mobile-header-actions">
+          <Link
+            to={ROUTES.CUSTOMER_PROFILE}
+            className="dashboard-mobile-avatar-btn"
+            aria-label="View Profile"
+            title="Profile & Settings"
+          >
+            <span className="dashboard-mobile-avatar-fallback">
+              {(user?.full_name || 'U').charAt(0).toUpperCase()}
+            </span>
+          </Link>
+          <button
+            type="button"
+            className="dashboard-mobile-logout-btn"
+            onClick={handleLogout}
+            aria-label="Log out"
+            title="Log out"
+          >
+            <LogOut size={17} />
+          </button>
+        </div>
       </header>
 
       {/* Sidebar (Desktop) */}
@@ -60,13 +67,14 @@ export default function DashboardLayout() {
             const isActive =
               location.pathname === item.path ||
               (location.pathname === '/dashboard' && item.path === '/dashboard');
+            const Icon = item.icon;
             return (
               <Link
                 key={item.name}
                 to={item.path}
                 className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
               >
-                <img src={item.icon} alt={item.name} />
+                <Icon size={20} strokeWidth={2} />
                 <span className="sidebar-nav-text">{item.name}</span>
               </Link>
             );
@@ -80,11 +88,11 @@ export default function DashboardLayout() {
             to={ROUTES.PROFILE_SETTINGS}
             className={`sidebar-nav-item ${location.pathname === ROUTES.PROFILE_SETTINGS ? 'active' : ''}`}
           >
-            <img src={sidebarSettings} alt="Settings" />
+            <Settings size={20} strokeWidth={2} />
             <span className="sidebar-nav-text">Settings</span>
           </Link>
           <button className="sidebar-nav-item" onClick={handleLogout}>
-            <img src={sidebarLogout} alt="Log out" />
+            <LogOut size={20} strokeWidth={2} />
             <span className="sidebar-nav-text">Log out</span>
           </button>
         </div>
@@ -101,13 +109,14 @@ export default function DashboardLayout() {
           const isActive =
             location.pathname === item.path ||
             (location.pathname === '/dashboard' && item.path === '/dashboard');
+          const Icon = item.icon;
           return (
             <Link
               key={item.name}
               to={item.path}
               className={`dashboard-mobile-nav-item ${isActive ? 'active' : ''}`}
             >
-              <img src={item.icon} alt={item.name} />
+              <Icon size={22} strokeWidth={2} />
               <span className="dashboard-mobile-nav-label">{item.name}</span>
             </Link>
           );

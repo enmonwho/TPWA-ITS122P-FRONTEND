@@ -66,6 +66,7 @@ export default function CreateTripModal({
     if (selectedCountries.length === 0) newErrors.countries = true;
     if (!startDate) newErrors.startDate = true;
     if (!endDate) newErrors.endDate = true;
+    if (startDate && endDate && endDate < startDate) newErrors.endDate = true;
     if (!travelType) newErrors.travelType = true;
 
     if (Object.keys(newErrors).length > 0) {
@@ -114,40 +115,134 @@ export default function CreateTripModal({
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-create-trip-title">
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-create-trip-title"
+    >
       <div className="modal-content">
-        <h2 id="modal-create-trip-title" className="sr-only">Create Trip</h2>
-        <button type="button" className="modal-close-btn" aria-label="Close modal" onClick={onClose}><X size={18} /></button>
+        <h2 id="modal-create-trip-title" className="sr-only">
+          Create Trip
+        </h2>
+        <button
+          type="button"
+          className="modal-close-btn"
+          aria-label="Close modal"
+          onClick={onClose}
+        >
+          <X size={18} />
+        </button>
 
         <div className="form-group">
-          <label className="form-label" htmlFor="tripName">Trip Name</label>
-          <div className="input-gradient-border" style={{ borderColor: errors.tripName ? 'red' : undefined }}>
-            <input id="tripName" type="text" className="modal-input" placeholder="Enter a trip name" value={tripName} onChange={(e) => { setTripName(e.target.value); if (errors.tripName) setErrors((prev) => ({ ...prev, tripName: false })); }} />
+          <label className="form-label" htmlFor="tripName">
+            Trip Name
+          </label>
+          <div
+            className="input-gradient-border"
+            style={{ borderColor: errors.tripName ? 'red' : undefined }}
+          >
+            <input
+              id="tripName"
+              type="text"
+              className="modal-input"
+              placeholder="Enter a trip name"
+              value={tripName}
+              onChange={(e) => {
+                setTripName(e.target.value);
+                if (errors.tripName) setErrors((prev) => ({ ...prev, tripName: false }));
+              }}
+            />
           </div>
         </div>
 
         <div className="form-group">
-          <label className="form-label" htmlFor="countries">Which countries are you going to?</label>
-          <CountryAutocomplete value={selectedCountries} onChange={(countries) => { setSelectedCountries(countries); if (errors.countries) setErrors((prev) => ({ ...prev, countries: false })); }} error={errors.countries} />
+          <label className="form-label" htmlFor="countries">
+            Which countries are you going to?
+          </label>
+          <CountryAutocomplete
+            value={selectedCountries}
+            onChange={(countries) => {
+              setSelectedCountries(countries);
+              if (errors.countries) setErrors((prev) => ({ ...prev, countries: false }));
+            }}
+            error={errors.countries}
+          />
         </div>
 
         <div className="form-group">
-          <label className="form-label" htmlFor="startDate">Travel Dates</label>
-          <DateRangePicker startDate={startDate} endDate={endDate} onStartDateChange={(date) => { setStartDate(date); if (errors.startDate) setErrors((prev) => ({ ...prev, startDate: false })); if (endDate && new Date(endDate) < new Date(date)) { setEndDate(''); } }} onEndDateChange={(date) => { setEndDate(date); if (errors.endDate) setErrors((prev) => ({ ...prev, endDate: false })); }} errorStart={errors.startDate} errorEnd={errors.endDate} />
+          <label className="form-label" htmlFor="startDate">
+            Travel Dates
+          </label>
+          <DateRangePicker
+            startDate={startDate}
+            endDate={endDate}
+            onStartDateChange={(date) => {
+              setStartDate(date);
+              if (errors.startDate) setErrors((prev) => ({ ...prev, startDate: false }));
+              if (endDate && new Date(endDate) < new Date(date)) {
+                setEndDate('');
+              }
+            }}
+            onEndDateChange={(date) => {
+              setEndDate(date);
+              if (errors.endDate) setErrors((prev) => ({ ...prev, endDate: false }));
+            }}
+            errorStart={errors.startDate}
+            errorEnd={errors.endDate}
+          />
         </div>
 
         <div className="form-group">
-          <div className="form-label" id="travelTypeLabel">Travel Type</div>
-          <div className="chip-button-group" role="group" aria-labelledby="travelTypeLabel" style={{ border: errors.travelType ? '1px solid red' : 'none', padding: errors.travelType ? '4px' : '0', borderRadius: errors.travelType ? '67px' : '0' }}>
+          <div className="form-label" id="travelTypeLabel">
+            Travel Type
+          </div>
+          <div
+            className="chip-button-group"
+            role="group"
+            aria-labelledby="travelTypeLabel"
+            style={{
+              border: errors.travelType ? '1px solid red' : 'none',
+              padding: errors.travelType ? '4px' : '0',
+              borderRadius: errors.travelType ? '67px' : '0',
+            }}
+          >
             {travelTypes.map((type) => (
-              <button key={type} className={`chip-button ${travelType === type ? 'selected' : ''}`} onClick={() => { setTravelType(type); if (errors.travelType) setErrors((prev) => ({ ...prev, travelType: false })); }} aria-pressed={travelType === type}>{type}</button>
+              <button
+                key={type}
+                className={`chip-button ${travelType === type ? 'selected' : ''}`}
+                onClick={() => {
+                  setTravelType(type);
+                  if (errors.travelType)
+                    setErrors((prev) => ({ ...prev, travelType: false }));
+                }}
+                aria-pressed={travelType === type}
+              >
+                {type}
+              </button>
             ))}
           </div>
         </div>
 
-        {apiError && <div style={{ color: 'var(--color-brand-red)', fontSize: '14px', textAlign: 'center', marginBottom: '12px' }}>{apiError}</div>}
+        {apiError && (
+          <div
+            style={{
+              color: 'var(--color-brand-red)',
+              fontSize: '14px',
+              textAlign: 'center',
+              marginBottom: '12px',
+            }}
+          >
+            {apiError}
+          </div>
+        )}
 
-        <button className="modal-cta-btn" onClick={handleStartPlanning} disabled={submitting} style={{ opacity: submitting ? 0.6 : 1 }}>
+        <button
+          className="modal-cta-btn"
+          onClick={handleStartPlanning}
+          disabled={submitting}
+          style={{ opacity: submitting ? 0.6 : 1 }}
+        >
           {submitting ? 'Creating...' : 'Start Planning'}
         </button>
       </div>

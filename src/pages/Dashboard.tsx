@@ -129,18 +129,38 @@ export default function Dashboard() {
   const getDisplayStatus = (trip: Trip): string => {
     if (trip.status === 'cancelled') return 'past';
 
-    // Check strict date boundaries to accurately mark past trips (Fix #12)
+    // Check strict date boundaries to accurately mark past trips (FUN-07)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     if (trip.endDate) {
-      const end = new Date(trip.endDate);
-      end.setHours(23, 59, 59, 999);
-      if (end < today) return 'past';
+      const parts = trip.endDate.split(/[T ]/)[0].split('-');
+      if (parts.length === 3) {
+        const end = new Date(
+          Number(parts[0]),
+          Number(parts[1]) - 1,
+          Number(parts[2]),
+          23,
+          59,
+          59,
+          999,
+        );
+        if (end < today) return 'past';
+      }
     } else if (trip.startDate) {
-      const start = new Date(trip.startDate);
-      start.setHours(23, 59, 59, 999);
-      if (start < today) return 'past';
+      const parts = trip.startDate.split(/[T ]/)[0].split('-');
+      if (parts.length === 3) {
+        const start = new Date(
+          Number(parts[0]),
+          Number(parts[1]) - 1,
+          Number(parts[2]),
+          23,
+          59,
+          59,
+          999,
+        );
+        if (start < today) return 'past';
+      }
     }
 
     if (trip.status === 'completed') return 'past';
@@ -153,10 +173,13 @@ export default function Dashboard() {
     return getDisplayStatus(trip) === activeTab;
   });
 
-  const greetingName = user?.username || user?.full_name?.split(' ')[0] || 'Traveler';
-  const profileDisplayName = user?.username
-    ? `@${user.username}`
-    : user?.full_name || 'Traveler';
+  // Display first name for dashboard greeting (REQ-01)
+  const firstName = user?.full_name?.trim().split(/\s+/)[0] || 'Traveler';
+  const greetingName = firstName;
+
+  // Display full name for profile card with handle underneath (REQ-01)
+  const profileDisplayName = user?.full_name?.trim() || 'Traveler';
+  const profileHandle = user?.username ? `@${user.username}` : user?.email || '';
 
   const countriesExplored = Array.from(
     new Set(trips.flatMap((t) => t.countries || [])),
@@ -218,14 +241,7 @@ export default function Dashboard() {
               <Globe size={175} strokeWidth={1} className="dash-stat-icon-countries" />
             }
             value={countriesExplored > 0 ? countriesExplored.toString() : undefined}
-            title={
-              countriesExplored === 0 ? (
-                <>
-                  <br />
-                  exploring
-                </>
-              ) : undefined
-            }
+            title={countriesExplored === 0 ? 'Start exploring' : undefined}
             subtitle="Countries Explored"
           />
           <StatCard
@@ -234,14 +250,7 @@ export default function Dashboard() {
               <Ticket size={148} strokeWidth={1} className="dash-stat-icon-bookings" />
             }
             value={totalBookings > 0 ? totalBookings.toString() : undefined}
-            title={
-              totalBookings === 0 ? (
-                <>
-                  <br />
-                  now
-                </>
-              ) : undefined
-            }
+            title={totalBookings === 0 ? 'Plan now' : undefined}
             subtitle="Bookings"
             iconButton={planNowIcon}
             onClick={() => navigate('/dashboard/bookings')} // Route corrected (Fix #14)
@@ -260,14 +269,7 @@ export default function Dashboard() {
                 ? nextTrip.daysUntil.toString()
                 : undefined
             }
-            title={
-              nextTrip?.daysUntil === undefined ? (
-                <>
-                  <br />
-                  scheduled
-                </>
-              ) : undefined
-            }
+            title={nextTrip?.daysUntil === undefined ? 'None scheduled' : undefined}
             subtitle="Until Next Trip"
             iconButton={tripSchedIcon}
             onClick={() => setIsCreateTripModalOpen(true)}
@@ -324,9 +326,8 @@ export default function Dashboard() {
                 <div>
                   <div className="dashboard-profile-name">{profileDisplayName}</div>
                   <div className="dashboard-profile-location">
-                    {user?.username && user?.full_name ? user.full_name : 'Not specified'}
+                    {profileHandle || 'Not specified'}
                   </div>
-                  {/* Removed 'Not specified' label to clean UI (Fix #11) */}
                 </div>
               </div>
               <div className="dashboard-profile-stats">

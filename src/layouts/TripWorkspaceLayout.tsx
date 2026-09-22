@@ -6,10 +6,12 @@ import sidebarBudget from '../assets/sidebar-budget.png';
 import sidebarSettings from '../assets/sidebar-settings.png';
 import leftArrow from '../assets/left-arrow.png';
 import { Menu, X, Backpack, Download } from 'lucide-react';
+import { ExportItineraryModal } from '../components';
 
 export default function TripWorkspaceLayout() {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const match = location.pathname.match(/\/trip\/([^/]+)/);
   const tripId = match ? match[1] : '';
@@ -72,9 +74,21 @@ export default function TripWorkspaceLayout() {
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 {IconComponent ? (
-                  <IconComponent size={22} color={isActive ? "var(--color-brand-red)" : "var(--color-dash-sidebar-text)"} style={{ marginRight: '16px' }} />
+                  <IconComponent
+                    size={22}
+                    color={
+                      isActive
+                        ? 'var(--color-brand-red)'
+                        : 'var(--color-dash-sidebar-text)'
+                    }
+                    style={{ marginRight: '16px' }}
+                  />
                 ) : (
-                  <img src={item.icon as string} alt={item.name} className="workspace-nav-icon" />
+                  <img
+                    src={item.icon as string}
+                    alt={item.name}
+                    className="workspace-nav-icon"
+                  />
                 )}
                 <span className="workspace-nav-text">{item.name}</span>
               </Link>
@@ -84,12 +98,13 @@ export default function TripWorkspaceLayout() {
 
         {/* Export PDF Button Docked at Bottom (#8) */}
         <div style={{ marginTop: 'auto', padding: '0 24px', marginBottom: '24px' }}>
-           <button 
-             onClick={() => alert("PDF Export interface generating...")}
-             className="w-full flex items-center justify-center gap-2 py-3 bg-amber-50 text-amber-700 font-semibold rounded-xl border border-amber-200 hover:bg-amber-100 transition-colors"
-           >
-             <Download size={16} /> Export PDF
-           </button>
+          <button
+            type="button"
+            onClick={() => setIsExportModalOpen(true)}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-amber-50 text-amber-700 font-semibold rounded-xl border border-amber-200 hover:bg-amber-100 transition-colors cursor-pointer"
+          >
+            <Download size={16} /> Export PDF
+          </button>
         </div>
 
         <div className="workspace-sidebar-bottom-divider"></div>
@@ -102,6 +117,12 @@ export default function TripWorkspaceLayout() {
       <main className="workspace-main-content">
         <Outlet />
       </main>
+
+      <ExportItineraryModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        tripId={tripId}
+      />
     </div>
   );
 }

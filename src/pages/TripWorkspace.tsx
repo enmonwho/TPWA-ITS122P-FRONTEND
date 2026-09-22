@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../lib/constants';
 import type { Trip } from '../types/trip';
 import { tripsApi } from '../services/api';
-import { mergeTripWithExtras, formatDateOnly } from '../lib/tripExtras';
+import { mergeTripWithExtras, formatDateOnly, saveTripExtras } from '../lib/tripExtras';
 import axios from 'axios';
 
 export interface WorkspaceDestination {
@@ -27,8 +27,9 @@ export interface WorkspaceDestination {
 // Rigid inline css grid enforces clean un-smudgeable column arrays globally
 const workspaceGridStyle = {
   display: 'grid',
-  gridTemplateColumns: '1.5fr 0.75fr 2fr 2fr 1.5fr',
-  gap: '1rem',
+  gridTemplateColumns:
+    'minmax(130px, 1.5fr) 68px minmax(120px, 1.8fr) minmax(120px, 1.8fr) minmax(120px, 1.5fr) 36px',
+  gap: '0.75rem',
   alignItems: 'center',
 };
 
@@ -60,8 +61,19 @@ export default function TripWorkspace() {
         const merged = mergeTripWithExtras(apiTrip);
         setTrip(merged);
 
-        const initialDests: WorkspaceDestination[] = (merged.countries || []).map(
-          (c, i) => {
+        // Check if saved destinations exist in localStorage for this trip
+        const savedDestStr = localStorage.getItem(`lakbye_workspace_dests_${tripId}`);
+        let initialDests: WorkspaceDestination[] = [];
+        if (savedDestStr) {
+          try {
+            initialDests = JSON.parse(savedDestStr);
+          } catch {
+            initialDests = [];
+          }
+        }
+
+        if (!initialDests || initialDests.length === 0) {
+          initialDests = (merged.countries || []).map((c, i) => {
             const coords = getCoordinatesForName(c);
             return {
               id: `dest-${i + 1}`,
@@ -77,8 +89,8 @@ export default function TripWorkspace() {
               latitude: coords ? coords[1] : undefined,
               longitude: coords ? coords[0] : undefined,
             };
-          },
-        );
+          });
+        }
         setDestinations(initialDests);
         if (initialDests.length > 0) setActiveDestinationId(initialDests[0].id);
       } catch (err) {
@@ -103,6 +115,15 @@ export default function TripWorkspace() {
     };
   }, [user, tripId]);
 
+  const persistDestinations = (updated: WorkspaceDestination[]) => {
+    if (!tripId) return;
+    localStorage.setItem(`lakbye_workspace_dests_${tripId}`, JSON.stringify(updated));
+    const countryNames = Array.from(new Set(updated.map((d) => d.country || d.name)));
+    if (countryNames.length > 0) {
+      saveTripExtras(tripId, { countries: countryNames });
+    }
+  };
+
   const handleAddDestination = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDestInput.trim()) return;
@@ -123,6 +144,7 @@ export default function TripWorkspace() {
 
     const updated = [...destinations, newDest];
     setDestinations(updated);
+    persistDestinations(updated);
     setActiveDestinationId(newDest.id);
     setNewDestInput('');
   };
@@ -132,15 +154,20 @@ export default function TripWorkspace() {
     field: keyof WorkspaceDestination,
     value: string | number,
   ) => {
-    setDestinations((prev) =>
-      prev.map((dest) => (dest.id === id ? { ...dest, [field]: value } : dest)),
-    );
+    setDestinations((prev) => {
+      const updated = prev.map((dest) =>
+        dest.id === id ? { ...dest, [field]: value } : dest,
+      );
+      persistDestinations(updated);
+      return updated;
+    });
   };
 
   const handleDeleteDestination = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const updated = destinations.filter((d) => d.id !== id);
     setDestinations(updated);
+    persistDestinations(updated);
     if (activeDestinationId === id)
       setActiveDestinationId(updated.length > 0 ? updated[0].id : null);
   };
@@ -241,10 +268,11 @@ export default function TripWorkspace() {
           <div className="workspace-itinerary-table">
             <div className="workspace-table-header-row" style={workspaceGridStyle}>
               <div className="workspace-col-destination">Destination</div>
-              <div className="workspace-col-nights">Nights</div>
+              <div className="workspace-col-nights text-center">Nights</div>
               <div className="workspace-col-accommodation">Accommodation</div>
               <div className="workspace-col-activities">Activities</div>
               <div className="workspace-col-transportation">Transportation</div>
+              <div className="workspace-col-actions" />
             </div>
 
             <div className="workspace-destination-rows">
@@ -272,7 +300,7 @@ export default function TripWorkspace() {
                       {dest.name}
                     </span>
                   </div>
-                  <div className="workspace-col-nights">
+                  <div className="workspace-col-nights flex justify-center">
                     <input
                       type="number"
                       min="1"
@@ -284,7 +312,7 @@ export default function TripWorkspace() {
                           parseInt(e.target.value) || 1,
                         )
                       }
-                      className={`${inputClasses} w-16 text-center`}
+                      className={`${inputClasses} w-14 text-center`}
                       title="Nights"
                     />
                   </div>
@@ -310,7 +338,7 @@ export default function TripWorkspace() {
                       className={inputClasses}
                     />
                   </div>
-                  <div className="workspace-col-transportation flex items-center gap-2 pr-2">
+                  <div className="workspace-col-transportation">
                     <input
                       type="text"
                       value={dest.transportation || ''}
@@ -320,10 +348,14 @@ export default function TripWorkspace() {
                       placeholder="e.g. Flight / Train"
                       className={inputClasses}
                     />
+                  </div>
+                  <div className="workspace-col-actions flex justify-center">
                     <button
+                      type="button"
                       onClick={(e) => handleDeleteDestination(dest.id, e)}
-                      className="workspace-delete-dest-btn flex-shrink-0"
+                      className="workspace-delete-dest-btn shrink-0"
                       title="Remove Destination"
+                      aria-label="Remove Destination"
                     >
                       ✕
                     </button>

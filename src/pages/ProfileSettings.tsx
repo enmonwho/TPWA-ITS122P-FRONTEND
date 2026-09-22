@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   User as UserIcon,
   Sliders,
@@ -13,10 +14,11 @@ import {
   Lock,
   RefreshCw,
   Camera,
+  LogOut,
 } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
-import { STORAGE_KEYS } from '../lib/constants';
+import { ROUTES, STORAGE_KEYS } from '../lib/constants';
 import { userApi, preferencesApi } from '../services/api';
 import '../styles/ProfileSettings.css';
 
@@ -44,8 +46,18 @@ function getStoredPreferences(userId?: string | number): StoredPreferences {
 }
 
 export default function ProfileSettings() {
-  const { user, setUser } = useAuth();
+  const { user, setUser, logout } = useAuth();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate(ROUTES.LOGIN);
+    } catch (err) {
+      console.error('Logout failed:', err);
+    }
+  };
 
   const [activeTab, setActiveTab] = useState<TabType>('general');
 
@@ -658,7 +670,17 @@ export default function ProfileSettings() {
           </div>
         )}
 
-        <div className="profile-actions-row">
+        <div
+          className="profile-actions-row"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            width: '100%',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
           <button type="submit" className="btn-profile-primary" disabled={isSaving}>
             {isSaving ? (
               <>
@@ -669,6 +691,27 @@ export default function ProfileSettings() {
                 <Save size={15} /> Save Changes
               </>
             )}
+          </button>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="btn-profile-logout"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 18px',
+              borderRadius: '10px',
+              backgroundColor: '#fee2e2',
+              color: '#dc2626',
+              fontWeight: 600,
+              fontSize: '14px',
+              border: '1px solid #fca5a5',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <LogOut size={16} /> Log out
           </button>
         </div>
       </form>

@@ -181,11 +181,21 @@ export default function GlobeMap({
     }
   }, [activeMarkerId, markers]);
 
-  // Focus view for smooth Continent Map Navigation (Fix #22)
+  const focusLng = focusView ? focusView[0] : null;
+  const focusLat = focusView ? focusView[1] : null;
+
+  // Focus view for smooth Continent Map Navigation (BUG-06)
   useEffect(() => {
-    if (!map.current || !focusView) return;
-    map.current.flyTo({ center: focusView, zoom: 2.5, duration: 2000, essential: true });
-  }, [focusView]);
+    if (!map.current || focusLng === null || focusLat === null) return;
+    // Dismiss any active marker popups when panning to a continent
+    markersRef.current.forEach((m) => m.getPopup()?.remove());
+    map.current.flyTo({
+      center: [focusLng, focusLat],
+      zoom: 2.5,
+      duration: 1800,
+      essential: true,
+    });
+  }, [focusLng, focusLat]);
 
   const hasFittedBoundsRef = useRef(false);
   const prevSearchModeRef = useRef(false);

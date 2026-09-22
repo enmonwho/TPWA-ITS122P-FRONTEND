@@ -307,9 +307,15 @@ export const activitiesApi = {
 };
 
 export const bookingsApi = {
-  getAll: async (status?: BookingStatus): Promise<Booking[]> => {
+  getAll: async (
+    status?: BookingStatus,
+    tripId?: string | number,
+  ): Promise<Booking[]> => {
+    const params: Record<string, string | number> = {};
+    if (status) params.status = status;
+    if (tripId !== undefined && tripId !== null) params.trip_id = tripId;
     const response = await api.get<{ bookings?: Booking[] } | Booking[]>('/bookings', {
-      params: status ? { status } : undefined,
+      params: Object.keys(params).length > 0 ? params : undefined,
     });
     return Array.isArray(response.data) ? response.data : response.data.bookings || [];
   },
