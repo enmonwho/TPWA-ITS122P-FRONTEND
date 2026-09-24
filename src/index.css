@@ -3467,18 +3467,20 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 
 .modal-content {
   width: 100%;
-  max-width: 510px;
-  height: 526px;
+  max-width: 520px;
+  min-height: auto;
+  max-height: 90vh;
   background-color: #fff;
-  border-radius: 10px;
+  border-radius: 18px;
   box-shadow:
-    0px 4px 16px rgba(0, 0, 0, 0.25),
-    0px 1px 4px rgba(0, 0, 0, 0.12);
+    0px 12px 36px rgba(0, 0, 0, 0.22),
+    0px 2px 8px rgba(0, 0, 0, 0.08);
   position: relative;
-  padding: 38px 41px 36px 41px;
+  padding: 34px 38px;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  overflow-y: auto;
   animation: modalCardPopIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: transform, opacity;
 }
@@ -3493,7 +3495,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
+  padding: 6px;
   border-radius: 50%;
   color: rgba(0, 0, 0, 0.7);
   transition:
@@ -3509,22 +3511,22 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 /* Form Styles */
 .form-label {
   font-family: 'SF Pro Rounded', var(--font-sans);
-  font-weight: 500;
-  font-size: 16px;
-  color: #000;
+  font-weight: 600;
+  font-size: 15px;
+  color: #1c1917;
   margin-bottom: 8px;
   display: block;
 }
 
 .input-gradient-border {
   border: 2px solid transparent;
-  border-radius: 10px;
+  border-radius: 12px;
   background-image: linear-gradient(white, white), var(--gradient-brand);
   background-origin: border-box;
   background-clip: padding-box, border-box;
   display: flex;
   align-items: center;
-  height: 46px;
+  height: 48px;
   padding: 0 16px;
   box-sizing: border-box;
 }
@@ -3547,32 +3549,34 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 }
 
 .form-group {
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 }
 
 /* Chip Buttons */
 .chip-button-group {
   display: flex;
-  gap: 14px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
 .chip-button {
-  width: 87px;
-  height: 36px;
-  border-radius: 10px;
+  flex: 1;
+  min-width: 84px;
+  height: 42px;
+  border-radius: 12px;
   background-color: #fff;
   border: 1px solid var(--color-dash-border);
   font-family: 'SF Pro Rounded', var(--font-sans);
-  font-weight: 400;
-  font-size: 15px;
-  color: rgba(0, 0, 0, 0.7);
+  font-weight: 500;
+  font-size: 14.5px;
+  color: rgba(0, 0, 0, 0.75);
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   transition: all var(--transition-fast);
   box-sizing: border-box;
+  padding: 0 12px;
 }
 
 .chip-button:hover {
@@ -6079,10 +6083,10 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 .explore-scroll-pane {
   flex: 1;
   overflow-y: auto;
-  padding-right: 14px;
+  padding-right: 16px;
   display: flex;
   flex-direction: column;
-  gap: 26px;
+  gap: 34px;
 }
 
 .explore-scroll-pane::-webkit-scrollbar {
@@ -6100,18 +6104,52 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 18px;
+  padding: 10px 20px;
   border-radius: 9999px;
   border: 2px solid transparent;
   background:
     linear-gradient(#fff, #fff) padding-box,
     var(--lakbye-gradient) border-box;
   width: 100%;
+  transition: box-shadow 0.2s ease;
+}
+
+.explore-search-input-box:focus-within {
+  box-shadow: 0 4px 18px rgba(233, 114, 76, 0.2);
+}
+
+.explore-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #1c1917;
+  padding: 0;
+  margin: 0;
+}
+
+.explore-search-input:focus,
+.explore-search-input:focus-visible {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+
+.explore-search-input::placeholder {
+  color: #78716c;
+  opacity: 0.85;
+  font-size: 14.5px;
+  font-weight: 400;
 }
 
 .explore-popular-card {
-  min-height: 200px;
-  border-radius: 16px;
+  min-height: 220px;
+  border-radius: 18px;
   background-color: #1a1a1a;
   background-size: cover;
   background-position: center;
@@ -6121,7 +6159,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: 24px;
+  padding: 28px 32px;
   cursor: pointer;
   transition:
     transform 0.2s ease,
@@ -6147,7 +6185,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   z-index: 2;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .explore-popular-badge {
@@ -6157,13 +6195,13 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   background: rgba(233, 114, 76, 0.95);
   backdrop-filter: blur(4px);
   color: #ffffff;
-  padding: 3px 10px;
-  border-radius: 20px;
+  padding: 5px 14px;
+  border-radius: 9999px;
   font-family: 'SF Pro Rounded', var(--font-sans);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   width: fit-content;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 
 .btn-popular-plan {
@@ -6172,8 +6210,8 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   color: #ffffff;
   font-family: 'SF Pro Rounded', var(--font-sans);
   font-weight: 700;
-  font-size: 13px;
-  padding: 7px 18px;
+  font-size: 13.5px;
+  padding: 9px 20px;
   border-radius: 80px;
   cursor: pointer;
   transition:
@@ -6210,23 +6248,23 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 .companion-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
+  gap: 16px;
 }
 
 .companion-btn-card {
-  height: 110px;
-  border-radius: 12px;
+  height: 126px;
+  border-radius: 14px;
   background-color: #222;
   background-size: cover;
   background-position: center;
-  box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.14);
-  padding: 14px;
+  box-shadow: 0px 3px 10px rgba(0, 0, 0, 0.15);
+  padding: 16px 18px;
   display: flex;
   align-items: flex-end;
   font-family: 'SF Pro Rounded', var(--font-sans);
   font-weight: 700;
   font-size: 16px;
-  line-height: 1.1;
+  line-height: 1.15;
   color: #ffffff;
   cursor: pointer;
   position: relative;
@@ -6259,18 +6297,20 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 }
 
 .region-chip-btn {
-  padding: 5px 14px;
-  border-radius: 80px;
-  font-size: 12px;
-  font-weight: 500;
+  padding: 8px 20px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
+  min-height: 38px;
   border: 1px solid rgba(72, 42, 19, 0.2);
   background: #ffffff;
-  color: rgba(0, 0, 0, 0.7);
+  color: rgba(0, 0, 0, 0.75);
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   white-space: nowrap;
+  transition: all 0.15s ease;
 }
 
 .region-chip-btn.active {
@@ -6280,10 +6320,11 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
     var(--lakbye-gradient) border-box;
   color: #000000;
   font-weight: 700;
+  box-shadow: 0 2px 8px rgba(233, 114, 76, 0.15);
 }
 
 .carousel-card {
-  width: 140px;
+  width: 154px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -6296,20 +6337,20 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 }
 
 .carousel-thumb {
-  width: 140px;
-  height: 130px;
-  border-radius: 12px;
+  width: 154px;
+  height: 140px;
+  border-radius: 14px;
   background-color: #f1f1f1;
   background-size: cover;
   background-position: center;
-  box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.12);
+  box-shadow: 0px 3px 10px rgba(0, 0, 0, 0.12);
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease;
   display: flex;
   align-items: flex-end;
   justify-content: flex-start;
-  padding: 8px;
+  padding: 10px;
   position: relative;
   overflow: hidden;
 }
@@ -6340,22 +6381,22 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 .carousel-tag-badge {
   position: relative;
   z-index: 2;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(4px);
   color: #ffffff;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 9.5px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 10.5px;
   font-weight: 600;
   line-height: 1.2;
 }
 
 .carousel-label {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
   color: rgba(0, 0, 0, 0.75);
   text-align: center;
-  max-width: 130px;
+  max-width: 145px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -6389,6 +6430,430 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   box-shadow: 0px 0px 2.5px 0px rgba(0, 0, 0, 0.79);
   background: #d9d9d9;
   position: relative;
+}
+
+/* ==========================================================================
+   Stippl-Inspired Explore Layout (Text Spacing, Card Paddings & Placement)
+   ========================================================================== */
+
+.stippl-section {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 42px;
+}
+
+.stippl-overline {
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #a8a29e;
+  margin-bottom: 8px;
+}
+
+.stippl-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.stippl-title {
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-size: 20px;
+  font-weight: 800;
+  color: #1c1917;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.stippl-date-badge {
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: #78716c;
+}
+
+.explore-count-label {
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: #78716c;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+
+.explore-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.explore-section-subtitle {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #78716c;
+  margin-top: 0;
+  margin-bottom: 24px;
+}
+
+.explore-region-chips {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 22px;
+}
+
+.explore-carousel-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+/* Section 1: Featured / Editor's picks (1 Hero + 2 Stacked) */
+.stippl-featured-grid {
+  display: grid;
+  grid-template-columns: 1.65fr 1fr;
+  gap: 14px;
+}
+
+.stippl-hero-card {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  height: 242px;
+  cursor: pointer;
+  background-color: #1c1917;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 22px 24px;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+  border: none;
+  text-align: left;
+}
+
+.stippl-hero-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.stippl-hero-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0.85) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.stippl-hero-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stippl-hero-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stippl-hero-flag {
+  width: 22px;
+  height: 15px;
+  object-fit: cover;
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.stippl-hero-title {
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-size: 22px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.stippl-hero-desc {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.4;
+  max-width: 92%;
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.stippl-stacked-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stippl-stacked-card {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  height: 115px;
+  cursor: pointer;
+  background-color: #1c1917;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 14px 16px;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+  border: none;
+  text-align: left;
+}
+
+.stippl-stacked-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.stippl-stacked-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0.82) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.stippl-stacked-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stippl-stacked-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stippl-stacked-flag {
+  width: 18px;
+  height: 13px;
+  object-fit: cover;
+  border-radius: 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.stippl-stacked-title {
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.stippl-stacked-desc {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.78);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Section 2: When to go / Best time to travel */
+.stippl-nav-arrows {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stippl-nav-arrow-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid #e7e5e4;
+  background: #ffffff;
+  color: #57534e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.stippl-nav-arrow-btn:hover {
+  background: #f5f5f4;
+  color: #1c1917;
+  border-color: #d6d3d1;
+}
+
+.stippl-month-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 14px;
+}
+
+.stippl-month-btn {
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #78716c;
+  background: transparent;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.stippl-month-btn:hover {
+  color: #1c1917;
+}
+
+.stippl-month-btn.active {
+  color: #1c1917;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 6px;
+  text-decoration-thickness: 2.5px;
+  text-decoration-color: #f97316;
+}
+
+.stippl-travel-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.stippl-travel-card {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  height: 154px;
+  cursor: pointer;
+  background-color: #1c1917;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 12px;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+  border: none;
+}
+
+.stippl-travel-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.stippl-travel-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.72) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.stippl-travel-flag-badge {
+  position: relative;
+  z-index: 2;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.stippl-travel-name {
+  position: relative;
+  z-index: 2;
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+  text-align: center;
+  width: 100%;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Section 3: Vibe / Browse by feel */
+.stippl-vibe-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+
+.stippl-vibe-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 15px;
+  border-radius: 9999px;
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #44403c;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.stippl-vibe-pill:hover {
+  border-color: #f97316;
+  color: #ea580c;
+  background: #fffbf7;
+}
+
+.stippl-vibe-pill.active {
+  background: var(--lakbye-gradient);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(233, 114, 76, 0.3);
+}
+
+@media (max-width: 900px) {
+  .stippl-featured-grid {
+    grid-template-columns: 1fr;
+  }
+  .stippl-travel-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 1366px) {
@@ -6657,15 +7122,16 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   z-index: 10;
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
+  padding: 6px 14px;
   border-radius: 9999px;
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(0, 0, 0, 0.68);
   backdrop-filter: blur(8px);
   color: #ffffff;
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 700;
   line-height: 1;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  letter-spacing: 0.02em;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .explore-rating-pill {
@@ -6676,16 +7142,16 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 10px;
+  padding: 5px 12px;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(8px);
   color: #1c1917;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.85);
 }
 
 .explore-result-actions {
@@ -7002,11 +7468,13 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 
 .start-trip-modal-card {
   background: #ffffff;
-  border-radius: 12px;
-  width: 500px;
-  max-width: 90vw;
-  padding: 32px 36px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  border-radius: 18px;
+  width: 520px;
+  max-width: 92vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 34px 38px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -7031,23 +7499,23 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 }
 
 .modal-label {
-  font-size: 14px;
+  font-size: 14.5px;
   font-weight: 600;
-  color: #000000;
+  color: #1c1917;
   margin-bottom: 8px;
   display: block;
 }
 
 .modal-input-gradient {
   width: 100%;
-  height: 44px;
-  border-radius: 10px;
+  height: 48px;
+  border-radius: 12px;
   border: 2px solid transparent;
   background:
     linear-gradient(#fff, #fff) padding-box,
     var(--lakbye-gradient) border-box;
   padding: 0 16px;
-  font-size: 14px;
+  font-size: 14.5px;
   color: #000000;
   outline: none;
   box-sizing: border-box;
@@ -7063,18 +7531,19 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 }
 
 .travel-type-pill {
-  height: 36px;
-  border-radius: 10px;
+  height: 42px;
+  border-radius: 12px;
   border: 1px solid rgba(72, 42, 19, 0.2);
   background: #ffffff;
-  color: rgba(0, 0, 0, 0.7);
+  color: rgba(0, 0, 0, 0.75);
   font-size: 14px;
-  font-weight: 400;
+  font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
+  padding: 0 10px;
 }
 
 .travel-type-pill.active {
@@ -8016,11 +8485,12 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 }
 
 .explore-mobile-cat-pill {
-  padding: 7px 18px;
+  padding: 8px 20px;
   border-radius: 9999px;
   font-family: 'SF Pro Rounded', var(--font-sans);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
+  min-height: 38px;
   border: 1px solid rgba(72, 42, 19, 0.14);
   background: #ffffff;
   color: #6b5e51;
@@ -8029,7 +8499,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
 }
 
 .explore-mobile-cat-pill.active {

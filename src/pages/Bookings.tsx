@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   ChevronRight,
   Plus,
-  Compass,
   Calendar,
   ArrowUpRight,
   Ticket,
@@ -16,6 +15,7 @@ import {
   MapPin,
 } from 'lucide-react';
 import magnifierIcon from '../assets/magnifier.png';
+import browseDestIcon from '../assets/browse-destination.svg';
 import CreateTripModal from '../components/CreateTripModal';
 import {
   tripsApi,
@@ -542,22 +542,22 @@ export default function Bookings() {
                     Start a new adventure and LakBye will handle your itineraries, stays,
                     and budget all in one place.
                   </p>
-                  <div className="bookings-empty-actions">
+                  <div className="bookings-empty-actions dashboard-empty-actions">
                     <button
                       type="button"
                       onClick={() => setIsCreateTripModalOpen(true)}
-                      className="btn-bookings-create"
+                      className="btn-create-trip dashboard-btn-create"
                     >
-                      <Plus className="w-4 h-4" />
+                      <Plus size={16} strokeWidth={2.5} className="text-white shrink-0" />
                       <span>Create a Trip</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => navigate('/dashboard/explore')}
-                      className="btn-bookings-browse"
+                      className="dashboard-btn-browse"
                     >
-                      <Compass className="w-4 h-4 text-stone-600" />
-                      <span>Browse Destinations</span>
+                      <img src={browseDestIcon} alt="" />
+                      Browse Destinations
                     </button>
                   </div>
                 </div>
@@ -799,9 +799,10 @@ export default function Bookings() {
               <button
                 type="button"
                 onClick={() => setIsCreateTripModalOpen(true)}
-                className="btn-bookings-create"
+                className="btn-create-trip mx-auto"
+                style={{ width: '220px', height: '42px', fontSize: '14px' }}
               >
-                <Plus className="w-4 h-4" />
+                <Plus size={16} strokeWidth={2.5} className="text-white shrink-0" />
                 <span>Create a Trip</span>
               </button>
             </div>

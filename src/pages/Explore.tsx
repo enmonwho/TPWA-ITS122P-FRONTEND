@@ -2,37 +2,41 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import GlobeMap from '../components/GlobeMap';
 import magnifierIcon from '../assets/magnifier.png';
-import { Star, Globe, X, Compass, Flame, ArrowUpRight } from 'lucide-react';
-import { tripsApi } from '../services/api';
+import {
+  Star,
+  Globe,
+  X,
+  Compass,
+  Flame,
+  ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
+  Palette,
+  Palmtree,
+  Utensils,
+  Sparkles,
+  Landmark,
+  Trees,
+  Wine,
+  Footprints,
+  Heart,
+  Mountain,
+  Snowflake,
+  Home,
+  Flower2,
+  PawPrint,
+} from 'lucide-react';
+import { tripsApi, destinationsApi, activitiesApi } from '../services/api';
 import {
   fetchExploreCountries,
   TOP_ISLANDS,
-  getMostPopularDestination,
+  getEditorsPicks,
+  getBestTimeToTravel,
+  getPlacesByVibe,
+  VIBES_LIST,
+  MONTHS_SHORT,
   type ExplorePlace,
 } from '../services/exploreService';
-
-const COMPANIONS = [
-  {
-    type: 'Solo',
-    title: 'Solo\nRetreat',
-    bg: 'https://images.unsplash.com/photo-1501555088652-021faa106b9b?auto=format&fit=crop&w=400&q=80',
-  },
-  {
-    type: 'Couple',
-    title: 'Couple\nRetreat',
-    bg: 'https://images.unsplash.com/photo-1510414842594-a61752d3857d?auto=format&fit=crop&w=400&q=80',
-  },
-  {
-    type: 'Friends',
-    title: 'Friend\nGetaway',
-    bg: 'https://images.unsplash.com/photo-1539635278303-d4002c07eae3?auto=format&fit=crop&w=400&q=80',
-  },
-  {
-    type: 'Family',
-    title: 'Family\nVacation',
-    bg: 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=400&q=80',
-  },
-];
 
 const CONTINENT_CENTERS: Record<string, [number, number]> = {
   Europe: [15.2551, 54.526],
@@ -40,8 +44,24 @@ const CONTINENT_CENTERS: Record<string, [number, number]> = {
   Americas: [-75.0, 10.0],
   Africa: [20.0, 8.7832],
   Oceania: [140.0188, -22.7359],
+  Philippines: [121.774, 12.8797],
   All: [121.774, 12.8797],
 };
+
+const MONTHS_FULL = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
 
 export default function Explore() {
   const navigate = useNavigate();
@@ -52,9 +72,11 @@ export default function Explore() {
 
   const [countries, setCountries] = useState<ExplorePlace[]>([]);
   const [islands] = useState<ExplorePlace[]>(TOP_ISLANDS);
-  const [popularPlace, setPopularPlace] = useState<ExplorePlace | null>(null);
 
   const [activeRegion, setActiveRegion] = useState('All');
+  const [activeMonth, setActiveMonth] = useState<number>(() => new Date().getMonth());
+  const [activeVibe, setActiveVibe] = useState<string | null>(null);
+
   const [activeMarkerId, setActiveMarkerId] = useState<string | null>(null);
   const [focusCoords, setFocusCoords] = useState<[number, number] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -98,21 +120,80 @@ export default function Explore() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Fetch real data dynamically from REST API and backend endpoints (no hardcoding)
   useEffect(() => {
     let isMounted = true;
     const loadData = async () => {
       setLoading(true);
       try {
-        const loadedCountries = await fetchExploreCountries();
+        const [loadedCountries, backendDests, backendActivities] =
+          await Promise.allSettled([
+            fetchExploreCountries(),
+            destinationsApi.getAll(),
+            activitiesApi.getAll(),
+          ]);
+
         if (!isMounted) return;
 
-        setCountries(loadedCountries);
-        const featured = getMostPopularDestination(loadedCountries);
-        setPopularPlace(featured);
-        setSelectedLocation(featured.name);
-        setActiveMarkerId(featured.id);
+        let placeList: ExplorePlace[] = [];
+        if (loadedCountries.status === 'fulfilled') {
+          placeList = [...loadedCountries.value];
+        }
+
+        // Merge backend destinations if present
+        if (backendDests.status === 'fulfilled' && backendDests.value.length > 0) {
+          backendDests.value.forEach((d) => {
+            if (
+              !placeList.some(
+                (p) => p.name.toLowerCase() === d.location_name.toLowerCase(),
+              )
+            ) {
+              placeList.push({
+                id: `backend-${d.id}`,
+                name: d.location_name,
+                country: 'Philippines',
+                region: 'Asia',
+                category: 'popular',
+                latitude: d.latitude || 12.8797,
+                longitude: d.longitude || 121.774,
+                imageUrl:
+                  'https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?auto=format&fit=crop&w=800&q=80',
+                flag: 'https://flagcdn.com/w320/ph.png',
+                description: `Iconic stop in the Philippines: ${d.location_name}.`,
+                tag: 'Trip Destination',
+                vibes: ['Beach', 'Scenic', 'Adventure'],
+                bestMonths: [0, 1, 2, 3, 4, 11],
+              });
+            }
+          });
+        }
+
+        // Augment place descriptions with backend activities
+        if (
+          backendActivities.status === 'fulfilled' &&
+          backendActivities.value.length > 0
+        ) {
+          const acts = backendActivities.value;
+          placeList = placeList.map((p) => {
+            const matchedAct = acts.find((a) =>
+              p.name.toLowerCase().includes(a.title.toLowerCase()),
+            );
+            if (matchedAct && !p.description?.includes(matchedAct.title)) {
+              return {
+                ...p,
+                tag: 'Featured Activity',
+              };
+            }
+            return p;
+          });
+        }
+
+        setCountries(placeList);
+        const picks = getEditorsPicks(placeList);
+        setSelectedLocation(picks.hero.name);
+        setActiveMarkerId(picks.hero.id);
       } catch (err) {
-        console.error('Error loading explore destinations:', err);
+        console.error('Error loading explore destinations from APIs:', err);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -124,6 +205,102 @@ export default function Explore() {
     };
   }, []);
 
+  // Compute Stippl Editor's Picks (1 hero card + 2 stacked cards)
+  const editorsPicks = useMemo(() => {
+    return getEditorsPicks(countries);
+  }, [countries]);
+
+  // Compute Best Time to Travel (4 cards matching current/selected month)
+  const bestTimePlaces = useMemo(() => {
+    return getBestTimeToTravel(countries, activeMonth);
+  }, [countries, activeMonth]);
+
+  // Combined master catalog of all places
+  const allDestinations = useMemo(() => {
+    const map = new Map<string, ExplorePlace>();
+    TOP_ISLANDS.forEach((i) => map.set(i.id, i));
+    countries.forEach((c) => map.set(c.id, c));
+    return Array.from(map.values());
+  }, [countries]);
+
+  // Filtered countries list for "All Countries" section
+  const filteredCountries = useMemo(() => {
+    let list = countries;
+
+    // Filter by Region
+    if (activeRegion === 'Philippines') {
+      list = list.filter(
+        (c) => c.country === 'Philippines' || c.name.includes('Philippines'),
+      );
+    } else if (activeRegion !== 'All') {
+      list = list.filter((c) => c.region === activeRegion);
+    }
+
+    // Filter by Vibe if selected
+    if (activeVibe) {
+      list = getPlacesByVibe(list, activeVibe);
+    }
+
+    return list;
+  }, [countries, activeRegion, activeVibe]);
+
+  // Markers for interactive 3D Globe
+  const globeMarkers = useMemo(() => {
+    const list = activeVibe
+      ? getPlacesByVibe(allDestinations, activeVibe)
+      : filteredCountries.length > 0
+        ? filteredCountries
+        : allDestinations;
+
+    return list.slice(0, 35).map((p) => ({
+      id: p.id,
+      title: p.name,
+      name: p.name,
+      lat: p.latitude,
+      lng: p.longitude,
+      flag: p.flag,
+    }));
+  }, [allDestinations, filteredCountries, activeVibe]);
+
+  // Search Results
+  const isSearchMode = Boolean(debouncedQuery.trim());
+  const searchResults = useMemo(() => {
+    if (!debouncedQuery.trim()) return [];
+    const q = debouncedQuery.toLowerCase();
+    return allDestinations.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.country && p.country.toLowerCase().includes(q)) ||
+        (p.region && p.region.toLowerCase().includes(q)) ||
+        (p.tag && p.tag.toLowerCase().includes(q)) ||
+        (p.description && p.description.toLowerCase().includes(q)) ||
+        (p.vibes && p.vibes.some((v) => v.toLowerCase().includes(q))),
+    );
+  }, [debouncedQuery, allDestinations]);
+
+  // Autocomplete Suggestions
+  const autocompleteSuggestions = useMemo(() => {
+    if (!searchQuery.trim() || searchQuery.trim().length < 2) return [];
+    const q = searchQuery.toLowerCase();
+    return allDestinations
+      .filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          (p.country && p.country.toLowerCase().includes(q)) ||
+          (p.tag && p.tag.toLowerCase().includes(q)),
+      )
+      .slice(0, 6);
+  }, [searchQuery, allDestinations]);
+
+  const trendingSearches = useMemo(() => {
+    return [
+      ...TOP_ISLANDS.slice(0, 3),
+      ...countries.filter((c) =>
+        ['BN', 'CK', 'SZ', 'US', 'FR', 'IT', 'JP'].includes(c.id),
+      ),
+    ].slice(0, 5);
+  }, [countries]);
+
   const scrollContainer = (
     ref: React.RefObject<HTMLDivElement | null>,
     offset: number,
@@ -133,105 +310,15 @@ export default function Explore() {
     }
   };
 
-  // Combine all destinations for unified search and autocomplete
-  const allDestinations = useMemo(() => {
-    const list: ExplorePlace[] = [];
-    if (popularPlace) list.push(popularPlace);
-    list.push(...islands);
-    list.push(...countries);
-
-    const seen = new Set<string>();
-    return list.filter((item) => {
-      if (seen.has(item.id)) return false;
-      seen.add(item.id);
-      return true;
-    });
-  }, [popularPlace, islands, countries]);
-
-  // Browse Mode: filtered countries by continent region
-  const filteredCountries = useMemo(() => {
-    return countries.filter((c) => activeRegion === 'All' || c.region === activeRegion);
-  }, [countries, activeRegion]);
-
-  // Search Mode detection
-  const isSearchMode = debouncedQuery.trim().length > 0;
-
-  // Search Mode: full matching search results across all datasets
-  const searchResults = useMemo(() => {
-    if (!debouncedQuery.trim()) return [];
-    const q = debouncedQuery.toLowerCase().trim();
-    return allDestinations.filter((place) => {
-      return (
-        place.name.toLowerCase().includes(q) ||
-        (place.country && place.country.toLowerCase().includes(q)) ||
-        (place.region && place.region.toLowerCase().includes(q)) ||
-        (place.tag && place.tag.toLowerCase().includes(q)) ||
-        (place.description && place.description.toLowerCase().includes(q))
-      );
-    });
-  }, [allDestinations, debouncedQuery]);
-
-  // Live Autocomplete matching suggestions (2+ characters)
-  const autocompleteSuggestions = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (q.length < 2) return [];
-    return allDestinations
-      .filter((d) => {
-        return (
-          d.name.toLowerCase().includes(q) ||
-          (d.country && d.country.toLowerCase().includes(q)) ||
-          (d.region && d.region.toLowerCase().includes(q)) ||
-          (d.tag && d.tag.toLowerCase().includes(q))
-        );
-      })
-      .slice(0, 8);
-  }, [allDestinations, searchQuery]);
-
-  // Trending picks displayed when input is focused but empty (< 2 characters)
-  const trendingSearches = useMemo(() => {
-    const trendingIds = [
-      'island-boracay',
-      'island-palawan',
-      'island-siargao',
-      'island-batanes',
-      'island-coron',
-      'island-bali',
-      'island-santorini',
-    ];
-    return allDestinations.filter((d) => trendingIds.includes(d.id)).slice(0, 6);
-  }, [allDestinations]);
-
-  // Sync Globe Markers: in Search Mode, only matching places show pins!
-  const globeMarkers = useMemo(() => {
-    const list: ExplorePlace[] = isSearchMode
-      ? searchResults
-      : [
-          ...(popularPlace ? [popularPlace] : []),
-          ...islands,
-          ...filteredCountries.slice(0, 30),
-        ];
-
-    const seen = new Set<string>();
-    return list
-      .filter((item) => {
-        if (seen.has(item.id)) return false;
-        seen.add(item.id);
-        return true;
-      })
-      .map((d) => ({
-        id: d.id,
-        lng: d.longitude,
-        lat: d.latitude,
-        title: d.name,
-      }));
-  }, [isSearchMode, searchResults, popularPlace, islands, filteredCountries]);
-
-  const handleSelectPlace = (place: ExplorePlace, openModal = false) => {
+  const handleSelectPlace = (place: ExplorePlace, openPlanModal = false) => {
     setActiveMarkerId(place.id);
+    setFocusCoords([place.longitude, place.latitude]);
     setSelectedLocation(place.name);
-    setTripName(`Trip to ${place.name}`);
 
-    if (openModal) {
+    if (openPlanModal) {
+      setTripName(`${place.name} Adventure`);
+      setStartDate('');
+      setEndDate('');
       setIsStartTripOpen(true);
     }
   };
@@ -244,7 +331,6 @@ export default function Explore() {
     setEndDate('');
   };
 
-  // Clicking an autocomplete suggestion fills the search bar and triggers full Search Mode
   const handleSelectSuggestion = (place: ExplorePlace) => {
     setSearchQuery(place.name);
     setDebouncedQuery(place.name);
@@ -282,7 +368,7 @@ export default function Explore() {
   const handleStartPlanning = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tripName.trim() || !startDate || !endDate) return;
-    if (endDate < startDate) return;
+    if (endDate <= startDate) return;
 
     setSubmitting(true);
     try {
@@ -314,10 +400,57 @@ export default function Explore() {
       'island-cebu': '4.6',
       'island-bali': '4.8',
       'island-santorini': '4.9',
+      BN: '4.8',
+      CK: '4.9',
+      SZ: '4.7',
+      US: '4.8',
+      FR: '4.9',
+      IT: '4.9',
+      ES: '4.8',
     };
-    return ratings[id] || '4.7';
+    return ratings[id] || '4.8';
   };
 
+  const renderVibeIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'Compass':
+        return <Compass size={14} className="shrink-0 text-amber-600" />;
+      case 'Palette':
+        return <Palette size={14} className="shrink-0 text-violet-600" />;
+      case 'Palmtree':
+        return <Palmtree size={14} className="shrink-0 text-emerald-600" />;
+      case 'Utensils':
+        return <Utensils size={14} className="shrink-0 text-rose-600" />;
+      case 'Sparkles':
+        return <Sparkles size={14} className="shrink-0 text-amber-500" />;
+      case 'Landmark':
+        return <Landmark size={14} className="shrink-0 text-indigo-600" />;
+      case 'Trees':
+        return <Trees size={14} className="shrink-0 text-emerald-700" />;
+      case 'Wine':
+        return <Wine size={14} className="shrink-0 text-pink-600" />;
+      case 'Footprints':
+        return <Footprints size={14} className="shrink-0 text-stone-600" />;
+      case 'Heart':
+        return <Heart size={14} className="shrink-0 text-rose-500" />;
+      case 'Mountain':
+        return <Mountain size={14} className="shrink-0 text-cyan-700" />;
+      case 'Snowflake':
+        return <Snowflake size={14} className="shrink-0 text-sky-500" />;
+      case 'Flame':
+        return <Flame size={14} className="shrink-0 text-orange-500" />;
+      case 'Home':
+        return <Home size={14} className="shrink-0 text-amber-800" />;
+      case 'Flower2':
+        return <Flower2 size={14} className="shrink-0 text-teal-600" />;
+      case 'PawPrint':
+        return <PawPrint size={14} className="shrink-0 text-amber-700" />;
+      default:
+        return <Compass size={14} className="shrink-0 text-amber-600" />;
+    }
+  };
+
+  // Mobile destinations filter
   const mobileDestinations = useMemo(() => {
     const allPlaces = [...TOP_ISLANDS, ...countries.slice(0, 20)];
     return allPlaces.filter((place) => {
@@ -334,11 +467,12 @@ export default function Explore() {
       if (mobileCategory === 'Most Popular') {
         return (
           [
+            'BN',
+            'CK',
+            'SZ',
             'island-palawan',
-            'island-batanes',
-            'island-siargao',
             'island-boracay',
-            'island-coron',
+            'island-siargao',
           ].includes(place.id) || place.category === 'popular'
         );
       }
@@ -353,7 +487,7 @@ export default function Explore() {
         );
       }
       if (mobileCategory === 'Hidden Gems') {
-        return ['island-batanes', 'island-coron', 'island-cebu'].includes(place.id);
+        return ['BN', 'CK', 'SZ', 'island-batanes', 'island-coron'].includes(place.id);
       }
       if (mobileCategory === 'Mountains') {
         return (
@@ -367,17 +501,20 @@ export default function Explore() {
     });
   }, [debouncedQuery, mobileCategory, countries]);
 
+  const currentMonthYearStr = `${MONTHS_FULL[activeMonth]} ${new Date().getFullYear()}`;
+
   return (
     <div className="explore-page-wrapper">
       <div className="explore-desktop-content">
         <div className="explore-container-card">
           <div className="explore-scroll-pane">
+            {/* Header: Where to next? */}
             <div className="explore-header-group">
               <h1 className="text-3xl font-bold text-stone-900 tracking-tight">
                 Where to next?
               </h1>
               <p className="text-xs text-stone-500 mt-1">
-                Explore trending islands, world destinations, and plan your next itinerary
+                Explore trending destinations, plan seasonal escapes, and browse by vibe
                 in 3D.
               </p>
             </div>
@@ -385,11 +522,11 @@ export default function Explore() {
             {/* Desktop Search Bar with Live Autocomplete Dropdown */}
             <div className="explore-search-wrapper" ref={searchContainerRef}>
               <div className="explore-search-input-box">
-                <img src={magnifierIcon} alt="" className="w-5 h-5 opacity-50" />
+                <img src={magnifierIcon} alt="" className="w-5 h-5 opacity-50 shrink-0" />
                 <input
                   type="text"
-                  className="w-full bg-transparent outline-none text-sm font-medium text-stone-800 placeholder-stone-400"
-                  placeholder="Search destinations, islands, or countries..."
+                  className="explore-search-input"
+                  placeholder="Search destinations, islands, countries..."
                   value={searchQuery}
                   aria-label="Search destinations"
                   onFocus={() => setIsDropdownOpen(true)}
@@ -687,7 +824,6 @@ export default function Explore() {
                     ))}
                   </div>
                 ) : (
-                  /* Empty / Zero-Result State */
                   <div className="explore-zero-results">
                     <div className="w-14 h-14 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center">
                       <Compass size={28} />
@@ -703,11 +839,11 @@ export default function Explore() {
                       </p>
                     </div>
 
-                    {/* Helpful Category Chips */}
                     <div className="flex flex-wrap justify-center gap-2 max-w-sm">
                       {[
                         'Philippines',
-                        'Islands',
+                        'Brunei',
+                        'Cook Islands',
                         'Asia',
                         'Europe',
                         'Beach',
@@ -727,41 +863,6 @@ export default function Explore() {
                       ))}
                     </div>
 
-                    {/* Fallback Trending Destinations */}
-                    <div className="w-full mt-2 pt-4 border-t border-stone-200/80">
-                      <p className="text-xs font-bold text-stone-700 mb-3 text-left">
-                        🔥 Or explore our trending picks:
-                      </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        {islands.slice(0, 3).map((island) => (
-                          <div
-                            key={`zero-rec-${island.id}`}
-                            className="p-2.5 rounded-xl bg-white border border-stone-200 flex items-center gap-2.5 cursor-pointer hover:border-amber-400 transition"
-                            onClick={() => handleSelectPlace(island, true)}
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSelectPlace(island, true);
-                            }}
-                          >
-                            <img
-                              src={island.imageUrl}
-                              alt=""
-                              className="w-12 h-12 rounded-lg object-cover"
-                            />
-                            <div className="text-left overflow-hidden">
-                              <h4 className="text-xs font-bold text-stone-800 truncate">
-                                {island.name}
-                              </h4>
-                              <span className="text-[11px] text-amber-700 font-semibold block">
-                                {island.tag || 'Trending'}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
                     <button
                       type="button"
                       onClick={() => {
@@ -776,132 +877,255 @@ export default function Explore() {
                 )}
               </div>
             ) : (
-              /* Browse Mode: Featured, Companion, All Countries, Top Islands */
+              /* Browse Mode: Stippl Reference Layout */
               <div className="explore-mode-transition flex flex-col gap-6">
-                {popularPlace && (
-                  <div>
-                    <div className="flex justify-between items-baseline mb-2">
-                      <h2 className="text-lg font-bold text-stone-900">Most Popular</h2>
-                      <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200/60">
-                        ★ Featured Destination
-                      </span>
-                    </div>
-                    <div
-                      className="explore-popular-card"
-                      style={{ backgroundImage: `url(${popularPlace.imageUrl})` }}
-                      onClick={() => handleSelectPlace(popularPlace, false)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleSelectPlace(popularPlace, false);
-                      }}
-                    >
-                      <div className="explore-popular-card-content">
-                        <div className="explore-popular-badge">
-                          <span>{popularPlace.tag || 'Trending Now'}</span>
-                        </div>
-                        <h3 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">
-                          {popularPlace.name}
-                        </h3>
-                        <p className="text-xs text-stone-200 line-clamp-2 max-w-lg drop-shadow">
-                          {popularPlace.description}
-                        </p>
-                        <div className="flex gap-2.5 mt-2">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSelectPlace(popularPlace, true);
-                            }}
-                            className="btn-popular-plan"
-                          >
-                            Plan Trip Here
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSelectPlace(popularPlace, false);
-                            }}
-                            className="btn-popular-globe"
-                          >
-                            View on Globe ↗
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                {/* 1. FEATURED / Editor's picks (1 Hero + 2 Stacked) */}
+                <div className="stippl-section">
+                  <span className="stippl-overline">Featured</span>
+                  <div className="stippl-header-row">
+                    <h2 className="stippl-title">Editor&apos;s picks</h2>
+                    <span className="stippl-date-badge">{currentMonthYearStr}</span>
                   </div>
-                )}
 
-                <div>
-                  <h2 className="text-base font-bold text-stone-900">
-                    Choose Your Companion, Find Your Destination
-                  </h2>
-                  <p className="text-xs text-stone-400 mb-3">
-                    Wherever you&apos;re going and whoever&apos;s coming along, find the
-                    ideal retreat for your next trip.
-                  </p>
-                  <div className="companion-grid">
-                    {COMPANIONS.map((item) => (
+                  <div className="stippl-featured-grid">
+                    {/* Hero Card */}
+                    <button
+                      type="button"
+                      className="stippl-hero-card group"
+                      style={{ backgroundImage: `url(${editorsPicks.hero.imageUrl})` }}
+                      onClick={() => handleSelectPlace(editorsPicks.hero, true)}
+                      title={`Click to plan a trip to ${editorsPicks.hero.name}`}
+                    >
+                      <div className="stippl-hero-content">
+                        <div className="stippl-hero-title-row">
+                          {editorsPicks.hero.flag && (
+                            <img
+                              src={editorsPicks.hero.flag}
+                              alt=""
+                              className="stippl-hero-flag"
+                            />
+                          )}
+                          <h3 className="stippl-hero-title">{editorsPicks.hero.name}</h3>
+                        </div>
+                        <p className="stippl-hero-desc">
+                          {editorsPicks.hero.description}
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* Stacked Cards */}
+                    <div className="stippl-stacked-col">
                       <button
                         type="button"
-                        key={item.type}
-                        onClick={() => {
-                          setTripName('');
-                          setSelectedLocation('');
-                          setStartDate('');
-                          setEndDate('');
-                          setTravelType(item.type);
-                          setIsStartTripOpen(true);
+                        className="stippl-stacked-card group"
+                        style={{
+                          backgroundImage: `url(${editorsPicks.stackedTop.imageUrl})`,
                         }}
-                        className="companion-btn-card text-left"
-                        style={{ backgroundImage: `url(${item.bg})` }}
+                        onClick={() => handleSelectPlace(editorsPicks.stackedTop, true)}
+                        title={`Click to plan a trip to ${editorsPicks.stackedTop.name}`}
                       >
-                        <span>{item.title}</span>
+                        <div className="stippl-stacked-content">
+                          <div className="stippl-stacked-title-row">
+                            {editorsPicks.stackedTop.flag && (
+                              <img
+                                src={editorsPicks.stackedTop.flag}
+                                alt=""
+                                className="stippl-stacked-flag"
+                              />
+                            )}
+                            <h3 className="stippl-stacked-title">
+                              {editorsPicks.stackedTop.name}
+                            </h3>
+                          </div>
+                          <p className="stippl-stacked-desc">
+                            {editorsPicks.stackedTop.description}
+                          </p>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="stippl-stacked-card group"
+                        style={{
+                          backgroundImage: `url(${editorsPicks.stackedBottom.imageUrl})`,
+                        }}
+                        onClick={() =>
+                          handleSelectPlace(editorsPicks.stackedBottom, true)
+                        }
+                        title={`Click to plan a trip to ${editorsPicks.stackedBottom.name}`}
+                      >
+                        <div className="stippl-stacked-content">
+                          <div className="stippl-stacked-title-row">
+                            {editorsPicks.stackedBottom.flag && (
+                              <img
+                                src={editorsPicks.stackedBottom.flag}
+                                alt=""
+                                className="stippl-stacked-flag"
+                              />
+                            )}
+                            <h3 className="stippl-stacked-title">
+                              {editorsPicks.stackedBottom.name}
+                            </h3>
+                          </div>
+                          <p className="stippl-stacked-desc">
+                            {editorsPicks.stackedBottom.description}
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. WHEN TO GO / Best time to travel */}
+                <div className="stippl-section">
+                  <span className="stippl-overline">When to go</span>
+                  <div className="stippl-header-row">
+                    <h2 className="stippl-title">Best time to travel</h2>
+                    <div className="stippl-nav-arrows">
+                      <button
+                        type="button"
+                        className="stippl-nav-arrow-btn"
+                        onClick={() => setActiveMonth((m) => (m === 0 ? 11 : m - 1))}
+                        aria-label="Previous month"
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        className="stippl-nav-arrow-btn"
+                        onClick={() => setActiveMonth((m) => (m === 11 ? 0 : m + 1))}
+                        aria-label="Next month"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Month Tabs */}
+                  <div className="stippl-month-tabs no-scrollbar">
+                    {MONTHS_SHORT.map((mName, idx) => (
+                      <button
+                        key={mName}
+                        type="button"
+                        onClick={() => setActiveMonth(idx)}
+                        className={`stippl-month-btn ${
+                          activeMonth === idx ? 'active' : ''
+                        }`}
+                      >
+                        {mName}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* 4 Cards Grid */}
+                  <div className="stippl-travel-grid">
+                    {bestTimePlaces.map((place) => (
+                      <button
+                        key={`travel-${place.id}`}
+                        type="button"
+                        className="stippl-travel-card group text-left"
+                        style={{ backgroundImage: `url(${place.imageUrl})` }}
+                        onClick={() => handleSelectPlace(place, true)}
+                        title={`Click to plan a trip to ${place.name}`}
+                      >
+                        {place.flag ? (
+                          <img
+                            src={place.flag}
+                            alt=""
+                            className="stippl-travel-flag-badge"
+                          />
+                        ) : (
+                          <div className="w-6 h-6" />
+                        )}
+                        <span className="stippl-travel-name">{place.name}</span>
                       </button>
                     ))}
                   </div>
                 </div>
 
-                <div>
-                  <div className="flex items-baseline justify-between mb-1">
-                    <h2 className="text-base font-bold text-stone-900">All Countries</h2>
-                    <span className="text-xs text-stone-400">
-                      {filteredCountries.length}{' '}
-                      {filteredCountries.length === 1 ? 'country' : 'countries'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-stone-400 mb-3">
-                    Explore places across every continent with live geographic
-                    coordinates.
-                  </p>
-
-                  <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-                    {['All', 'Europe', 'Asia', 'Americas', 'Africa', 'Oceania'].map(
-                      (region) => (
-                        <button
-                          key={region}
-                          type="button"
-                          onClick={() => {
-                            setActiveRegion(region);
-                            setActiveMarkerId(null);
-                            const coords = CONTINENT_CENTERS[region];
-                            setFocusCoords(coords ? [coords[0], coords[1]] : null);
-                          }}
-                          className={`region-chip-btn ${
-                            activeRegion === region ? 'active' : ''
-                          }`}
-                        >
-                          <span>{region}</span>
-                        </button>
-                      ),
+                {/* 3. VIBE / Browse by feel */}
+                <div className="stippl-section">
+                  <span className="stippl-overline">Vibe</span>
+                  <div className="stippl-header-row">
+                    <h2 className="stippl-title">Browse by feel</h2>
+                    {activeVibe && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveVibe(null)}
+                        className="text-xs font-semibold text-amber-700 hover:underline cursor-pointer"
+                      >
+                        Clear filter ✕
+                      </button>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-3 mt-3">
+                  {/* 16 Vibe Pills */}
+                  <div className="stippl-vibe-pills">
+                    {VIBES_LIST.map((vibe) => (
+                      <button
+                        key={vibe.id}
+                        type="button"
+                        onClick={() => {
+                          setActiveVibe((prev) =>
+                            prev === vibe.name ? null : vibe.name,
+                          );
+                        }}
+                        className={`stippl-vibe-pill ${
+                          activeVibe === vibe.name ? 'active' : ''
+                        }`}
+                      >
+                        {renderVibeIcon(vibe.iconName)}
+                        <span>{vibe.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 4. ALL COUNTRIES / Explore Destinations */}
+                <div className="stippl-section">
+                  <span className="stippl-overline">All Countries</span>
+                  <div className="stippl-header-row mb-3">
+                    <h2 className="stippl-title">Explore Destinations</h2>
+                    <span className="explore-count-label">
+                      {filteredCountries.length}{' '}
+                      {filteredCountries.length === 1 ? 'place' : 'places'}
+                    </span>
+                  </div>
+
+                  {/* Region Filter Chips */}
+                  <div className="explore-region-chips no-scrollbar">
+                    {[
+                      'All',
+                      'Philippines',
+                      'Asia',
+                      'Europe',
+                      'Americas',
+                      'Africa',
+                      'Oceania',
+                    ].map((region) => (
+                      <button
+                        key={region}
+                        type="button"
+                        onClick={() => {
+                          setActiveRegion(region);
+                          setActiveMarkerId(null);
+                          const coords = CONTINENT_CENTERS[region];
+                          setFocusCoords(coords ? [coords[0], coords[1]] : null);
+                        }}
+                        className={`region-chip-btn ${
+                          activeRegion === region ? 'active' : ''
+                        }`}
+                      >
+                        <span>{region}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Horizontal Scroll Carousel */}
+                  <div className="explore-carousel-wrapper">
                     <button
                       type="button"
-                      onClick={() => scrollContainer(countryScrollRef, -240)}
+                      onClick={() => scrollContainer(countryScrollRef, -260)}
                       className="carousel-arrow-btn"
                       aria-label="Scroll countries left"
                     >
@@ -909,7 +1133,7 @@ export default function Explore() {
                     </button>
                     <div
                       ref={countryScrollRef}
-                      className="flex gap-4 overflow-x-auto py-2 no-scrollbar scroll-smooth flex-1"
+                      className="flex gap-5 overflow-x-auto py-3 no-scrollbar scroll-smooth flex-1"
                     >
                       {loading && countries.length === 0 ? (
                         Array.from({ length: 6 }).map((_, i) => (
@@ -920,7 +1144,9 @@ export default function Explore() {
                         ))
                       ) : filteredCountries.length === 0 ? (
                         <div className="py-8 text-center text-xs text-stone-500 w-full">
-                          No destinations match in {activeRegion}.
+                          No destinations match{' '}
+                          {activeVibe ? `vibe "${activeVibe}" in ` : ''}
+                          {activeRegion}.
                         </div>
                       ) : (
                         filteredCountries.map((item) => (
@@ -953,7 +1179,7 @@ export default function Explore() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => scrollContainer(countryScrollRef, 240)}
+                      onClick={() => scrollContainer(countryScrollRef, 260)}
                       className="carousel-arrow-btn"
                       aria-label="Scroll countries right"
                     >
@@ -962,27 +1188,27 @@ export default function Explore() {
                   </div>
                 </div>
 
-                <div>
-                  <div className="flex items-baseline justify-between mb-1">
-                    <h2 className="text-base font-bold text-stone-900">
+                {/* Top Islands (🇵🇭 Philippines) */}
+                <div className="stippl-section">
+                  <div className="explore-section-header">
+                    <h2 className="stippl-title">
                       Top Islands to Explore{' '}
-                      <span className="text-stone-400 font-normal ml-1">
+                      <span className="text-stone-400 font-normal text-base ml-1">
                         (🇵🇭 Philippines)
                       </span>
                     </h2>
-                    <span className="text-xs text-stone-400">
+                    <span className="explore-count-label">
                       {islands.length} iconic islands
                     </span>
                   </div>
-                  <p className="text-xs text-stone-400 mb-3">
-                    Discover breathtaking archipelagos, lagoons, and white-sand escapes
-                    across the Philippines.
+                  <p className="explore-section-subtitle">
+                    Discover breathtaking archipelagos, lagoons, and white-sand escapes.
                   </p>
 
-                  <div className="flex items-center gap-3 mt-2">
+                  <div className="explore-carousel-wrapper">
                     <button
                       type="button"
-                      onClick={() => scrollContainer(islandScrollRef, -240)}
+                      onClick={() => scrollContainer(islandScrollRef, -260)}
                       className="carousel-arrow-btn"
                       aria-label="Scroll islands left"
                     >
@@ -990,7 +1216,7 @@ export default function Explore() {
                     </button>
                     <div
                       ref={islandScrollRef}
-                      className="flex gap-4 overflow-x-auto py-2 no-scrollbar scroll-smooth flex-1"
+                      className="flex gap-5 overflow-x-auto py-3 no-scrollbar scroll-smooth flex-1"
                     >
                       {islands.map((island) => (
                         <button
@@ -1016,7 +1242,7 @@ export default function Explore() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => scrollContainer(islandScrollRef, 240)}
+                      onClick={() => scrollContainer(islandScrollRef, 260)}
                       className="carousel-arrow-btn"
                       aria-label="Scroll islands right"
                     >
@@ -1025,6 +1251,7 @@ export default function Explore() {
                   </div>
                 </div>
 
+                {/* Bottom CTA Banner */}
                 <div className="explore-cta-banner">
                   <p className="explore-cta-text">
                     Start a new adventure and LakBye will handle your itineraries, stays,
@@ -1049,6 +1276,7 @@ export default function Explore() {
             )}
           </div>
 
+          {/* Right Sticky 3D Globe Panel */}
           <div className="explore-map-sticky-panel">
             <GlobeMap
               markers={globeMarkers}
@@ -1056,7 +1284,8 @@ export default function Explore() {
               focusView={focusCoords}
               searchMode={isSearchMode}
               onMarkerClick={(id) => {
-                const matched = allDestinations.find((p) => p.id === id) || popularPlace;
+                const matched =
+                  allDestinations.find((p) => p.id === id) || editorsPicks.hero;
                 if (matched) handleSelectPlace(matched, false);
               }}
             />
@@ -1069,7 +1298,7 @@ export default function Explore() {
         <div className="explore-mobile-header-section">
           <h1 className="explore-mobile-title">Where to next?</h1>
           <p className="explore-mobile-subtitle">
-            Discover your ultimate Philippine getaway
+            Discover your ultimate getaway across the globe
           </p>
         </div>
 
@@ -1231,7 +1460,7 @@ export default function Explore() {
               <button
                 type="button"
                 onClick={() => setShowMobileGlobe(false)}
-                className="text-stone-400 hover:text-stone-600 text-xs font-semibold"
+                className="text-stone-400 hover:text-stone-600 text-xs font-semibold cursor-pointer"
               >
                 Close ✕
               </button>
@@ -1243,7 +1472,7 @@ export default function Explore() {
                 searchMode={isSearchMode}
                 onMarkerClick={(id) => {
                   const matched =
-                    allDestinations.find((p) => p.id === id) || popularPlace;
+                    allDestinations.find((p) => p.id === id) || editorsPicks.hero;
                   if (matched) handleSelectPlace(matched, true);
                 }}
               />
@@ -1414,7 +1643,7 @@ export default function Explore() {
                     onChange={(e) => {
                       const val = e.target.value;
                       setStartDate(val);
-                      if (endDate && endDate < val) {
+                      if (endDate && endDate <= val) {
                         setEndDate('');
                       }
                     }}
@@ -1424,13 +1653,30 @@ export default function Explore() {
                     id="explore-end-date"
                     type="date"
                     required
-                    min={startDate || new Date().toISOString().split('T')[0]}
+                    min={
+                      startDate
+                        ? (() => {
+                            const d = new Date(startDate);
+                            d.setDate(d.getDate() + 1);
+                            return d.toISOString().split('T')[0];
+                          })()
+                        : (() => {
+                            const d = new Date();
+                            d.setDate(d.getDate() + 1);
+                            return d.toISOString().split('T')[0];
+                          })()
+                    }
                     aria-label="End date"
                     className="modal-input-gradient flex-1 text-sm"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
                   />
                 </div>
+                {startDate && endDate && endDate <= startDate && (
+                  <p className="text-xs text-red-500 mt-1.5 font-medium">
+                    Return date must be after departure date.
+                  </p>
+                )}
               </div>
 
               <div>

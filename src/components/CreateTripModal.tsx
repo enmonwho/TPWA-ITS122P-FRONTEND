@@ -66,7 +66,7 @@ export default function CreateTripModal({
     if (selectedCountries.length === 0) newErrors.countries = true;
     if (!startDate) newErrors.startDate = true;
     if (!endDate) newErrors.endDate = true;
-    if (startDate && endDate && endDate < startDate) newErrors.endDate = true;
+    if (startDate && endDate && endDate <= startDate) newErrors.endDate = true;
     if (!travelType) newErrors.travelType = true;
 
     if (Object.keys(newErrors).length > 0) {
@@ -180,7 +180,7 @@ export default function CreateTripModal({
             onStartDateChange={(date) => {
               setStartDate(date);
               if (errors.startDate) setErrors((prev) => ({ ...prev, startDate: false }));
-              if (endDate && new Date(endDate) < new Date(date)) {
+              if (endDate && new Date(endDate) <= new Date(date)) {
                 setEndDate('');
               }
             }}
@@ -191,6 +191,11 @@ export default function CreateTripModal({
             errorStart={errors.startDate}
             errorEnd={errors.endDate}
           />
+          {errors.endDate && startDate && endDate && endDate <= startDate && (
+            <p className="text-xs text-red-500 mt-1.5 font-medium">
+              Return date must be after departure date.
+            </p>
+          )}
         </div>
 
         <div className="form-group">
