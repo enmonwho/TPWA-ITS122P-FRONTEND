@@ -65,7 +65,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
           </Link>
         )}
 
-        <div className="login-form-container">{children}</div>
+        <div className="auth-form-container login-form-container">{children}</div>
       </div>
     </div>
   );

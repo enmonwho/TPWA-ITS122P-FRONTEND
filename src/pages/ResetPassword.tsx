@@ -42,7 +42,8 @@ export default function ResetPassword() {
       setSuccess(true);
       setTimeout(() => navigate('/login'), 2500);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Reset failed. The link may have expired.';
+      const msg =
+        err instanceof Error ? err.message : 'Reset failed. The link may have expired.';
       setErrorMessage(msg);
     } finally {
       setSubmitting(false);
@@ -57,10 +58,14 @@ export default function ResetPassword() {
       </div>
 
       {success ? (
-        <div className="p-6 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-center flex flex-col items-center gap-2">
-          <CheckCircle2 size={32} className="text-emerald-600" />
-          <h3 className="font-bold text-base">Password Updated!</h3>
-          <p className="text-xs text-emerald-700">Redirecting to login page...</p>
+        <div className="auth-status-container animate-fade-in-up">
+          <div className="auth-status-card auth-status-card--success">
+            <div className="auth-status-icon-wrap">
+              <CheckCircle2 size={28} />
+            </div>
+            <h3 className="auth-status-title">Password Updated!</h3>
+            <p className="auth-status-desc">Redirecting to login page...</p>
+          </div>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="auth-form">
@@ -108,7 +113,9 @@ export default function ResetPassword() {
           </div>
 
           <div className="auth-prompt-container">
-            <Link to="/login" className="auth-link">Back to Log In</Link>
+            <Link to="/login" className="auth-link">
+              Back to Log In
+            </Link>
           </div>
         </form>
       )}

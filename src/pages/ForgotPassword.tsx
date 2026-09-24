@@ -54,38 +54,38 @@ export default function ForgotPassword() {
       </div>
 
       {success ? (
-        <div className="animate-fade-in-up flex flex-col gap-4 text-center">
+        <div className="auth-status-container animate-fade-in-up">
           {accountFound === false ? (
-            <div className="p-6 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex flex-col items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+            <div className="auth-status-card auth-status-card--warning">
+              <div className="auth-status-icon-wrap">
                 <AlertCircle size={28} />
               </div>
-              <h3 className="font-bold text-lg text-amber-950">No Account Found</h3>
-              <p className="text-sm text-amber-800 leading-relaxed max-w-sm">
+              <h3 className="auth-status-title">No Account Found</h3>
+              <p className="auth-status-desc">
                 We couldn't find an account matching{' '}
-                <span className="font-semibold text-amber-950">{email}</span>. Please
-                verify your email or create a new account.
+                <span className="auth-status-target">{email}</span>. Please verify your
+                email or create a new account.
               </p>
             </div>
           ) : (
-            <div className="p-6 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex flex-col items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+            <div className="auth-status-card auth-status-card--success">
+              <div className="auth-status-icon-wrap">
                 <CheckCircle2 size={28} />
               </div>
-              <h3 className="font-bold text-lg text-emerald-950">
+              <h3 className="auth-status-title">
                 {emailSent ? 'Email Dispatched!' : 'Reset Link Generated'}
               </h3>
-              <p className="text-sm text-emerald-800 leading-relaxed max-w-sm">
+              <p className="auth-status-desc">
                 {emailSent ? (
                   <>
                     A password reset link was sent to{' '}
-                    <span className="font-semibold text-emerald-950">{email}</span>.
-                    Please check your inbox and spam folder.
+                    <span className="auth-status-target">{email}</span>. Please check your
+                    inbox and spam folder.
                   </>
                 ) : (
                   <>
                     A password reset link was created for{' '}
-                    <span className="font-semibold text-emerald-950">{email}</span>.
+                    <span className="auth-status-target">{email}</span>.
                   </>
                 )}
               </p>
@@ -93,39 +93,31 @@ export default function ForgotPassword() {
           )}
 
           {devResetUrl && (
-            <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-left text-xs text-amber-900 flex flex-col gap-2">
-              <span className="font-semibold text-amber-950 flex items-center gap-1">
-                🛠️ Development Mode Helper
-              </span>
-              <p className="text-amber-800">
+            <div className="auth-status-dev-box">
+              <span className="auth-status-dev-title">🛠️ Development Mode Helper</span>
+              <p className="auth-status-dev-text">
                 Since email delivery may be mocked or run in development, you can open the
                 reset link directly:
               </p>
-              <a
-                href={devResetUrl}
-                className="font-mono text-[11px] text-teal-700 bg-white p-2 rounded border border-amber-200 break-all hover:underline flex items-center gap-1"
-              >
+              <a href={devResetUrl} className="auth-status-dev-link">
                 <span>{devResetUrl}</span>
                 <ExternalLink size={12} className="shrink-0" />
               </a>
             </div>
           )}
 
-          <div className="flex flex-col gap-2 mt-2">
+          <div className="auth-status-actions">
             <button
               type="button"
               onClick={() => {
                 setSuccess(false);
                 setDevResetUrl(null);
               }}
-              className="text-xs font-semibold text-stone-600 hover:text-stone-900 transition underline cursor-pointer"
+              className="auth-status-retry-btn"
             >
               Didn't get an email? Try another address
             </button>
-            <Link
-              to="/login"
-              className="auth-submit text-center flex items-center justify-center gap-2 mt-2"
-            >
+            <Link to="/login" className="auth-status-return-btn">
               <ArrowLeft size={16} /> Return to Log In
             </Link>
           </div>
@@ -148,7 +140,7 @@ export default function ForgotPassword() {
 
           {errorMessage && (
             <div className="auth-error-banner animate-fade-in-up" role="alert">
-              <AlertCircle size={15} className="shrink-0" />
+              <AlertCircle size={15} />
               <span>{errorMessage}</span>
             </div>
           )}
@@ -157,11 +149,7 @@ export default function ForgotPassword() {
             <button
               type="submit"
               disabled={submitting || !email.trim()}
-              className={`auth-submit flex items-center justify-center gap-2 ${
-                submitting || !email.trim()
-                  ? 'opacity-50 cursor-not-allowed bg-gray-400!'
-                  : ''
-              }`}
+              className="auth-submit"
             >
               <Mail size={16} />
               {submitting ? 'Sending instructions...' : 'Send Reset Link'}
@@ -169,10 +157,7 @@ export default function ForgotPassword() {
           </div>
 
           <div className="auth-prompt-container animate-fade-in-up delay-200">
-            <Link
-              to="/login"
-              className="auth-link flex items-center justify-center gap-1.5"
-            >
+            <Link to="/login" className="auth-link auth-back-link">
               <ArrowLeft size={16} /> Back to Log In
             </Link>
           </div>
