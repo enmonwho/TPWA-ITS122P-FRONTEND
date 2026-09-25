@@ -113,6 +113,21 @@ const realAuthApi = {
     const response = await api.post<{ message: string }>('/auth/reset-password', payload);
     return response.data;
   },
+
+  verifyEmail: async (payload: {
+    email: string;
+    otp: string;
+  }): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>('/auth/verify-email', payload);
+    return response.data;
+  },
+
+  resendVerification: async (email: string): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>('/auth/resend-verification', {
+      email,
+    });
+    return response.data;
+  },
 };
 const useMockAuth = import.meta.env.VITE_USE_MOCK_AUTH === 'true';
 

@@ -22,6 +22,7 @@ export interface User {
   full_name: string;
   email: string;
   role: UserRole;
+  is_verified?: boolean;
   created_at?: string;
   username?: string;
   bio?: string;

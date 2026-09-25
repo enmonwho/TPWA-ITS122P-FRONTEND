@@ -218,4 +218,19 @@ export const mockAuthApi = {
       message: 'Password reset successfully (mock mode).',
     };
   },
+
+  verifyEmail: async (_payload: {
+    email: string;
+    otp: string;
+  }): Promise<{ message: string }> => {
+    return {
+      message: 'Email verified successfully (mock mode).',
+    };
+  },
+
+  resendVerification: async (_email: string): Promise<{ message: string }> => {
+    return {
+      message: 'Verification code resent (mock mode).',
+    };
+  },
 };
