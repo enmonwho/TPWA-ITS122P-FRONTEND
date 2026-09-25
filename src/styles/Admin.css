@@ -398,8 +398,20 @@
   z-index: 1;
 }
 
+.admin-filter-bar-label {
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  color: #44403c;
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  line-height: 1;
+  margin-right: 4px;
+}
+
 .admin-filter-pill {
-  height: 28px;
+  height: 32px;
   border-radius: 20px;
   border: 1px solid rgba(72, 42, 19, 0.2);
   background: #ffffff;
@@ -409,6 +421,26 @@
   font-weight: 600;
   color: var(--color-dash-muted);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0;
+  line-height: 1;
+  transition: all var(--transition-fast);
+}
+
+.admin-filter-pill.active,
+.admin-filter-pill.font-bold {
+  border-color: #000000;
+  color: #000000;
+  font-weight: 700;
+}
+
+.admin-filter-bar .admin-pill-search {
+  margin: 0;
+  height: 32px;
+  box-sizing: border-box;
 }
 
 /* Split View for Categories & Activities */
@@ -492,7 +524,9 @@
   background-color: #ffffff;
   border-radius: 12px;
   padding: 24px 28px;
-  width: 420px;
+  width: 440px;
+  max-width: 90vw;
+  box-sizing: border-box;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
@@ -512,4 +546,60 @@
   margin-bottom: 12px;
   box-sizing: border-box;
   outline: none;
+}
+
+.btn-admin-danger-pill {
+  background-color: #dc2626;
+  color: #ffffff;
+  border: none;
+  border-radius: 9999px;
+  height: 40px;
+  padding: 0 24px;
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-weight: 700;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.35);
+  transition: all 0.15s ease-in-out;
+}
+
+.btn-admin-danger-pill:hover:not(:disabled) {
+  background-color: #b91c1c;
+  box-shadow: 0 4px 10px rgba(185, 28, 28, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-admin-danger-pill:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-admin-danger-pill:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-admin-cancel-pill {
+  background-color: #f3f4f6;
+  color: #4b5563;
+  border: 1px solid #e5e7eb;
+  border-radius: 9999px;
+  height: 40px;
+  padding: 0 20px;
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-weight: 600;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.btn-admin-cancel-pill:hover:not(:disabled) {
+  background-color: #e5e7eb;
+  color: #1f2937;
 }

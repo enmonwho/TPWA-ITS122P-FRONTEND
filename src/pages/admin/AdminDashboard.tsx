@@ -14,6 +14,8 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
+  Trash2,
+  AlertCircle,
 } from 'lucide-react';
 import lakbyeLogo from '../../assets/lakbye-logo.png';
 import { adminApi } from '../../services/api';
@@ -270,12 +272,18 @@ function SystemsReportTab() {
 
 // Tab 2: User Management
 function UserManagementTab() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<'name' | 'status' | 'role' | 'date'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [loading, setLoading] = useState(true);
   const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
+
+  // Deletion state
+  const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -301,6 +309,26 @@ function UserManagementTab() {
       setActiveMenuId(null);
     } catch (err) {
       console.error('Failed to update user status:', err);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await adminApi.deleteUser(userToDelete.id);
+      setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
+      setUserToDelete(null);
+    } catch (err: unknown) {
+      console.error('Failed to delete user:', err);
+      const msg =
+        axios.isAxiosError(err) && err.response?.data?.message
+          ? err.response.data.message
+          : 'Failed to delete user account. Please try again.';
+      setDeleteError(msg);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -345,7 +373,7 @@ function UserManagementTab() {
       <div className="admin-header-rule" />
 
       <div className="admin-filter-bar">
-        <span className="text-xs font-bold text-stone-700 mr-2">Filter & Sort by:</span>
+        <span className="admin-filter-bar-label">Filter & Sort by:</span>
         <button
           type="button"
           className={`admin-filter-pill ${sortField === 'name' && sortOrder === 'asc' ? 'font-bold' : ''}`}
@@ -368,27 +396,27 @@ function UserManagementTab() {
         </button>
         <button
           type="button"
-          className="admin-filter-pill"
+          className={`admin-filter-pill ${sortField === 'status' ? 'font-bold' : ''}`}
           onClick={() => setSortField('status')}
         >
           Status
         </button>
         <button
           type="button"
-          className="admin-filter-pill"
+          className={`admin-filter-pill ${sortField === 'role' ? 'font-bold' : ''}`}
           onClick={() => setSortField('role')}
         >
           Role
         </button>
         <button
           type="button"
-          className="admin-filter-pill"
+          className={`admin-filter-pill ${sortField === 'date' ? 'font-bold' : ''}`}
           onClick={() => setSortField('date')}
         >
           Member Since
         </button>
 
-        <div className="ml-auto admin-pill-search mb-0">
+        <div className="admin-pill-search">
           <Search size={14} className="text-stone-400" />
           <input
             type="text"
@@ -463,20 +491,60 @@ function UserManagementTab() {
                       </button>
 
                       {activeMenuId === u.id && (
-                        <div className="absolute right-0 top-8 bg-white border border-stone-200 shadow-lg rounded-lg py-1 z-20 w-32 text-left">
+                        <>
                           <button
                             type="button"
-                            className="w-full px-3 py-1.5 text-xs text-stone-700 hover:bg-stone-50 flex items-center gap-2"
-                            onClick={() => handleToggleStatus(u)}
-                          >
-                            {isOnline ? (
-                              <XCircle size={14} className="text-red-600" />
-                            ) : (
-                              <CheckCircle size={14} className="text-green-600" />
-                            )}
-                            {isOnline ? 'Deactivate' : 'Activate'}
-                          </button>
-                        </div>
+                            aria-label="Close menu"
+                            tabIndex={-1}
+                            className="fixed inset-0 z-10 cursor-default bg-transparent border-0"
+                            onClick={() => setActiveMenuId(null)}
+                          />
+                          <div className="absolute right-0 top-8 bg-white border border-stone-200 shadow-lg rounded-lg py-1 z-20 w-36 text-left">
+                            <button
+                              type="button"
+                              className="w-full px-3 py-1.5 text-xs text-stone-700 hover:bg-stone-50 flex items-center gap-2"
+                              onClick={() => handleToggleStatus(u)}
+                            >
+                              {isOnline ? (
+                                <XCircle size={14} className="text-red-600" />
+                              ) : (
+                                <CheckCircle size={14} className="text-green-600" />
+                              )}
+                              {isOnline ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <div className="my-1 border-t border-stone-100" />
+                            <button
+                              type="button"
+                              disabled={Number(currentUser?.id) === Number(u.id)}
+                              title={
+                                Number(currentUser?.id) === Number(u.id)
+                                  ? 'You cannot delete your own account'
+                                  : 'Delete user account'
+                              }
+                              className={`w-full px-3 py-1.5 text-xs flex items-center gap-2 transition-colors ${
+                                Number(currentUser?.id) === Number(u.id)
+                                  ? 'text-stone-300 cursor-not-allowed'
+                                  : 'text-red-600 hover:bg-red-50'
+                              }`}
+                              onClick={() => {
+                                if (Number(currentUser?.id) === Number(u.id)) return;
+                                setActiveMenuId(null);
+                                setDeleteError(null);
+                                setUserToDelete(u);
+                              }}
+                            >
+                              <Trash2
+                                size={14}
+                                className={
+                                  Number(currentUser?.id) === Number(u.id)
+                                    ? 'text-stone-300'
+                                    : 'text-red-600'
+                                }
+                              />
+                              Delete Account
+                            </button>
+                          </div>
+                        </>
                       )}
                     </td>
                   </tr>
@@ -486,6 +554,115 @@ function UserManagementTab() {
           </table>
         )}
       </div>
+
+      {/* Delete User Confirmation Modal */}
+      {userToDelete && (
+        <div className="admin-modal-overlay" role="dialog" aria-modal="true">
+          <div
+            className="admin-modal-box"
+            style={{ width: '460px', maxWidth: '92vw', boxSizing: 'border-box' }}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0 text-red-600">
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 className="admin-modal-title mb-0 text-red-700">
+                  Delete User Account
+                </h3>
+                <p className="text-xs text-stone-500">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            {deleteError && (
+              <div
+                style={{
+                  backgroundColor: '#FEF2F2',
+                  border: '1px solid #FCA5A5',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  color: '#991B1B',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <AlertCircle size={14} className="shrink-0" />
+                <span>{deleteError}</span>
+              </div>
+            )}
+
+            <div className="bg-stone-50 border border-stone-200 rounded-lg p-3 my-3 text-xs space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-stone-500">User:</span>
+                <span className="font-semibold text-stone-800">
+                  {userToDelete.full_name || userToDelete.name || 'User'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-stone-500">Email:</span>
+                <span className="font-mono text-stone-700">{userToDelete.email}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-stone-500">Role:</span>
+                <span className="font-bold text-stone-700 uppercase">
+                  {userToDelete.role}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-stone-600 leading-relaxed mb-4">
+              Are you sure you want to permanently delete this user account? All
+              associated data including trips, activities, and bookings will be
+              permanently removed.
+            </p>
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                gap: '12px',
+                marginTop: '24px',
+                paddingTop: '16px',
+                borderTop: '1px solid #f3f4f6',
+              }}
+            >
+              <button
+                type="button"
+                className="btn-admin-cancel-pill"
+                disabled={isDeleting}
+                onClick={() => {
+                  setUserToDelete(null);
+                  setDeleteError(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-admin-danger-pill"
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+              >
+                {isDeleting ? (
+                  <>
+                    <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Deleting Account...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={16} />
+                    Delete Account
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

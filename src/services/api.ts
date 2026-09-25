@@ -428,6 +428,10 @@ export const adminApi = {
     });
     return res.data;
   },
+  deleteUser: async (userId: number): Promise<{ message: string }> => {
+    const res = await api.delete<{ message: string }>(`/users/${userId}`);
+    return res.data;
+  },
   getCategories: async (): Promise<AdminCategory[]> => {
     try {
       const res = await api.get<{ categories: AdminCategory[] } | AdminCategory[]>(
