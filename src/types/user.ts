@@ -24,8 +24,9 @@ export interface User {
   role: UserRole;
   is_verified?: boolean;
   created_at?: string;
-  username?: string;
-  bio?: string;
+  username?: string | null;
+  avatar_url?: string | null;
+  bio?: string | null;
   preferences?: UserPreferences;
 }
 
