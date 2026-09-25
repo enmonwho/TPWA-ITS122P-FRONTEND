@@ -55,7 +55,7 @@ export default function SignUp() {
           email,
           password,
         });
-        navigate(ROUTES.ONBOARDING);
+        navigate(ROUTES.VERIFY_EMAIL, { state: { email } });
       }, 700);
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
@@ -191,7 +191,7 @@ export default function SignUp() {
           <button
             type="submit"
             disabled={!isFormValid || isLoading}
-            className={`auth-submit ${!isFormValid || isLoading ? 'opacity-50 cursor-not-allowed !bg-gray-400' : ''}`}
+            className={`auth-submit ${!isFormValid || isLoading ? 'opacity-50 cursor-not-allowed bg-gray-400!' : ''}`}
           >
             {isLoading ? 'Creating Account...' : 'Create Account'}
           </button>

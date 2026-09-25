@@ -8,7 +8,7 @@ import AuthLayout from '../components/AuthLayout';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoader } from '../context/PageLoaderContext';
 import { ROUTES } from '../lib/constants';
-import { preferencesApi } from '../services/api';
+import { authApi, preferencesApi } from '../services/api';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -16,6 +16,9 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState('');
 
   // Validate required inputs
   const isFormValid = email.trim() !== '' && password.trim() !== '';
@@ -24,9 +27,31 @@ export default function Login() {
   const { triggerTransition } = usePageLoader();
   const navigate = useNavigate();
 
+  const handleResendAndNavigate = async () => {
+    if (!email.trim() || isResending) return;
+    setIsResending(true);
+    setResendSuccess('');
+    try {
+      await authApi.resendVerification(email.trim());
+      setResendSuccess('Verification code sent! Redirecting...');
+      setTimeout(() => {
+        navigate(ROUTES.VERIFY_EMAIL, {
+          state: { email: email.trim(), justResent: true },
+        });
+      }, 700);
+    } catch (resendErr) {
+      console.error('Failed to resend verification:', resendErr);
+      navigate(ROUTES.VERIFY_EMAIL, { state: { email: email.trim() } });
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrorMessage('');
+    setNeedsVerification(false);
+    setResendSuccess('');
     setIsLoading(true);
 
     try {
@@ -57,8 +82,15 @@ export default function Login() {
         }
       }, 700);
     } catch (err: unknown) {
-      if (axios.isAxiosError(err) && err.response?.data?.message) {
-        setErrorMessage(err.response.data.message);
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status;
+        const data = err.response?.data;
+        if (status === 403 && data?.needsVerification) {
+          setNeedsVerification(true);
+          setErrorMessage(data.message || 'Please verify your email before logging in.');
+          return;
+        }
+        setErrorMessage(data?.message || 'Invalid email or password.');
       } else if (err instanceof Error) {
         setErrorMessage(err.message);
       } else {
@@ -161,12 +193,46 @@ export default function Login() {
           </button>
         </div>
 
-        {errorMessage && (
+        {needsVerification ? (
+          <div
+            className="w-full mt-3 p-3.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 text-xs flex flex-col gap-2.5 animate-fade-in-up"
+            role="alert"
+          >
+            <div className="flex items-center gap-2">
+              <AlertCircle size={16} className="text-amber-600 shrink-0" />
+              <span className="font-semibold">
+                {errorMessage || 'Please verify your email before logging in.'}
+              </span>
+            </div>
+            {resendSuccess && (
+              <p className="text-emerald-700 font-medium text-[11px]">{resendSuccess}</p>
+            )}
+            <div className="flex items-center justify-between pt-1 border-t border-amber-200/60">
+              <button
+                type="button"
+                disabled={isResending}
+                onClick={handleResendAndNavigate}
+                className="text-xs font-bold text-[#f05a28] hover:underline cursor-pointer disabled:opacity-50"
+              >
+                {isResending ? 'Sending code...' : 'Resend verification code →'}
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(ROUTES.VERIFY_EMAIL, { state: { email: email.trim() } })
+                }
+                className="text-[11px] text-stone-600 hover:text-stone-900 underline cursor-pointer"
+              >
+                Enter code
+              </button>
+            </div>
+          </div>
+        ) : errorMessage ? (
           <div className="auth-error-banner animate-fade-in-up" role="alert">
             <AlertCircle size={15} className="shrink-0" />
             <span>{errorMessage}</span>
           </div>
-        )}
+        ) : null}
 
         <div className="auth-prompt-container animate-fade-in-up delay-200">
           <span className="auth-prompt-text">New to Lakbye?</span>

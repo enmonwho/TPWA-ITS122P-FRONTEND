@@ -10,6 +10,7 @@ import {
   SignUp,
   ForgotPassword,
   ResetPassword,
+  VerifyEmail,
   Dashboard,
   Bookings,
   Explore,
@@ -120,6 +121,10 @@ const router = createBrowserRouter([
       {
         path: 'reset-password',
         element: <ResetPassword />,
+      },
+      {
+        path: 'verify-email',
+        element: <VerifyEmail />,
       },
       {
         path: 'onboarding',
