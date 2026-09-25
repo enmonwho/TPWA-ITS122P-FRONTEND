@@ -110,7 +110,9 @@ export default function TripWorkspaceLayout() {
         <div className="workspace-sidebar-bottom-divider"></div>
 
         <div className="workspace-logo-container">
-          <img src={lakbyeLogo} alt="LakBye Logo" className="workspace-logo" />
+          <Link to="/" title="Return to LakBye Home" className="dashboard-logo-link">
+            <img src={lakbyeLogo} alt="LakBye Logo" className="workspace-logo" />
+          </Link>
         </div>
       </aside>
 

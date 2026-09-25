@@ -18,3 +18,5 @@ export { default as StarRating } from './StarRating';
 export { default as StatCard } from './StatCard';
 export { default as Testimonials } from './Testimonials';
 export { default as ExportItineraryModal } from './ExportItineraryModal';
+export { default as DestinationDetailModal } from './DestinationDetailModal';
+export { default as AuthPromptModal } from './AuthPromptModal';

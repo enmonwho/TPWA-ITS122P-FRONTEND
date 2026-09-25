@@ -12,3 +12,19 @@ export interface Category {
   name: string;
   type: string;
 }
+
+export interface CountryProfile {
+  id: number | string;
+  country_name: string;
+  continent: string;
+  capital: string;
+  language: string;
+  currency: string;
+  population: number;
+  description: string;
+  best_destinations: string[];
+  budget_daily_cost: number;
+  midrange_daily_cost: number;
+  luxury_daily_cost: number;
+  image_url: string;
+}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import GlobeMap from '../components/GlobeMap';
+import DestinationDetailModal from '../components/DestinationDetailModal';
 import magnifierIcon from '../assets/magnifier.png';
 import {
   Star,
@@ -81,6 +82,10 @@ export default function Explore() {
   const [focusCoords, setFocusCoords] = useState<[number, number] | null>(null);
   const [loading, setLoading] = useState(true);
   const [isStartTripOpen, setIsStartTripOpen] = useState(false);
+  const [selectedDetailPlace, setSelectedDetailPlace] = useState<ExplorePlace | null>(
+    null,
+  );
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   const [mobileCategory, setMobileCategory] = useState('Most Popular');
   const [showMobileGlobe, setShowMobileGlobe] = useState(false);
@@ -308,6 +313,21 @@ export default function Explore() {
     if (ref.current) {
       ref.current.scrollBy({ left: offset, behavior: 'smooth' });
     }
+  };
+
+  const handleOpenDetailModal = (place: ExplorePlace) => {
+    setActiveMarkerId(place.id);
+    setFocusCoords([place.longitude, place.latitude]);
+    setSelectedDetailPlace(place);
+    setIsDetailModalOpen(true);
+  };
+
+  const handleStartTripFromCountry = (targetName: string) => {
+    setSelectedLocation(targetName);
+    setTripName(`${targetName} Adventure`);
+    setStartDate('');
+    setEndDate('');
+    setIsStartTripOpen(true);
   };
 
   const handleSelectPlace = (place: ExplorePlace, openPlanModal = false) => {
@@ -729,11 +749,11 @@ export default function Explore() {
                         className={`explore-result-card group ${
                           activeMarkerId === place.id ? 'ring-2 ring-amber-500' : ''
                         }`}
-                        onClick={() => handleSelectPlace(place, false)}
+                        onClick={() => handleOpenDetailModal(place)}
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSelectPlace(place, false);
+                          if (e.key === 'Enter') handleOpenDetailModal(place);
                         }}
                       >
                         <div
@@ -800,7 +820,7 @@ export default function Explore() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleSelectPlace(place, true);
+                                handleStartTripFromCountry(place.name);
                               }}
                               className="btn-popular-plan"
                             >
@@ -893,8 +913,8 @@ export default function Explore() {
                       type="button"
                       className="stippl-hero-card group"
                       style={{ backgroundImage: `url(${editorsPicks.hero.imageUrl})` }}
-                      onClick={() => handleSelectPlace(editorsPicks.hero, true)}
-                      title={`Click to plan a trip to ${editorsPicks.hero.name}`}
+                      onClick={() => handleOpenDetailModal(editorsPicks.hero)}
+                      title={`View details for ${editorsPicks.hero.name}`}
                     >
                       <div className="stippl-hero-content">
                         <div className="stippl-hero-title-row">
@@ -921,8 +941,8 @@ export default function Explore() {
                         style={{
                           backgroundImage: `url(${editorsPicks.stackedTop.imageUrl})`,
                         }}
-                        onClick={() => handleSelectPlace(editorsPicks.stackedTop, true)}
-                        title={`Click to plan a trip to ${editorsPicks.stackedTop.name}`}
+                        onClick={() => handleOpenDetailModal(editorsPicks.stackedTop)}
+                        title={`View details for ${editorsPicks.stackedTop.name}`}
                       >
                         <div className="stippl-stacked-content">
                           <div className="stippl-stacked-title-row">
@@ -949,10 +969,8 @@ export default function Explore() {
                         style={{
                           backgroundImage: `url(${editorsPicks.stackedBottom.imageUrl})`,
                         }}
-                        onClick={() =>
-                          handleSelectPlace(editorsPicks.stackedBottom, true)
-                        }
-                        title={`Click to plan a trip to ${editorsPicks.stackedBottom.name}`}
+                        onClick={() => handleOpenDetailModal(editorsPicks.stackedBottom)}
+                        title={`View details for ${editorsPicks.stackedBottom.name}`}
                       >
                         <div className="stippl-stacked-content">
                           <div className="stippl-stacked-title-row">
@@ -1025,8 +1043,8 @@ export default function Explore() {
                         type="button"
                         className="stippl-travel-card group text-left"
                         style={{ backgroundImage: `url(${place.imageUrl})` }}
-                        onClick={() => handleSelectPlace(place, true)}
-                        title={`Click to plan a trip to ${place.name}`}
+                        onClick={() => handleOpenDetailModal(place)}
+                        title={`View details for ${place.name}`}
                       >
                         {place.flag ? (
                           <img
@@ -1154,8 +1172,8 @@ export default function Explore() {
                             type="button"
                             key={item.id}
                             className="carousel-card text-left group"
-                            onClick={() => handleSelectPlace(item, true)}
-                            title={`Click to plan a trip to ${item.name}`}
+                            onClick={() => handleOpenDetailModal(item)}
+                            title={`View details for ${item.name}`}
                           >
                             <div
                               className="carousel-thumb"
@@ -1223,8 +1241,8 @@ export default function Explore() {
                           type="button"
                           key={`island-${island.id}`}
                           className="carousel-card text-left group"
-                          onClick={() => handleSelectPlace(island, true)}
-                          title={`Click to plan a trip to ${island.name}`}
+                          onClick={() => handleOpenDetailModal(island)}
+                          title={`View details for ${island.name}`}
                         >
                           <div
                             className="carousel-thumb"
@@ -1492,11 +1510,11 @@ export default function Explore() {
                 <div
                   key={`m-res-${place.id}`}
                   className="explore-dest-card"
-                  onClick={() => handleSelectPlace(place, true)}
+                  onClick={() => handleOpenDetailModal(place)}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSelectPlace(place, true);
+                    if (e.key === 'Enter') handleOpenDetailModal(place);
                   }}
                 >
                   <div
@@ -1539,11 +1557,11 @@ export default function Explore() {
               <div
                 key={place.id}
                 className="explore-dest-card"
-                onClick={() => handleSelectPlace(place, true)}
+                onClick={() => handleOpenDetailModal(place)}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSelectPlace(place, true);
+                  if (e.key === 'Enter') handleOpenDetailModal(place);
                 }}
               >
                 <div
@@ -1710,6 +1728,17 @@ export default function Explore() {
           </div>
         </div>
       )}
+
+      {/* Destination Detail Modal */}
+      <DestinationDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => {
+          setIsDetailModalOpen(false);
+          setSelectedDetailPlace(null);
+        }}
+        place={selectedDetailPlace}
+        onStartTrip={handleStartTripFromCountry}
+      />
     </div>
   );
 }

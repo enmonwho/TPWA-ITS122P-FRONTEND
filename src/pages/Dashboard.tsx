@@ -10,6 +10,11 @@ import {
   MoreVertical,
   ChevronRight,
   MapPin,
+  Pencil,
+  Trash2,
+  Copy,
+  Archive,
+  X,
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import CreateTripModal from '../components/CreateTripModal';
@@ -21,7 +26,11 @@ import browseDestIcon from '../assets/browse-destination.svg';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../lib/constants';
 import { tripsApi, journalsApi, preferencesApi } from '../services/api';
-import { mergeTripsWithExtras, formatDateOnly } from '../lib/tripExtras';
+import {
+  mergeTripsWithExtras,
+  mergeTripWithExtras,
+  formatDateOnly,
+} from '../lib/tripExtras';
 
 export default function Dashboard() {
   const { user, setUser } = useAuth();
@@ -216,6 +225,198 @@ export default function Dashboard() {
         .then((apiTrips) => setTrips(mergeTripsWithExtras(apiTrips)))
         .catch(console.error);
     }
+  };
+
+  const [openMenuTripId, setOpenMenuTripId] = useState<string | number | null>(null);
+
+  // Edit Modal State
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
+  const [editBudget, setEditBudget] = useState<number | string>(0);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editError, setEditError] = useState('');
+
+  // Delete Confirmation Modal State
+  const [deletingTrip, setDeletingTrip] = useState<Trip | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Close 3-dots dropdown on outside click
+  useEffect(() => {
+    const handleDocumentClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.trip-row-options-container')) {
+        setOpenMenuTripId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleDocumentClick);
+    return () => document.removeEventListener('mousedown', handleDocumentClick);
+  }, []);
+
+  const handleOpenEdit = (trip: Trip) => {
+    setEditingTrip(trip);
+    setEditTitle(trip.name);
+    setEditStartDate(trip.startDate ? trip.startDate.split(/[T ]/)[0] : '');
+    setEditEndDate(trip.endDate ? trip.endDate.split(/[T ]/)[0] : '');
+    setEditBudget(trip.totalBudget ?? 0);
+    setEditError('');
+    setOpenMenuTripId(null);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTrip) return;
+    if (!editTitle.trim()) {
+      setEditError('Trip name cannot be empty.');
+      return;
+    }
+    if (editStartDate && editEndDate && editEndDate < editStartDate) {
+      setEditError('End date cannot precede start date.');
+      return;
+    }
+
+    setIsSavingEdit(true);
+    setEditError('');
+
+    try {
+      const budgetNum = Number(editBudget) || 0;
+      await tripsApi.updateTrip(editingTrip.id, {
+        title: editTitle.trim(),
+        start_date: editStartDate,
+        end_date: editEndDate,
+        total_budget: budgetNum,
+        status: editingTrip.status,
+      });
+
+      // Update local state with merged derived extras
+      setTrips((prev) =>
+        prev.map((t) =>
+          t.id === editingTrip.id
+            ? mergeTripWithExtras({
+                ...t,
+                name: editTitle.trim(),
+                startDate: editStartDate,
+                endDate: editEndDate,
+                totalBudget: budgetNum,
+              })
+            : t,
+        ),
+      );
+
+      // Also persist to local cache if present
+      if (user?.id) {
+        const tripKey = `lakbye_local_trips_${user.id}`;
+        const raw = localStorage.getItem(tripKey);
+        if (raw) {
+          try {
+            const list: Trip[] = JSON.parse(raw);
+            const updatedList = list.map((t) =>
+              t.id === editingTrip.id
+                ? {
+                    ...t,
+                    name: editTitle.trim(),
+                    startDate: editStartDate,
+                    endDate: editEndDate,
+                    totalBudget: budgetNum,
+                  }
+                : t,
+            );
+            localStorage.setItem(tripKey, JSON.stringify(updatedList));
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      setEditingTrip(null);
+    } catch (err: unknown) {
+      console.error('Failed to update trip:', err);
+      const msg = err instanceof Error ? err.message : 'Failed to update trip details';
+      setEditError(msg);
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleOpenDelete = (trip: Trip) => {
+    setDeletingTrip(trip);
+    setOpenMenuTripId(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingTrip) return;
+    setIsDeleting(true);
+
+    try {
+      await tripsApi.deleteTrip(deletingTrip.id);
+    } catch (err) {
+      console.warn('API deleteTrip warning (will still clean up locally):', err);
+    }
+
+    // Clean up local state
+    setTrips((prev) => prev.filter((t) => t.id !== deletingTrip.id));
+
+    // Clean up any local storage associated with this trip
+    try {
+      localStorage.removeItem(`lakbye_workspace_dests_${deletingTrip.id}`);
+      localStorage.removeItem(`lakbye_trip_budget_${deletingTrip.id}`);
+      if (user?.id) {
+        const tripKey = `lakbye_local_trips_${user.id}`;
+        const raw = localStorage.getItem(tripKey);
+        if (raw) {
+          const list: Trip[] = JSON.parse(raw);
+          localStorage.setItem(
+            tripKey,
+            JSON.stringify(list.filter((t) => t.id !== deletingTrip.id)),
+          );
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    setIsDeleting(false);
+    setDeletingTrip(null);
+  };
+
+  const handleToggleStatus = async (trip: Trip) => {
+    const isPast = getDisplayStatus(trip) === 'past' || trip.status === 'completed';
+    const newStatus = isPast ? 'planning' : 'completed';
+
+    try {
+      await tripsApi.updateTrip(trip.id, {
+        title: trip.name,
+        start_date: trip.startDate,
+        end_date: trip.endDate,
+        total_budget: trip.totalBudget,
+        status: newStatus,
+      });
+    } catch (err) {
+      console.warn('Status update API warning:', err);
+    }
+
+    setTrips((prev) =>
+      prev.map((t) => (t.id === trip.id ? { ...t, status: newStatus } : t)),
+    );
+    setOpenMenuTripId(null);
+  };
+
+  const handleDuplicateTrip = async (trip: Trip) => {
+    const today = new Date().toISOString().split('T')[0];
+    try {
+      const duplicated = await tripsApi.createTrip({
+        title: `${trip.name} (Copy)`,
+        start_date: trip.startDate || today,
+        end_date: trip.endDate || today,
+        total_budget: trip.totalBudget || 0,
+        status: 'planning',
+      });
+      setTrips((prev) => [mergeTripWithExtras(duplicated), ...prev]);
+    } catch (err) {
+      console.error('Failed to duplicate trip:', err);
+    }
+    setOpenMenuTripId(null);
   };
 
   return (
@@ -501,21 +702,70 @@ export default function Dashboard() {
                             </div>
                           </div>
 
-                          <div className="trip-cell-actions">
+                          <div className="trip-cell-actions trip-row-options-container">
                             <button
                               type="button"
                               className="trip-row-options"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                alert('Trip Options functionality coming soon!'); // Feedback fix (#13)
+                                setOpenMenuTripId((prev) =>
+                                  prev === trip.id ? null : trip.id,
+                                );
                               }}
                               aria-label="Trip options"
+                              aria-expanded={openMenuTripId === trip.id}
                             >
                               <MoreVertical
                                 size={18}
                                 color="var(--color-dash-sidebar-text)"
                               />
                             </button>
+
+                            {openMenuTripId === trip.id && (
+                              <div className="dashboard-trip-options-menu">
+                                <button
+                                  type="button"
+                                  className="trip-options-menu-item"
+                                  onClick={() => handleOpenEdit(trip)}
+                                >
+                                  <Pencil size={15} className="text-stone-500" />
+                                  <span>Edit Details</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="trip-options-menu-item"
+                                  onClick={() => handleToggleStatus(trip)}
+                                >
+                                  <Archive size={15} className="text-stone-500" />
+                                  <span>
+                                    {getDisplayStatus(trip) === 'past'
+                                      ? 'Mark as Upcoming'
+                                      : 'Mark as Past'}
+                                  </span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="trip-options-menu-item"
+                                  onClick={() => handleDuplicateTrip(trip)}
+                                >
+                                  <Copy size={15} className="text-stone-500" />
+                                  <span>Duplicate Trip</span>
+                                </button>
+
+                                <div className="trip-options-menu-divider" />
+
+                                <button
+                                  type="button"
+                                  className="trip-options-menu-item danger"
+                                  onClick={() => handleOpenDelete(trip)}
+                                >
+                                  <Trash2 size={15} />
+                                  <span>Delete Trip</span>
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -533,6 +783,187 @@ export default function Dashboard() {
         onClose={() => setIsCreateTripModalOpen(false)}
         onTripCreated={handleTripCreated}
       />
+
+      {/* Edit Trip Modal */}
+      {editingTrip && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-trip-modal-title"
+        >
+          <button
+            type="button"
+            className="modal-backdrop-dismiss"
+            aria-label="Close modal backdrop"
+            onClick={() => setEditingTrip(null)}
+          />
+
+          <div className="edit-trip-modal-card animate-fade-in-up">
+            <div className="flex items-center justify-between mb-4 border-b border-stone-200 pb-3">
+              <div className="flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-amber-600" />
+                <h3
+                  id="edit-trip-modal-title"
+                  className="text-lg font-bold text-stone-900"
+                >
+                  Edit Trip Details
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingTrip(null)}
+                className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-500 hover:text-stone-800 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {editError && (
+              <div className="p-3 mb-4 text-xs bg-red-50 text-red-700 border border-red-200 rounded-lg">
+                {editError}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveEdit} className="flex flex-col gap-4">
+              <div>
+                <label htmlFor="edit-trip-title" className="modal-label">
+                  Trip Name
+                </label>
+                <input
+                  id="edit-trip-title"
+                  type="text"
+                  required
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="modal-input-gradient"
+                  placeholder="e.g. Boracay Island Hopping"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="edit-trip-start-date" className="modal-label">
+                    Start Date
+                  </label>
+                  <input
+                    id="edit-trip-start-date"
+                    type="date"
+                    required
+                    value={editStartDate}
+                    onChange={(e) => {
+                      setEditStartDate(e.target.value);
+                      if (editEndDate && editEndDate <= e.target.value) {
+                        setEditEndDate('');
+                      }
+                    }}
+                    className="modal-input-gradient text-sm"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="edit-trip-end-date" className="modal-label">
+                    End Date
+                  </label>
+                  <input
+                    id="edit-trip-end-date"
+                    type="date"
+                    required
+                    min={editStartDate}
+                    value={editEndDate}
+                    onChange={(e) => setEditEndDate(e.target.value)}
+                    className="modal-input-gradient text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="edit-trip-budget" className="modal-label">
+                  Total Budget (PHP)
+                </label>
+                <input
+                  id="edit-trip-budget"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={editBudget}
+                  onChange={(e) => setEditBudget(e.target.value)}
+                  className="modal-input-gradient"
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-4 pt-3 border-t border-stone-200">
+                <button
+                  type="button"
+                  onClick={() => setEditingTrip(null)}
+                  className="px-4 py-2 border border-stone-300 rounded-xl text-xs font-semibold text-stone-700 hover:bg-stone-100 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingEdit}
+                  className="btn-lakbye-gradient text-xs py-2 px-5 cursor-pointer"
+                >
+                  {isSavingEdit ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingTrip && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-modal-title"
+        >
+          <button
+            type="button"
+            className="modal-backdrop-dismiss"
+            aria-label="Close modal backdrop"
+            onClick={() => setDeletingTrip(null)}
+          />
+
+          <div className="delete-trip-modal-card animate-fade-in-up">
+            <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-3">
+              <Trash2 size={22} />
+            </div>
+
+            <h3 id="delete-modal-title" className="text-lg font-bold text-stone-900 mb-1">
+              Delete Trip?
+            </h3>
+
+            <p className="text-xs text-stone-500 leading-relaxed mb-5 max-w-sm">
+              Are you sure you want to delete &ldquo;
+              <span className="font-semibold text-stone-800">{deletingTrip.name}</span>
+              &rdquo;? All associated itineraries, budget expenses, and packing checklists
+              will be permanently removed.
+            </p>
+
+            <div className="flex items-center gap-3 w-full justify-center">
+              <button
+                type="button"
+                onClick={() => setDeletingTrip(null)}
+                className="flex-1 max-w-35 py-2.5 px-4 rounded-xl border border-stone-300 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                className="flex-1 max-w-35 py-2.5 px-4 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

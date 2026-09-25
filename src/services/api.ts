@@ -10,7 +10,7 @@ import type {
   MeResponse,
   UserPreferences,
 } from '../types';
-import type { Destination, Category } from '../types/destination';
+import type { Destination, Category, CountryProfile } from '../types/destination';
 import type { Trip, TripApiPayload, TripApiResponse, TripStatus } from '../types/trip';
 import type {
   Booking,
@@ -248,6 +248,29 @@ export const destinationsApi = {
   delete: async (id: string | number): Promise<{ message: string }> => {
     const response = await api.delete<{ message: string }>(`/destinations/${id}`);
     return response.data;
+  },
+};
+
+export const countryProfilesApi = {
+  getAll: async (): Promise<CountryProfile[]> => {
+    try {
+      const response = await api.get<{ profiles?: CountryProfile[] }>(
+        '/country-profiles',
+      );
+      return response.data.profiles || [];
+    } catch {
+      return [];
+    }
+  },
+  getByName: async (countryName: string): Promise<CountryProfile | null> => {
+    try {
+      const response = await api.get<{ profile?: CountryProfile }>(
+        `/country-profiles/${encodeURIComponent(countryName)}`,
+      );
+      return response.data.profile || null;
+    } catch {
+      return null;
+    }
   },
 };
 

@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import GlobeMap, { type MarkerData } from '../components/GlobeMap';
 import CreateTripModal from '../components/CreateTripModal';
 import magnifierIcon from '../assets/magnifier.png';
 import { tripsApi, destinationsApi } from '../services/api';
 import { mergeTripsWithExtras, formatDateOnly } from '../lib/tripExtras';
+import { getMapboxStaticThumb } from '../services/exploreService';
 import type { Trip } from '../types/trip';
 import type { Destination } from '../types/destination';
 import {
@@ -15,6 +17,8 @@ import {
   ArrowLeft,
   Loader2,
   Navigation,
+  X,
+  ExternalLink,
 } from 'lucide-react';
 
 export interface TripWithDestinations extends Trip {
@@ -62,6 +66,12 @@ export default function MapView() {
   // Map Camera Focus & Active Pin Selection
   const [activeMarkerId, setActiveMarkerId] = useState<string | null>(null);
   const [focusView, setFocusView] = useState<[number, number] | null>(null);
+  const [selectedDestinationItem, setSelectedDestinationItem] = useState<{
+    destination: Destination;
+    trip: Trip;
+    isVisited: boolean;
+  } | null>(null);
+  const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
 
   // =========================================================================
   // PHASE 1: Real Data Loading (tripsApi + destinationsApi)
@@ -451,6 +461,16 @@ export default function MapView() {
           tripName: item.trip.name,
           tripDates: dateStr,
           status: item.isVisited ? 'completed' : 'upcoming',
+          thumbnailUrl:
+            item.trip.cover_photo ||
+            getMapboxStaticThumb(
+              Number(item.destination.longitude),
+              Number(item.destination.latitude),
+              200,
+              160,
+              9,
+              'outdoors-v12',
+            ),
         };
       });
     }
@@ -482,6 +502,16 @@ export default function MapView() {
           tripName: activeTrip.name,
           tripDates: dateStr,
           status: activeTrip.status === 'completed' ? 'completed' : 'upcoming',
+          thumbnailUrl:
+            activeTrip.cover_photo ||
+            getMapboxStaticThumb(
+              Number(d.longitude),
+              Number(d.latitude),
+              200,
+              160,
+              9,
+              'outdoors-v12',
+            ),
         }));
     }
 
@@ -495,8 +525,36 @@ export default function MapView() {
       tripName: item.trip.name,
       tripDates: `${formatDateOnly(item.trip.startDate)} - ${formatDateOnly(item.trip.endDate)}`,
       status: item.isVisited ? 'completed' : 'upcoming',
+      thumbnailUrl:
+        item.trip.cover_photo ||
+        getMapboxStaticThumb(
+          Number(item.destination.longitude),
+          Number(item.destination.latitude),
+          200,
+          160,
+          9,
+          'outdoors-v12',
+        ),
     }));
   }, [activeViewMode, filteredWorldItems, activeTrip, allDestinationsWithTrip]);
+
+  const handleMarkerSelect = useCallback(
+    (markerId: string) => {
+      setActiveMarkerId(markerId);
+      const found = allDestinationsWithTrip.find(
+        (item) => String(item.destination.id) === String(markerId),
+      );
+      if (found) {
+        setSelectedDestinationItem(found);
+        setIsDetailDrawerOpen(true);
+        setFocusView([
+          Number(found.destination.longitude),
+          Number(found.destination.latitude),
+        ]);
+      }
+    },
+    [allDestinationsWithTrip],
+  );
 
   // Filtered trips list for My Trips overview
   const filteredTrips = useMemo(() => {
@@ -1045,7 +1103,16 @@ export default function MapView() {
                       return (
                         <div
                           key={dest.id}
-                          className={`map-place-card transition-all ${
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => handleMarkerSelect(String(dest.id))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              handleMarkerSelect(String(dest.id));
+                            }
+                          }}
+                          className={`map-place-card transition-all cursor-pointer ${
                             isActive ? 'ring-2 ring-amber-500 bg-amber-50/20' : ''
                           }`}
                         >
@@ -1062,12 +1129,9 @@ export default function MapView() {
                               <button
                                 type="button"
                                 title="Fly to location"
-                                onClick={() => {
-                                  setActiveMarkerId(String(dest.id));
-                                  setFocusView([
-                                    Number(dest.longitude),
-                                    Number(dest.latitude),
-                                  ]);
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMarkerSelect(String(dest.id));
                                 }}
                                 className="p-1.5 text-stone-400 hover:text-stone-700 transition-colors"
                               >
@@ -1076,7 +1140,10 @@ export default function MapView() {
                               <button
                                 type="button"
                                 title="Delete place"
-                                onClick={() => handleDeleteDestination(dest.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteDestination(dest.id);
+                                }}
                                 className="p-1.5 text-red-400 hover:text-red-700 transition-colors"
                               >
                                 <Trash2 size={15} />
@@ -1111,15 +1178,115 @@ export default function MapView() {
         </div>
 
         {/* Right Globe View Panel */}
-        <div className="map-globe-view-panel">
+        <div className="map-globe-view-panel relative">
           <GlobeMap
             markers={globeMarkers}
             activeMarkerId={activeMarkerId}
             focusView={focusView}
-            onMarkerClick={(markerId) => {
-              setActiveMarkerId(markerId);
-            }}
+            onMarkerClick={handleMarkerSelect}
           />
+
+          {/* Destination Detail Drawer (Section 6) */}
+          {isDetailDrawerOpen && selectedDestinationItem && (
+            <div
+              className="map-destination-drawer"
+              role="dialog"
+              aria-label="Destination Details"
+            >
+              <div className="map-destination-drawer-hero">
+                <img
+                  src={
+                    selectedDestinationItem.trip.cover_photo ||
+                    getMapboxStaticThumb(
+                      selectedDestinationItem.destination.longitude,
+                      selectedDestinationItem.destination.latitude,
+                      400,
+                      240,
+                      10,
+                      'outdoors-v12',
+                    )
+                  }
+                  alt={selectedDestinationItem.destination.location_name}
+                />
+                <div className="map-destination-drawer-hero-overlay" />
+                <button
+                  type="button"
+                  className="map-destination-drawer-close"
+                  onClick={() => {
+                    setIsDetailDrawerOpen(false);
+                    setActiveMarkerId(null);
+                  }}
+                  aria-label="Close destination details"
+                >
+                  <X size={16} />
+                </button>
+                <span
+                  className={`map-destination-drawer-badge ${
+                    selectedDestinationItem.isVisited
+                      ? 'bg-emerald-500/90 text-white'
+                      : 'bg-amber-500/90 text-white'
+                  }`}
+                >
+                  {selectedDestinationItem.isVisited
+                    ? 'Visited Place'
+                    : 'Upcoming Destination'}
+                </span>
+              </div>
+
+              <div className="map-destination-drawer-content">
+                <div>
+                  <h3 className="map-destination-drawer-title">
+                    {selectedDestinationItem.destination.location_name}
+                  </h3>
+                  <div className="map-destination-drawer-coords mt-2">
+                    <MapPin size={13} className="text-amber-600" />
+                    <span>
+                      {Number(selectedDestinationItem.destination.latitude).toFixed(4)}
+                      °,{' '}
+                      {Number(selectedDestinationItem.destination.longitude).toFixed(4)}°
+                    </span>
+                  </div>
+                </div>
+
+                <div className="map-destination-drawer-trip-card">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-stone-400 mb-1">
+                    Part of Trip
+                  </div>
+                  <div className="font-bold text-stone-900 text-sm">
+                    {selectedDestinationItem.trip.name}
+                  </div>
+                  {selectedDestinationItem.trip.startDate &&
+                    selectedDestinationItem.trip.endDate && (
+                      <div className="text-xs text-stone-500 mt-0.5">
+                        {formatDateOnly(selectedDestinationItem.trip.startDate)} -{' '}
+                        {formatDateOnly(selectedDestinationItem.trip.endDate)}
+                      </div>
+                    )}
+                </div>
+
+                <div className="map-destination-drawer-actions">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFocusView([
+                        Number(selectedDestinationItem.destination.longitude),
+                        Number(selectedDestinationItem.destination.latitude),
+                      ]);
+                    }}
+                    className="flex-1 py-2.5 px-3 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Navigation size={14} /> Center Map
+                  </button>
+                  <Link
+                    to={`/trip/${selectedDestinationItem.trip.id}`}
+                    className="flex-1 py-2.5 px-3 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors text-center"
+                  >
+                    <span>Workspace</span> <ExternalLink size={14} />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { generateGeodesicArc } from '../constants/coordinates';
+import { getMapboxStaticThumb } from '../services/exploreService';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
@@ -15,6 +16,7 @@ export interface MarkerData {
   tripDates?: string;
   status?: string;
   category?: string;
+  thumbnailUrl?: string;
 }
 
 export interface GlobeMapProps {
@@ -103,53 +105,115 @@ export default function GlobeMap({
   useEffect(() => {
     if (!map.current) return;
 
+    // Clean up existing markers
     markersRef.current.forEach((marker) => marker.remove());
     markersRef.current = [];
+
+    // Dismiss any active hover popups
+    const existingHoverPopups = document.querySelectorAll('.lakbye-hover-popup');
+    existingHoverPopups.forEach((popupEl) => popupEl.remove());
 
     markers.forEach((marker) => {
       const isActive = activeMarkerId === marker.id;
       const markerColor = marker.color || (isActive ? '#C5283D' : '#E9724C');
+      const thumbUrl =
+        marker.thumbnailUrl ||
+        getMapboxStaticThumb(marker.lng, marker.lat, 200, 160, 9, 'outdoors-v12');
 
+      // Create Custom DOM Marker: Circular thumbnail badge + anchor pin
       const markerEl = document.createElement('div');
-      markerEl.className = `mapbox-custom-marker ${isActive ? 'active' : ''}`;
-      markerEl.style.width = '24px';
-      markerEl.style.height = '24px';
-      markerEl.style.borderRadius = '50%';
-      markerEl.style.backgroundColor = markerColor;
-      markerEl.style.border = '2.5px solid #ffffff';
-      markerEl.style.boxShadow = isActive
-        ? '0 0 14px rgba(197, 40, 61, 0.9), 0 2px 4px rgba(0,0,0,0.3)'
-        : `0 0 8px ${markerColor}99, 0 2px 4px rgba(0,0,0,0.3)`;
-      markerEl.style.cursor = 'pointer';
-      markerEl.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
-      markerEl.style.transform = isActive ? 'scale(1.25)' : 'scale(1)';
+      markerEl.className = `lakbye-map-marker-container ${isActive ? 'active' : ''}`;
+      markerEl.setAttribute('data-id', marker.id);
+      markerEl.setAttribute('role', 'button');
+      markerEl.setAttribute('aria-label', marker.title);
 
-      if (onMarkerClick) {
-        markerEl.addEventListener('click', (e) => {
-          e.stopPropagation();
-          onMarkerClick(marker.id);
-        });
+      markerEl.innerHTML = `
+        <div class="lakbye-map-marker-head" style="border-color: ${markerColor};">
+          <img
+            src="${thumbUrl}"
+            alt="${marker.title}"
+            class="lakbye-map-marker-img"
+          />
+          <div class="lakbye-map-marker-fallback" style="background-color: ${markerColor}; display: none;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+          </div>
+        </div>
+        <div class="lakbye-map-marker-pin" style="border-top-color: ${markerColor};"></div>
+      `;
+
+      const imgEl = markerEl.querySelector(
+        '.lakbye-map-marker-img',
+      ) as HTMLImageElement | null;
+      const fallbackEl = markerEl.querySelector(
+        '.lakbye-map-marker-fallback',
+      ) as HTMLDivElement | null;
+
+      if (imgEl && fallbackEl) {
+        imgEl.onerror = () => {
+          imgEl.style.display = 'none';
+          fallbackEl.style.display = 'flex';
+        };
       }
 
-      const popupHtml = marker.tripName
-        ? `<div style="font-family: 'Poppins', sans-serif; font-size: 13px; color: #1e293b; padding: 4px; min-width: 140px;">
-            <div style="font-weight: 700; font-size: 14px; margin-bottom: 2px; color: #0f172a;">${marker.title}</div>
-            <div style="font-size: 11px; color: #64748b; margin-bottom: 6px;">${marker.tripName}${marker.tripDates ? ` • ${marker.tripDates}` : ''}</div>
-            <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; text-transform: uppercase; ${
-              marker.status === 'completed'
-                ? 'background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;'
-                : 'background: #ffedd5; color: #c2410c; border: 1px solid #fed7aa;'
-            }">
+      // Hover Tooltip: Location title, Thumbnail, Coordinates
+      const popupHtml = `
+        <div class="lakbye-hover-popup-card">
+          <div class="lakbye-hover-popup-header">
+            <img src="${thumbUrl}" alt="${marker.title}" class="lakbye-hover-popup-img" />
+            <span class="lakbye-hover-popup-status ${marker.status === 'completed' ? 'visited' : 'upcoming'}">
               ${marker.status === 'completed' ? 'Visited' : 'Upcoming'}
             </span>
-          </div>`
-        : `<div style="font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 600; color: #1e293b; padding: 2px 4px;">${marker.title}</div>`;
+          </div>
+          <div class="lakbye-hover-popup-body">
+            <div class="lakbye-hover-popup-title">${marker.title}</div>
+            ${marker.tripName ? `<div class="lakbye-hover-popup-trip">${marker.tripName}${marker.tripDates ? ` • ${marker.tripDates}` : ''}</div>` : ''}
+            <div class="lakbye-hover-popup-coords">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+              <span>${Number(marker.lat).toFixed(4)}°, ${Number(marker.lng).toFixed(4)}°</span>
+            </div>
+          </div>
+        </div>
+      `;
 
-      const popup = new mapboxgl.Popup({ offset: 15 }).setHTML(popupHtml);
+      const popup = new mapboxgl.Popup({
+        offset: [0, -44],
+        closeButton: false,
+        closeOnClick: false,
+        className: 'lakbye-hover-popup',
+        maxWidth: '240px',
+      }).setHTML(popupHtml);
 
-      const m = new mapboxgl.Marker({ element: markerEl })
+      // Interactivity: Hover
+      markerEl.addEventListener('mouseenter', () => {
+        popup.setLngLat([marker.lng, marker.lat]).addTo(map.current!);
+      });
+
+      markerEl.addEventListener('mouseleave', () => {
+        popup.remove();
+      });
+
+      // Interactivity: Click -> Smooth pan to coordinates & trigger selection
+      markerEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        popup.remove();
+
+        map.current?.flyTo({
+          center: [marker.lng, marker.lat],
+          zoom: Math.max(map.current.getZoom(), 4.2),
+          duration: 1200,
+          essential: true,
+        });
+
+        if (onMarkerClick) {
+          onMarkerClick(marker.id);
+        }
+      });
+
+      const m = new mapboxgl.Marker({ element: markerEl, anchor: 'bottom' })
         .setLngLat([marker.lng, marker.lat])
-        .setPopup(popup)
         .addTo(map.current!);
 
       markersRef.current.push(m);
