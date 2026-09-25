@@ -1,202 +1,566 @@
-import { useState, useEffect } from 'react';
-import GlobeMap from '../components/GlobeMap';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import GlobeMap, { type MarkerData } from '../components/GlobeMap';
+import CreateTripModal from '../components/CreateTripModal';
 import magnifierIcon from '../assets/magnifier.png';
-import { tripsApi } from '../services/api';
+import { tripsApi, destinationsApi } from '../services/api';
+import { mergeTripsWithExtras, formatDateOnly } from '../lib/tripExtras';
 import type { Trip } from '../types/trip';
+import type { Destination } from '../types/destination';
+import {
+  Globe,
+  MapPin,
+  Plus,
+  Trash2,
+  CheckCircle2,
+  ArrowLeft,
+  Loader2,
+  Navigation,
+} from 'lucide-react';
 
-interface PlaceItem {
-  id: string;
-  name: string;
-  address: string;
-  type: 'Activities' | 'Eat & Drink' | 'Stays' | 'Destinations';
-  description?: string;
-  country?: string;
-  city?: string;
-  notes?: string;
-  lat?: number;
-  lng?: number;
+export interface TripWithDestinations extends Trip {
+  destinations: Destination[];
 }
 
-interface CustomList {
+interface GeocodeFeature {
   id: string;
-  name: string;
-  description: string;
-  dateRange: string;
-  places: PlaceItem[];
+  place_name: string;
+  text: string;
+  center: [number, number]; // [lng, lat]
 }
 
 export default function MapView() {
-  const [lists, setLists] = useState<CustomList[]>([]);
-  const [activeList, setActiveList] = useState<CustomList | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [trips, setTrips] = useState<TripWithDestinations[]>([]);
+  const [activeTripId, setActiveTripId] = useState<number | string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [isNewListOpen, setIsNewListOpen] = useState(false);
+  // View modes: 'my-trips' (per-trip inspection) or 'world-tracker' (Stippl-style aggregate view)
+  const [activeViewMode, setActiveViewMode] = useState<'my-trips' | 'world-tracker'>(
+    'my-trips',
+  );
+  const [worldFilter, setWorldFilter] = useState<'all' | 'visited' | 'upcoming'>('all');
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isCreateTripModalOpen, setIsCreateTripModalOpen] = useState(false);
   const [isAddPlaceView, setIsAddPlaceView] = useState(false);
   const [addPlaceMode, setAddPlaceMode] = useState<'search' | 'manual'>('search');
-  const [activeCategoryTab, setActiveCategoryTab] = useState('All');
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
-  const [newListName, setNewListName] = useState('');
-  const [newListDesc, setNewListDesc] = useState('');
-
+  // Manual Add Form State
   const [placeName, setPlaceName] = useState('');
-  const [placeDesc, setPlaceDesc] = useState('');
-  const [placeType, setPlaceType] = useState<PlaceItem['type']>('Activities');
   const [placeAddress, setPlaceAddress] = useState('');
   const [placeCountry, setPlaceCountry] = useState('');
   const [placeCity, setPlaceCity] = useState('');
-  const [placeTags, setPlaceTags] = useState('');
-  const [placeNotes, setPlaceNotes] = useState('');
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [geocodeError, setGeocodeError] = useState('');
+
+  // Live Search Geocoding Autocomplete
+  const [placeSearchInput, setPlaceSearchInput] = useState('');
+  const [placeSuggestions, setPlaceSuggestions] = useState<GeocodeFeature[]>([]);
+  const [isSearchingGeocode, setIsSearchingGeocode] = useState(false);
+  const [selectedFeature, setSelectedFeature] = useState<GeocodeFeature | null>(null);
+
+  // Map Camera Focus & Active Pin Selection
+  const [activeMarkerId, setActiveMarkerId] = useState<string | null>(null);
+  const [focusView, setFocusView] = useState<[number, number] | null>(null);
+
+  // =========================================================================
+  // PHASE 1: Real Data Loading (tripsApi + destinationsApi)
+  // =========================================================================
+  const fetchTripsAndDestinationsLogic = useCallback(async (): Promise<
+    TripWithDestinations[]
+  > => {
+    // Discard stale local-only test data
+    localStorage.removeItem('lakbye_map_lists');
+
+    const apiTrips = await tripsApi.getTrips();
+    const mergedTrips = mergeTripsWithExtras(apiTrips || []);
+
+    // Fetch real destinations for each trip in parallel
+    const tripsWithDests: TripWithDestinations[] = await Promise.all(
+      mergedTrips.map(async (trip) => {
+        try {
+          const dests = await destinationsApi.getByTripId(trip.id);
+          return {
+            ...trip,
+            destinations: dests || [],
+          };
+        } catch {
+          return {
+            ...trip,
+            destinations: [],
+          };
+        }
+      }),
+    );
+
+    return tripsWithDests;
+  }, []);
+
+  const fetchTripsAndDestinations = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchTripsAndDestinationsLogic();
+      setTrips(data);
+    } catch (err: unknown) {
+      console.error('Failed to load trips for map:', err);
+      setError('Unable to load trips. Please check your connection.');
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchTripsAndDestinationsLogic]);
 
   useEffect(() => {
-    const fetchLists = async () => {
-      // Prioritize local storage to keep custom lists (Fix #18)
-      const savedLists = localStorage.getItem('lakbye_map_lists');
-      if (savedLists) {
-        setLists(JSON.parse(savedLists));
+    let isMounted = true;
+    const load = async () => {
+      try {
+        const data = await fetchTripsAndDestinationsLogic();
+        if (!isMounted) return;
+        setTrips(data);
+      } catch (err: unknown) {
+        if (!isMounted) return;
+        console.error('Failed to load trips for map:', err);
+        setError('Unable to load trips. Please check your connection.');
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchTripsAndDestinationsLogic]);
+
+  // Active Selected Trip
+  const activeTrip = useMemo(
+    () => trips.find((t) => String(t.id) === String(activeTripId)) || null,
+    [trips, activeTripId],
+  );
+
+  // =========================================================================
+  // Helper: Geocoding via Mapbox API
+  // =========================================================================
+  const geocodeLocation = async (
+    query: string,
+  ): Promise<{ lat: number; lng: number; placeName: string } | null> => {
+    const token = import.meta.env.VITE_MAPBOX_TOKEN;
+    if (!token || !query.trim()) return null;
+
+    try {
+      const res = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+          query.trim(),
+        )}.json?access_token=${token}&limit=1`,
+      );
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data.features && data.features.length > 0) {
+        const [lng, lat] = data.features[0].center;
+        return {
+          lng,
+          lat,
+          placeName: data.features[0].place_name,
+        };
+      }
+    } catch (err) {
+      console.error('Geocoding error:', err);
+    }
+    return null;
+  };
+
+  // Computed suggestions to render inline rather than clearing state defensively in effects
+  const suggestionsToShow =
+    placeSearchInput.trim() && addPlaceMode === 'search' && !selectedFeature
+      ? placeSuggestions
+      : [];
+
+  // Live Autocomplete Effect for Add Place Search Mode
+  useEffect(() => {
+    const query = placeSearchInput.trim();
+    if (!query || addPlaceMode !== 'search') {
+      return;
+    }
+
+    let isMounted = true;
+    const timer = setTimeout(async () => {
+      setIsSearchingGeocode(true);
+      try {
+        const token = import.meta.env.VITE_MAPBOX_TOKEN;
+        const res = await fetch(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+            query,
+          )}.json?access_token=${token}&autocomplete=true&limit=5`,
+        );
+        if (res.ok && isMounted) {
+          const data = await res.json();
+          setPlaceSuggestions(data.features || []);
+        }
+      } catch (err) {
+        console.error('Search suggestions error:', err);
+      } finally {
+        if (isMounted) {
+          setIsSearchingGeocode(false);
+        }
+      }
+    }, 280);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [placeSearchInput, addPlaceMode]);
+
+  // =========================================================================
+  // Destination Creation (Backend Write)
+  // =========================================================================
+  const handleAddSearchPlace = async () => {
+    if (!selectedFeature || !activeTrip) return;
+    setIsGeocoding(true);
+    setGeocodeError('');
+
+    try {
+      const [lng, lat] = selectedFeature.center;
+      let newDest: Destination;
+
+      try {
+        newDest = await destinationsApi.create({
+          trip_id: activeTrip.id,
+          location_name: selectedFeature.text || selectedFeature.place_name,
+          latitude: lat,
+          longitude: lng,
+          order_sequence: (activeTrip.destinations?.length || 0) + 1,
+        });
+      } catch (backendErr) {
+        console.warn(
+          'Backend destinationsApi.create error, using optimistic place with real coordinates:',
+          backendErr,
+        );
+        newDest = {
+          id: Date.now(),
+          trip_id: Number(activeTrip.id),
+          location_name: selectedFeature.text || selectedFeature.place_name,
+          latitude: lat,
+          longitude: lng,
+          order_sequence: (activeTrip.destinations?.length || 0) + 1,
+        };
+      }
+
+      // Update state in place
+      setTrips((prev) =>
+        prev.map((t) =>
+          String(t.id) === String(activeTrip.id)
+            ? { ...t, destinations: [...(t.destinations || []), newDest] }
+            : t,
+        ),
+      );
+
+      // Focus map to newly added pin
+      setFocusView([lng, lat]);
+      setActiveMarkerId(String(newDest.id));
+
+      // Reset form
+      setPlaceSearchInput('');
+      setSelectedFeature(null);
+      setPlaceSuggestions([]);
+      setIsAddPlaceView(false);
+    } catch (err) {
+      console.error('Failed to add destination:', err);
+      setGeocodeError('Failed to resolve or save place. Please try again.');
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
+
+  const handleAddManualPlace = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!placeName.trim() || !activeTrip) return;
+
+    setIsGeocoding(true);
+    setGeocodeError('');
+
+    try {
+      // Resolve REAL coordinates via Mapbox Geocoding API
+      const locationQuery = [placeName, placeAddress, placeCity, placeCountry]
+        .filter(Boolean)
+        .join(', ');
+
+      const coords = await geocodeLocation(locationQuery);
+      if (!coords) {
+        setGeocodeError(
+          'Could not find location coordinates on Mapbox. Please check spelling.',
+        );
+        setIsGeocoding(false);
         return;
       }
 
+      let newDest: Destination;
       try {
-        const trips = await tripsApi.getTrips();
-        if (trips && trips.length > 0) {
-          const mappedLists: CustomList[] = trips.map((t: Trip) => ({
-            id: String(t.id),
-            name: t.name,
-            description: 'Custom travel itinerary list',
-            dateRange: `${t.startDate} - ${t.endDate}`,
-            places: [],
-          }));
-          setLists(mappedLists);
-        }
-      } catch {
-        setLists([
-          {
-            id: 'demo-1',
-            name: 'Trip Name',
-            description: 'Sample itinerary',
-            dateRange: 'Date - Date',
-            places: [],
-          },
-        ]);
+        newDest = await destinationsApi.create({
+          trip_id: activeTrip.id,
+          location_name: placeName.trim(),
+          latitude: coords.lat,
+          longitude: coords.lng,
+          order_sequence: (activeTrip.destinations?.length || 0) + 1,
+        });
+      } catch (backendErr) {
+        console.warn(
+          'Backend destinationsApi.create error, using optimistic place with real coordinates:',
+          backendErr,
+        );
+        newDest = {
+          id: Date.now(),
+          trip_id: Number(activeTrip.id),
+          location_name: placeName.trim(),
+          latitude: coords.lat,
+          longitude: coords.lng,
+          order_sequence: (activeTrip.destinations?.length || 0) + 1,
+        };
       }
-    };
-    fetchLists();
-  }, []);
 
-  // Save dynamically to storage (Fix #18)
-  useEffect(() => {
-    if (lists.length > 0) {
-      localStorage.setItem('lakbye_map_lists', JSON.stringify(lists));
+      // Update state in place
+      setTrips((prev) =>
+        prev.map((t) =>
+          String(t.id) === String(activeTrip.id)
+            ? { ...t, destinations: [...(t.destinations || []), newDest] }
+            : t,
+        ),
+      );
+
+      // Focus map to newly added pin
+      setFocusView([coords.lng, coords.lat]);
+      setActiveMarkerId(String(newDest.id));
+
+      // Reset form fields
+      setPlaceName('');
+      setPlaceAddress('');
+      setPlaceCity('');
+      setPlaceCountry('');
+      setIsAddPlaceView(false);
+    } catch (err) {
+      console.error('Failed to create destination:', err);
+      setGeocodeError('Failed to save destination. Please try again.');
+    } finally {
+      setIsGeocoding(false);
     }
-  }, [lists]);
-
-  const handleCreateList = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newListName.trim()) return;
-
-    const newList: CustomList = {
-      id: `list-${Date.now()}`,
-      name: newListName,
-      description: newListDesc || 'My new trip list',
-      dateRange: 'Date - Date',
-      places: [],
-    };
-
-    setLists([...lists, newList]);
-    setActiveList(newList);
-    setNewListName('');
-    setNewListDesc('');
-    setIsNewListOpen(false);
   };
 
-  const handleAddManualPlace = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!placeName.trim() || !activeList) return;
-
-    const newPlace: PlaceItem = {
-      id: `place-${Date.now()}`,
-      name: placeName,
-      address: placeAddress || `${placeCity}, ${placeCountry}` || 'Location address',
-      type: placeType,
-      description: placeDesc,
-      country: placeCountry,
-      city: placeCity,
-      notes: placeNotes,
-      lat: 35.68 + Math.random() * 0.05,
-      lng: 139.69 + Math.random() * 0.05,
-    };
-
-    const updatedList = {
-      ...activeList,
-      places: [...activeList.places, newPlace],
-    };
-
-    setActiveList(updatedList);
-    setLists(lists.map((l) => (l.id === updatedList.id ? updatedList : l)));
-
-    setPlaceName('');
-    setPlaceDesc('');
-    setPlaceAddress('');
-    setPlaceCountry('');
-    setPlaceCity('');
-    setPlaceTags('');
-    setPlaceNotes('');
-    setIsAddPlaceView(false);
+  const handleDeleteDestination = async (destId: number) => {
+    if (!activeTrip) return;
+    try {
+      await destinationsApi.delete(destId);
+    } catch (err) {
+      console.error('Failed to delete destination from backend:', err);
+    }
+    setTrips((prev) =>
+      prev.map((t) =>
+        String(t.id) === String(activeTrip.id)
+          ? { ...t, destinations: t.destinations.filter((d) => d.id !== destId) }
+          : t,
+      ),
+    );
   };
 
-  const handleDeletePlace = (placeId: string) => {
-    if (!activeList) return;
-    const updatedList = {
-      ...activeList,
-      places: activeList.places.filter((p) => p.id !== placeId),
-    };
-    setActiveList(updatedList);
-    setLists(lists.map((l) => (l.id === updatedList.id ? updatedList : l)));
-    setActiveDropdown(null);
-  };
+  // =========================================================================
+  // PHASE 2: Aggregate World Tracker Data & Markers
+  // =========================================================================
+  const allDestinationsWithTrip = useMemo(() => {
+    return trips.flatMap((t) =>
+      (t.destinations || [])
+        .filter(
+          (d) =>
+            d.latitude !== null &&
+            d.latitude !== undefined &&
+            d.longitude !== null &&
+            d.longitude !== undefined &&
+            !isNaN(Number(d.latitude)) &&
+            !isNaN(Number(d.longitude)),
+        )
+        .map((d) => {
+          const isVisited = t.status === 'completed';
+          return {
+            destination: {
+              ...d,
+              latitude: Number(d.latitude),
+              longitude: Number(d.longitude),
+            },
+            trip: t,
+            isVisited,
+          };
+        }),
+    );
+  }, [trips]);
 
-  const filteredPlaces = activeList
-    ? activeList.places.filter((p) => {
-        if (activeCategoryTab === 'All') return true;
-        return p.type === activeCategoryTab;
+  // Synchronized with Dashboard's Countries Explored stat logic
+  const countriesExploredCount = useMemo(() => {
+    const tripCountries = trips.flatMap((t) => t.countries || []);
+    const destCountries = allDestinationsWithTrip
+      .map((item) => {
+        const parts = item.destination.location_name.split(',').map((p) => p.trim());
+        return parts.length > 1 ? parts[parts.length - 1] : null;
       })
-    : [];
+      .filter((c): c is string => typeof c === 'string' && !/\d/.test(c) && c.length > 2);
 
-  const globeMarkers = activeList
-    ? activeList.places
-        .filter((p) => p.lat && p.lng)
-        .map((p) => ({
-          id: p.id,
-          lng: p.lng!,
-          lat: p.lat!,
-          title: `${p.name} (${p.type})`,
-        }))
-    : [];
+    return Array.from(new Set([...tripCountries, ...destCountries])).length;
+  }, [trips, allDestinationsWithTrip]);
 
-  const filteredLists = lists.filter((l) =>
-    l.name.toLowerCase().includes(searchQuery.toLowerCase()),
+  const visitedDestinationsCount = useMemo(
+    () => allDestinationsWithTrip.filter((item) => item.isVisited).length,
+    [allDestinationsWithTrip],
   );
+
+  const upcomingDestinationsCount = useMemo(
+    () => allDestinationsWithTrip.filter((item) => !item.isVisited).length,
+    [allDestinationsWithTrip],
+  );
+
+  // Filtered World Tracker Items
+  const filteredWorldItems = useMemo(() => {
+    return allDestinationsWithTrip.filter((item) => {
+      if (worldFilter === 'visited' && !item.isVisited) return false;
+      if (worldFilter === 'upcoming' && item.isVisited) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesName = item.destination.location_name.toLowerCase().includes(q);
+        const matchesTrip = item.trip.name.toLowerCase().includes(q);
+        return matchesName || matchesTrip;
+      }
+      return true;
+    });
+  }, [allDestinationsWithTrip, worldFilter, searchQuery]);
+
+  // Mapbox Globe Markers: Derived dynamically based on current mode
+  const globeMarkers = useMemo<MarkerData[]>(() => {
+    if (activeViewMode === 'world-tracker') {
+      // In World Tracker mode, show aggregate pins across all trips with visited/upcoming distinction
+      return filteredWorldItems.map((item) => {
+        const dateStr =
+          item.trip.startDate && item.trip.endDate
+            ? `${formatDateOnly(item.trip.startDate)} - ${formatDateOnly(item.trip.endDate)}`
+            : '';
+
+        return {
+          id: String(item.destination.id),
+          lat: Number(item.destination.latitude),
+          lng: Number(item.destination.longitude),
+          title: item.destination.location_name,
+          color: item.isVisited ? '#10b981' : '#e9724c',
+          tripName: item.trip.name,
+          tripDates: dateStr,
+          status: item.isVisited ? 'completed' : 'upcoming',
+        };
+      });
+    }
+
+    // In My Trips mode:
+    if (activeTrip) {
+      // When a trip is selected, show only that trip's destinations
+      const dateStr =
+        activeTrip.startDate && activeTrip.endDate
+          ? `${formatDateOnly(activeTrip.startDate)} - ${formatDateOnly(activeTrip.endDate)}`
+          : '';
+
+      return (activeTrip.destinations || [])
+        .filter(
+          (d) =>
+            d.latitude !== null &&
+            d.latitude !== undefined &&
+            d.longitude !== null &&
+            d.longitude !== undefined &&
+            !isNaN(Number(d.latitude)) &&
+            !isNaN(Number(d.longitude)),
+        )
+        .map((d) => ({
+          id: String(d.id),
+          lat: Number(d.latitude),
+          lng: Number(d.longitude),
+          title: d.location_name,
+          color: activeTrip.status === 'completed' ? '#10b981' : '#e9724c',
+          tripName: activeTrip.name,
+          tripDates: dateStr,
+          status: activeTrip.status === 'completed' ? 'completed' : 'upcoming',
+        }));
+    }
+
+    // When viewing trip list without active selection, show all trip destinations
+    return allDestinationsWithTrip.map((item) => ({
+      id: String(item.destination.id),
+      lat: Number(item.destination.latitude),
+      lng: Number(item.destination.longitude),
+      title: item.destination.location_name,
+      color: item.isVisited ? '#10b981' : '#e9724c',
+      tripName: item.trip.name,
+      tripDates: `${formatDateOnly(item.trip.startDate)} - ${formatDateOnly(item.trip.endDate)}`,
+      status: item.isVisited ? 'completed' : 'upcoming',
+    }));
+  }, [activeViewMode, filteredWorldItems, activeTrip, allDestinationsWithTrip]);
+
+  // Filtered trips list for My Trips overview
+  const filteredTrips = useMemo(() => {
+    return trips.filter((t) => t.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [trips, searchQuery]);
 
   return (
     <div className="map-page-wrapper">
       <div className="map-container-card">
+        {/* Left Sidebar Pane */}
         <div className="map-sidebar-pane">
           <div className="map-sidebar-scroll-content">
+            {/* Top Mode Switcher: My Trips vs World Tracker */}
+            {!isAddPlaceView && (
+              <div className="map-view-mode-tabs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveViewMode('my-trips');
+                  }}
+                  className={`map-view-mode-btn ${
+                    activeViewMode === 'my-trips' ? 'active' : ''
+                  }`}
+                >
+                  <MapPin size={15} />
+                  <span>My Trips</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveViewMode('world-tracker');
+                    setActiveTripId(null);
+                  }}
+                  className={`map-view-mode-btn ${
+                    activeViewMode === 'world-tracker' ? 'active' : ''
+                  }`}
+                >
+                  <Globe size={15} />
+                  <span>World Tracker</span>
+                </button>
+              </div>
+            )}
+
+            {/* View State A: Add New Place Form */}
             {isAddPlaceView ? (
-              <div className="flex flex-col h-full pr-2">
+              <div className="flex flex-col h-full pr-1">
                 <div className="flex items-center justify-between mb-4 border-b border-stone-200 pb-3">
                   <button
-                    onClick={() => setIsAddPlaceView(false)}
-                    className="text-stone-700 text-sm font-semibold flex items-center gap-1"
+                    onClick={() => {
+                      setIsAddPlaceView(false);
+                      setGeocodeError('');
+                    }}
+                    className="text-stone-700 text-sm font-semibold flex items-center gap-1 hover:text-stone-900 cursor-pointer"
                   >
-                    ‹ Cancel
+                    <ArrowLeft size={16} /> Cancel
                   </button>
-                  <h3 className="text-base font-bold text-stone-900">Add New Place</h3>
+                  <h3 className="text-base font-bold text-stone-900">
+                    Add Place to {activeTrip?.name}
+                  </h3>
                   <div className="w-12" />
                 </div>
 
-                <div className="flex justify-center mb-5">
+                {/* Sub-mode Toggle: Search Autocomplete vs Manual Input */}
+                <div className="flex justify-center mb-4">
                   <div className="inline-flex bg-stone-100 p-1 rounded-full border border-stone-200">
                     <button
                       type="button"
@@ -207,7 +571,7 @@ export default function MapView() {
                           : 'text-stone-500'
                       }`}
                     >
-                      Search
+                      Search Location
                     </button>
                     <button
                       type="button"
@@ -223,200 +587,548 @@ export default function MapView() {
                   </div>
                 </div>
 
+                {geocodeError && (
+                  <div className="p-3 mb-3 text-xs bg-red-50 text-red-700 border border-red-200 rounded-lg">
+                    {geocodeError}
+                  </div>
+                )}
+
                 {addPlaceMode === 'search' ? (
-                  <div className="flex flex-col gap-4 py-2">
+                  <div className="flex flex-col gap-3 py-1">
                     <div className="relative">
                       <img
                         src={magnifierIcon}
                         alt=""
-                        className="w-4 h-4 opacity-50 absolute left-4 top-1/2 -translate-y-1/2"
+                        className="w-4 h-4 opacity-50 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"
                       />
                       <input
                         type="text"
                         className="modal-input-gradient pl-11"
-                        placeholder="Add place..."
-                        aria-label="Add place"
+                        placeholder="Search landmark, city, or address..."
+                        value={placeSearchInput}
+                        onChange={(e) => {
+                          setPlaceSearchInput(e.target.value);
+                          setSelectedFeature(null);
+                        }}
                       />
+                      {isSearchingGeocode && (
+                        <Loader2
+                          size={16}
+                          className="animate-spin text-stone-400 absolute right-4 top-1/2 -translate-y-1/2"
+                        />
+                      )}
                     </div>
+
+                    {/* Autocomplete Suggestions */}
+                    {suggestionsToShow.length > 0 && (
+                      <div className="geocode-suggestions-list">
+                        {suggestionsToShow.map((feat) => (
+                          <button
+                            key={feat.id}
+                            type="button"
+                            className="geocode-suggestion-item"
+                            onClick={() => {
+                              setSelectedFeature(feat);
+                              setPlaceSearchInput(feat.place_name);
+                              setPlaceSuggestions([]);
+                            }}
+                          >
+                            <span className="font-semibold block text-stone-900 text-sm">
+                              {feat.text}
+                            </span>
+                            <span className="text-xs text-stone-500 block truncate">
+                              {feat.place_name}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {selectedFeature && (
+                      <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex flex-col gap-2 mt-2">
+                        <div className="flex items-center gap-2 text-emerald-800 font-semibold text-sm">
+                          <CheckCircle2 size={16} className="text-emerald-600" />
+                          <span>Location Selected:</span>
+                        </div>
+                        <p className="text-sm text-stone-800 font-bold">
+                          {selectedFeature.text}
+                        </p>
+                        <p className="text-xs text-stone-600">
+                          {selectedFeature.place_name}
+                        </p>
+                        <p className="text-[11px] font-mono text-stone-500">
+                          Coords: {selectedFeature.center[1].toFixed(5)},{' '}
+                          {selectedFeature.center[0].toFixed(5)}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleAddSearchPlace}
+                          disabled={isGeocoding}
+                          className="btn-start-planning-modal mt-2"
+                        >
+                          {isGeocoding ? 'Saving place...' : 'Add to Trip'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <form
                     onSubmit={handleAddManualPlace}
-                    className="flex flex-col gap-3.5 pb-8"
+                    className="flex flex-col gap-3 pb-8"
                   >
                     <div>
-                      <label htmlFor="manual-place-name" className="modal-label">NAME</label>
-                      <input id="manual-place-name" type="text" required className="modal-input-gradient" placeholder="e.g. McDonalds" value={placeName} onChange={(e) => setPlaceName(e.target.value)} />
+                      <label htmlFor="manual-place-name" className="modal-label">
+                        PLACE NAME *
+                      </label>
+                      <input
+                        id="manual-place-name"
+                        type="text"
+                        required
+                        className="modal-input-gradient"
+                        placeholder="e.g. Louvre Museum"
+                        value={placeName}
+                        onChange={(e) => setPlaceName(e.target.value)}
+                      />
                     </div>
                     <div>
-                      <label htmlFor="manual-place-description" className="modal-label">DESCRIPTION</label>
-                      <textarea id="manual-place-description" className="modal-input-gradient py-2.5 h-20 resize-none" placeholder="Describe this place..." value={placeDesc} onChange={(e) => setPlaceDesc(e.target.value)} />
-                    </div>
-                    <div>
-                      <label htmlFor="manual-place-type" className="modal-label">TYPE</label>
-                      <div className="relative">
-                        <select id="manual-place-type" className="modal-input-gradient appearance-none pr-10 cursor-pointer" value={placeType} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setPlaceType(e.target.value as PlaceItem['type'])}>
-                          <option value="Activities">Activities</option>
-                          <option value="Eat & Drink">Eat & Drink</option>
-                          <option value="Stays">Stays</option>
-                          <option value="Destinations">Destinations</option>
-                        </select>
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-stone-700 text-xs">▼</span>
-                      </div>
-                    </div>
-                    <div>
-                      <label htmlFor="manual-place-address" className="modal-label">Address</label>
-                      <input id="manual-place-address" type="text" className="modal-input-gradient" placeholder="Enter an address or location" value={placeAddress} onChange={(e) => setPlaceAddress(e.target.value)} />
+                      <label htmlFor="manual-place-address" className="modal-label">
+                        ADDRESS / LOCATION
+                      </label>
+                      <input
+                        id="manual-place-address"
+                        type="text"
+                        className="modal-input-gradient"
+                        placeholder="e.g. Rue de Rivoli"
+                        value={placeAddress}
+                        onChange={(e) => setPlaceAddress(e.target.value)}
+                      />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label htmlFor="manual-place-country" className="modal-label">Country</label>
-                        <input id="manual-place-country" type="text" className="modal-input-gradient" placeholder="e.g. Qatar" value={placeCountry} onChange={(e) => setPlaceCountry(e.target.value)} />
+                        <label htmlFor="manual-place-city" className="modal-label">
+                          CITY
+                        </label>
+                        <input
+                          id="manual-place-city"
+                          type="text"
+                          className="modal-input-gradient"
+                          placeholder="e.g. Paris"
+                          value={placeCity}
+                          onChange={(e) => setPlaceCity(e.target.value)}
+                        />
                       </div>
                       <div>
-                        <label htmlFor="manual-place-city" className="modal-label">City</label>
-                        <input id="manual-place-city" type="text" className="modal-input-gradient" placeholder="e.g. Doha" value={placeCity} onChange={(e) => setPlaceCity(e.target.value)} />
+                        <label htmlFor="manual-place-country" className="modal-label">
+                          COUNTRY
+                        </label>
+                        <input
+                          id="manual-place-country"
+                          type="text"
+                          className="modal-input-gradient"
+                          placeholder="e.g. France"
+                          value={placeCountry}
+                          onChange={(e) => setPlaceCountry(e.target.value)}
+                        />
                       </div>
-                    </div>
-                    <div>
-                      <label htmlFor="manual-place-tags" className="modal-label">TAGS</label>
-                      <div className="relative">
-                        <select id="manual-place-tags" className="modal-input-gradient appearance-none pr-10 cursor-pointer" value={placeTags} onChange={(e) => setPlaceTags(e.target.value)}>
-                          <option value="" disabled>Add tags...</option>
-                          <option value="Must Visit">Must Visit</option>
-                          <option value="Budget">Budget</option>
-                          <option value="Scenic">Scenic</option>
-                        </select>
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-stone-700 text-xs">▼</span>
-                      </div>
-                    </div>
-                    <div>
-                      <label htmlFor="manual-place-notes" className="modal-label">NOTES</label>
-                      <textarea id="manual-place-notes" className="modal-input-gradient py-2.5 h-16 resize-none" placeholder="Add notes..." value={placeNotes} onChange={(e) => setPlaceNotes(e.target.value)} />
                     </div>
                     <div className="flex justify-center mt-3">
-                      <button type="submit" className="btn-start-planning-modal">Add Place</button>
+                      <button
+                        type="submit"
+                        disabled={isGeocoding}
+                        className="btn-start-planning-modal flex items-center justify-center gap-2"
+                      >
+                        {isGeocoding ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin" />
+                            <span>Resolving Coordinates...</span>
+                          </>
+                        ) : (
+                          'Geocode & Add Place'
+                        )}
+                      </button>
                     </div>
                   </form>
                 )}
               </div>
-            ) : (
-              <>
-                {!activeList ? (
-                  <>
-                    <div className="map-search-box">
-                      <img src={magnifierIcon} alt="" className="w-5 h-5 opacity-50" />
-                      <input type="text" className="w-full bg-transparent outline-none text-sm font-medium text-stone-800 placeholder-stone-400" placeholder="Search..." value={searchQuery} aria-label="Search lists" onChange={(e) => setSearchQuery(e.target.value)} />
-                    </div>
-                    <div className="flex flex-col gap-1 mt-2">
-                      {filteredLists.map((list) => (
-                        <button type="button" key={list.id} className="map-list-item-row text-left w-full" onClick={() => setActiveList(list)}>
-                          <div className="map-list-item-title">
-                            <span>{list.name}</span>
-                            <span className="text-stone-400 text-sm font-normal">›</span>
-                          </div>
-                          <div><span className="map-list-date-badge">{list.dateRange}</span></div>
-                        </button>
-                      ))}
-                    </div>
-                  </>
+            ) : activeViewMode === 'world-tracker' ? (
+              /* ============================================================= */
+              /* View State B: World Tracker (Aggregate Stippl View)           */
+              /* ============================================================= */
+              <div className="flex flex-col gap-4">
+                {/* World Stats Card */}
+                <div className="world-tracker-stats-card">
+                  <div className="world-tracker-stat-item">
+                    <span className="world-tracker-stat-val text-amber-600">
+                      {countriesExploredCount}
+                    </span>
+                    <span className="world-tracker-stat-lbl">Countries</span>
+                  </div>
+                  <div className="world-tracker-stat-item">
+                    <span className="world-tracker-stat-val text-emerald-600">
+                      {visitedDestinationsCount}
+                    </span>
+                    <span className="world-tracker-stat-lbl">Visited</span>
+                  </div>
+                  <div className="world-tracker-stat-item">
+                    <span className="world-tracker-stat-val text-stone-800">
+                      {upcomingDestinationsCount}
+                    </span>
+                    <span className="world-tracker-stat-lbl">Upcoming</span>
+                  </div>
+                </div>
+
+                {/* Legend Bar */}
+                <div className="map-legend-bar">
+                  <div className="flex items-center gap-1.5">
+                    <span className="map-legend-dot visited" />
+                    <span className="text-stone-700">Visited Places</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="map-legend-dot upcoming" />
+                    <span className="text-stone-700">Upcoming Itineraries</span>
+                  </div>
+                </div>
+
+                {/* Filter Tabs */}
+                <div className="map-category-tabs">
+                  <button
+                    type="button"
+                    onClick={() => setWorldFilter('all')}
+                    className={`map-tab-pill ${worldFilter === 'all' ? 'active' : ''}`}
+                  >
+                    All ({allDestinationsWithTrip.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWorldFilter('visited')}
+                    className={`map-tab-pill ${worldFilter === 'visited' ? 'active' : ''}`}
+                  >
+                    Visited ({visitedDestinationsCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWorldFilter('upcoming')}
+                    className={`map-tab-pill ${worldFilter === 'upcoming' ? 'active' : ''}`}
+                  >
+                    Upcoming ({upcomingDestinationsCount})
+                  </button>
+                </div>
+
+                {/* Search Bar */}
+                <div className="map-search-box">
+                  <img src={magnifierIcon} alt="" className="w-5 h-5 opacity-50" />
+                  <input
+                    type="text"
+                    className="w-full bg-transparent outline-none text-sm font-medium text-stone-800 placeholder-stone-400"
+                    placeholder="Search place or trip..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+
+                {/* Aggregate Destination Cards */}
+                {filteredWorldItems.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center p-8 text-center text-stone-500">
+                    <Globe size={32} className="text-stone-300 mb-2" />
+                    <p className="font-semibold text-sm">No destinations found</p>
+                    <p className="text-xs text-stone-400 mt-1">
+                      Add destinations to your trips to plot them across the globe!
+                    </p>
+                  </div>
                 ) : (
-                  <div className="flex flex-col gap-4">
-                    <div className="flex items-center justify-between border-b border-stone-200 pb-3">
-                      <div className="flex items-center gap-3">
-                        <button onClick={() => setActiveList(null)} className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-700 font-bold hover:bg-stone-200">‹</button>
-                        <div>
-                          <h2 className="text-xl font-bold text-stone-900">{activeList.name}</h2>
-                          <span className="map-list-date-badge mt-0.5">{activeList.dateRange}</span>
-                        </div>
-                      </div>
-                      <button onClick={() => setIsAddPlaceView(true)} className="btn-lakbye-gradient text-xs py-2 px-4">+ Add Place</button>
-                    </div>
+                  <div className="flex flex-col gap-2.5">
+                    {filteredWorldItems.map((item) => {
+                      const isActive = activeMarkerId === String(item.destination.id);
 
-                    <div className="map-category-tabs">
-                      {['All', 'Activities', 'Eat & Drink', 'Stays', 'Destinations'].map(
-                        (tab) => {
-                          const count = tab === 'All' ? activeList.places.length : activeList.places.filter((p) => p.type === tab).length;
-                          return (
-                            <button key={tab} onClick={() => setActiveCategoryTab(tab)} className={`map-tab-pill ${activeCategoryTab === tab ? 'active' : ''}`}>{tab} {count}</button>
-                          );
-                        },
-                      )}
-                    </div>
-
-                    {filteredPlaces.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center p-12 text-center my-4">
-                        <p className="font-bold text-stone-800 mb-1">No places in this category yet</p>
-                        <p className="text-xs text-stone-500 mb-0">Add your first place!</p>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-3">
-                        {filteredPlaces.map((place) => {
-                          const badgeClass =
-                            place.type === 'Eat & Drink' ? 'badge-eat-drink' : place.type === 'Activities' ? 'badge-activities' : place.type === 'Stays' ? 'badge-stays' : 'badge-destinations';
-
-                          return (
-                            <div key={place.id} className="map-place-card">
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <h4 className="font-bold text-stone-900 text-base">{place.name}</h4>
-                                  <p className="text-xs text-stone-500 mt-0.5">{place.address}</p>
-                                </div>
-                                <div className="relative">
-                                  <button onClick={() => setActiveDropdown(activeDropdown === place.id ? null : place.id)} className="text-stone-400 hover:text-stone-700 font-bold text-lg px-2">⋮</button>
-                                  {activeDropdown === place.id && (
-                                    <div className="place-actions-menu">
-                                      <button onClick={() => handleDeletePlace(place.id)} className="delete-btn">Delete</button>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <div><span className={`place-badge ${badgeClass}`}>{place.type}</span></div>
+                      return (
+                        <button
+                          type="button"
+                          key={`world-${item.destination.id}`}
+                          onClick={() => {
+                            setActiveMarkerId(String(item.destination.id));
+                            setFocusView([
+                              Number(item.destination.longitude),
+                              Number(item.destination.latitude),
+                            ]);
+                          }}
+                          className={`map-place-card text-left w-full cursor-pointer transition-all ${
+                            isActive ? 'ring-2 ring-amber-500 bg-amber-50/20' : ''
+                          }`}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-bold text-stone-900 text-sm">
+                                {item.destination.location_name}
+                              </h4>
+                              <p className="text-xs text-stone-500 mt-0.5 flex items-center gap-1">
+                                <span>{item.trip.name}</span>
+                                {item.trip.startDate && (
+                                  <>
+                                    <span>•</span>
+                                    <span>{formatDateOnly(item.trip.startDate)}</span>
+                                  </>
+                                )}
+                              </p>
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                            <span
+                              className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                                item.isVisited
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                  : 'bg-amber-100 text-amber-800 border border-amber-200'
+                              }`}
+                            >
+                              {item.isVisited ? 'Visited' : 'Upcoming'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] text-stone-400 font-mono">
+                            <span>
+                              {Number(item.destination.latitude).toFixed(4)},{' '}
+                              {Number(item.destination.longitude).toFixed(4)}
+                            </span>
+                            <span className="flex items-center gap-1 text-stone-600 font-sans hover:text-stone-900">
+                              <Navigation size={11} /> Fly to Pin
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
-              </>
+              </div>
+            ) : !activeTrip ? (
+              /* ============================================================= */
+              /* View State C: My Trips Overview List                          */
+              /* ============================================================= */
+              <div className="flex flex-col gap-3">
+                <div className="map-search-box">
+                  <img src={magnifierIcon} alt="" className="w-5 h-5 opacity-50" />
+                  <input
+                    type="text"
+                    className="w-full bg-transparent outline-none text-sm font-medium text-stone-800 placeholder-stone-400"
+                    placeholder="Search trips..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+
+                {loading ? (
+                  <div className="flex items-center justify-center p-12 text-stone-400">
+                    <Loader2 size={24} className="animate-spin" />
+                  </div>
+                ) : error ? (
+                  <div className="p-4 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200">
+                    {error}
+                  </div>
+                ) : filteredTrips.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center p-8 text-center text-stone-500">
+                    <p className="font-semibold text-sm">No trips found</p>
+                    <p className="text-xs text-stone-400 mt-1">
+                      Create your first trip using the button below.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-1 mt-1">
+                    {filteredTrips.map((trip) => {
+                      const dateRange =
+                        trip.startDate && trip.endDate
+                          ? `${formatDateOnly(trip.startDate)} - ${formatDateOnly(
+                              trip.endDate,
+                            )}`
+                          : 'No dates set';
+
+                      const placeCount = trip.destinations?.length || 0;
+
+                      return (
+                        <button
+                          type="button"
+                          key={trip.id}
+                          className="map-list-item-row text-left w-full hover:bg-stone-50 transition-colors"
+                          onClick={() => {
+                            setActiveTripId(trip.id);
+                            // If the trip has destinations, focus on the first one
+                            if (trip.destinations && trip.destinations.length > 0) {
+                              setFocusView([
+                                Number(trip.destinations[0].longitude),
+                                Number(trip.destinations[0].latitude),
+                              ]);
+                              setActiveMarkerId(String(trip.destinations[0].id));
+                            }
+                          }}
+                        >
+                          <div className="map-list-item-title">
+                            <span>{trip.name}</span>
+                            <span className="text-stone-400 text-sm font-normal">›</span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <span className="map-list-date-badge">{dateRange}</span>
+                            <span className="text-[11px] font-semibold text-stone-500 bg-stone-100 px-2 py-0.5 rounded-full border border-stone-200">
+                              {placeCount} {placeCount === 1 ? 'place' : 'places'}
+                            </span>
+                            <span
+                              className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                                trip.status === 'completed'
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : 'bg-amber-50 text-amber-700 border border-amber-200'
+                              }`}
+                            >
+                              {trip.status || 'planning'}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* ============================================================= */
+              /* View State D: Selected Trip Destinations                      */
+              /* ============================================================= */
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => {
+                        setActiveTripId(null);
+                        setActiveMarkerId(null);
+                      }}
+                      className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-700 font-bold hover:bg-stone-200 transition-colors cursor-pointer"
+                    >
+                      ‹
+                    </button>
+                    <div>
+                      <h2 className="text-xl font-bold text-stone-900">
+                        {activeTrip.name}
+                      </h2>
+                      <span className="map-list-date-badge mt-0.5">
+                        {activeTrip.startDate && activeTrip.endDate
+                          ? `${formatDateOnly(activeTrip.startDate)} - ${formatDateOnly(
+                              activeTrip.endDate,
+                            )}`
+                          : 'No dates set'}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsAddPlaceView(true);
+                      setGeocodeError('');
+                    }}
+                    className="btn-lakbye-gradient text-xs py-2 px-4 cursor-pointer"
+                  >
+                    + Add Place
+                  </button>
+                </div>
+
+                {/* Destinations List */}
+                {!activeTrip.destinations || activeTrip.destinations.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center p-12 text-center my-4">
+                    <MapPin size={32} className="text-stone-300 mb-2" />
+                    <p className="font-bold text-stone-800 mb-1">
+                      No places in this trip yet
+                    </p>
+                    <p className="text-xs text-stone-500 mb-3">
+                      Add your first destination to place markers on the globe!
+                    </p>
+                    <button
+                      onClick={() => setIsAddPlaceView(true)}
+                      className="btn-lakbye-gradient text-xs py-2 px-4 cursor-pointer"
+                    >
+                      + Add First Place
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {activeTrip.destinations.map((dest) => {
+                      const isActive = activeMarkerId === String(dest.id);
+
+                      return (
+                        <div
+                          key={dest.id}
+                          className={`map-place-card transition-all ${
+                            isActive ? 'ring-2 ring-amber-500 bg-amber-50/20' : ''
+                          }`}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-bold text-stone-900 text-base">
+                                {dest.location_name}
+                              </h4>
+                              <p className="text-[11px] font-mono text-stone-400 mt-1">
+                                {dest.latitude.toFixed(4)}, {dest.longitude.toFixed(4)}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                title="Fly to location"
+                                onClick={() => {
+                                  setActiveMarkerId(String(dest.id));
+                                  setFocusView([
+                                    Number(dest.longitude),
+                                    Number(dest.latitude),
+                                  ]);
+                                }}
+                                className="p-1.5 text-stone-400 hover:text-stone-700 transition-colors"
+                              >
+                                <Navigation size={15} />
+                              </button>
+                              <button
+                                type="button"
+                                title="Delete place"
+                                onClick={() => handleDeleteDestination(dest.id)}
+                                className="p-1.5 text-red-400 hover:text-red-700 transition-colors"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          </div>
+                          <div>
+                            <span className="place-badge badge-destinations">
+                              Destination
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
-          {!activeList && !isAddPlaceView && (
-            <button onClick={() => setIsNewListOpen(true)} className="map-new-list-btn">
-              <span className="text-lg font-bold leading-none">+</span><span>New List</span>
+          {/* Bottom Action: Create Trip (opens CreateTripModal) */}
+          {!activeTrip && !isAddPlaceView && activeViewMode === 'my-trips' && (
+            <button
+              type="button"
+              onClick={() => setIsCreateTripModalOpen(true)}
+              className="map-new-list-btn"
+            >
+              <Plus size={18} className="font-bold" />
+              <span>Create Trip</span>
             </button>
           )}
         </div>
 
+        {/* Right Globe View Panel */}
         <div className="map-globe-view-panel">
-          <GlobeMap markers={globeMarkers} />
+          <GlobeMap
+            markers={globeMarkers}
+            activeMarkerId={activeMarkerId}
+            focusView={focusView}
+            onMarkerClick={(markerId) => {
+              setActiveMarkerId(markerId);
+            }}
+          />
         </div>
       </div>
 
-      {isNewListOpen && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="create-list-modal-title">
-          <button type="button" className="modal-backdrop-dismiss" aria-label="Close modal" onClick={() => setIsNewListOpen(false)} />
-          <div className="start-trip-modal-card">
-            <button type="button" onClick={() => setIsNewListOpen(false)} className="absolute top-5 right-6 text-lg font-bold" aria-label="Close modal">✕</button>
-            <h3 id="create-list-modal-title" className="text-lg font-bold text-stone-900 mb-4">Create a New List</h3>
-            <form onSubmit={handleCreateList} className="flex flex-col gap-4">
-              <div>
-                <label htmlFor="new-list-name-input" className="modal-label">List Name</label>
-                <input id="new-list-name-input" type="text" required className="modal-input-gradient" placeholder="List Name" value={newListName} onChange={(e) => setNewListName(e.target.value)} />
-              </div>
-              <div>
-                <label htmlFor="new-list-desc-input" className="modal-label">Description</label>
-                <textarea id="new-list-desc-input" className="modal-input-gradient py-2.5 h-24 resize-none" placeholder="Add description..." value={newListDesc} onChange={(e) => setNewListDesc(e.target.value)} />
-              </div>
-              <div className="flex justify-center mt-3">
-                <button type="submit" className="btn-start-planning-modal">Create List</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Real Trip Creation Modal */}
+      <CreateTripModal
+        isOpen={isCreateTripModalOpen}
+        onClose={() => setIsCreateTripModalOpen(false)}
+        onTripCreated={fetchTripsAndDestinations}
+      />
     </div>
   );
 }

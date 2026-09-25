@@ -10,6 +10,11 @@ export interface MarkerData {
   lng: number;
   lat: number;
   title: string;
+  color?: string;
+  tripName?: string;
+  tripDates?: string;
+  status?: string;
+  category?: string;
 }
 
 export interface GlobeMapProps {
@@ -103,17 +108,18 @@ export default function GlobeMap({
 
     markers.forEach((marker) => {
       const isActive = activeMarkerId === marker.id;
+      const markerColor = marker.color || (isActive ? '#C5283D' : '#E9724C');
 
       const markerEl = document.createElement('div');
       markerEl.className = `mapbox-custom-marker ${isActive ? 'active' : ''}`;
       markerEl.style.width = '24px';
       markerEl.style.height = '24px';
       markerEl.style.borderRadius = '50%';
-      markerEl.style.backgroundColor = isActive ? '#C5283D' : '#E9724C';
+      markerEl.style.backgroundColor = markerColor;
       markerEl.style.border = '2.5px solid #ffffff';
       markerEl.style.boxShadow = isActive
         ? '0 0 14px rgba(197, 40, 61, 0.9), 0 2px 4px rgba(0,0,0,0.3)'
-        : '0 0 8px rgba(233, 114, 76, 0.6), 0 2px 4px rgba(0,0,0,0.3)';
+        : `0 0 8px ${markerColor}99, 0 2px 4px rgba(0,0,0,0.3)`;
       markerEl.style.cursor = 'pointer';
       markerEl.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
       markerEl.style.transform = isActive ? 'scale(1.25)' : 'scale(1)';
@@ -125,9 +131,21 @@ export default function GlobeMap({
         });
       }
 
-      const popup = new mapboxgl.Popup({ offset: 15 }).setHTML(
-        `<div style="font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 600; color: #1e293b; padding: 2px 4px;">${marker.title}</div>`,
-      );
+      const popupHtml = marker.tripName
+        ? `<div style="font-family: 'Poppins', sans-serif; font-size: 13px; color: #1e293b; padding: 4px; min-width: 140px;">
+            <div style="font-weight: 700; font-size: 14px; margin-bottom: 2px; color: #0f172a;">${marker.title}</div>
+            <div style="font-size: 11px; color: #64748b; margin-bottom: 6px;">${marker.tripName}${marker.tripDates ? ` • ${marker.tripDates}` : ''}</div>
+            <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; text-transform: uppercase; ${
+              marker.status === 'completed'
+                ? 'background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;'
+                : 'background: #ffedd5; color: #c2410c; border: 1px solid #fed7aa;'
+            }">
+              ${marker.status === 'completed' ? 'Visited' : 'Upcoming'}
+            </span>
+          </div>`
+        : `<div style="font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 600; color: #1e293b; padding: 2px 4px;">${marker.title}</div>`;
+
+      const popup = new mapboxgl.Popup({ offset: 15 }).setHTML(popupHtml);
 
       const m = new mapboxgl.Marker({ element: markerEl })
         .setLngLat([marker.lng, marker.lat])

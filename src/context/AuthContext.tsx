@@ -32,26 +32,84 @@ const enrichUserWithPreferences = (baseUser: User): User => {
   return baseUser;
 };
 
+const getStoredUser = (): User | null => {
+  try {
+    const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
+    if (!token) return null;
+    const raw = localStorage.getItem(STORAGE_KEYS.USER);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return enrichUserWithPreferences(parsed);
+    }
+  } catch {
+    // ignore parse error
+  }
+  return null;
+};
+
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [user, setUser] = useState<User | null>(() => getStoredUser());
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    // If no token exists, the user is unauthenticated: do not block UI with a skeleton
+    const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
+    if (!token) return false;
+
+    // If a token exists and we already have cached user data, render immediately
+    const cachedUser = localStorage.getItem(STORAGE_KEYS.USER);
+    return !cachedUser;
+  });
+
+  // Keep STORAGE_KEYS.USER in sync whenever user state changes
+  useEffect(() => {
+    if (user) {
+      try {
+        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+      } catch {
+        // ignore storage errors
+      }
+    }
+  }, [user]);
 
   useEffect(() => {
     let isMounted = true;
 
     const checkSession = async () => {
-      try {
-        const response = await authApi.getMe();
-        if (isMounted && response?.user) {
-          setUser(enrichUserWithPreferences(response.user));
-        }
-      } catch {
-        // Silently catch 401 or network error on mount: session cookie absent or invalid
+      const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
+
+      // If no token in localStorage, skip network call to prevent blocking UI or 401 errors
+      if (!token) {
         if (isMounted) {
           setUser(null);
+          setIsLoading(false);
         }
+        return;
+      }
+
+      // Add a 5-second timeout so a slow or sleeping backend never causes the UI to hang
+      const timeoutPromise = new Promise<{ user: null }>((_, reject) =>
+        setTimeout(() => reject(new Error('Auth check timeout')), 5000),
+      );
+
+      try {
+        const response = await Promise.race([authApi.getMe(), timeoutPromise]);
+        if (isMounted && response?.user) {
+          const enriched = enrichUserWithPreferences(response.user);
+          setUser(enriched);
+          localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(enriched));
+        }
+      } catch (err: unknown) {
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        // Explicit 401 / 403 means token is genuinely expired or invalid
+        if (status === 401 || status === 403) {
+          if (isMounted) {
+            localStorage.removeItem(STORAGE_KEYS.TOKEN);
+            localStorage.removeItem(STORAGE_KEYS.USER);
+            setUser(null);
+          }
+        }
+        // If it was just a network timeout or temporary error, preserve existing cached user
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -71,7 +129,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.token) {
       localStorage.setItem(STORAGE_KEYS.TOKEN, data.token);
     }
-    setUser(enrichUserWithPreferences(data.user));
+    const enriched = enrichUserWithPreferences(data.user);
+    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(enriched));
+    setUser(enriched);
     return data;
   };
 
@@ -80,7 +140,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.token) {
       localStorage.setItem(STORAGE_KEYS.TOKEN, data.token);
     }
-    setUser(enrichUserWithPreferences(data.user));
+    const enriched = enrichUserWithPreferences(data.user);
+    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(enriched));
+    setUser(enriched);
     return data;
   };
 
@@ -89,6 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await authApi.logout();
     } finally {
       localStorage.removeItem(STORAGE_KEYS.TOKEN);
+      localStorage.removeItem(STORAGE_KEYS.USER);
       setUser(null);
     }
   };

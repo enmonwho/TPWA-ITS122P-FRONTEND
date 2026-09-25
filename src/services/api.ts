@@ -217,6 +217,23 @@ export const destinationsApi = {
       return [];
     }
   },
+  create: async (payload: {
+    trip_id: string | number;
+    location_name: string;
+    latitude?: number;
+    longitude?: number;
+    order_sequence?: number;
+  }): Promise<Destination> => {
+    const response = await api.post<{ message: string; destination: Destination }>(
+      '/destinations',
+      payload,
+    );
+    return response.data.destination;
+  },
+  delete: async (id: string | number): Promise<{ message: string }> => {
+    const response = await api.delete<{ message: string }>(`/destinations/${id}`);
+    return response.data;
+  },
 };
 
 export interface ExpenseApiResponse {
