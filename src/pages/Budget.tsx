@@ -31,6 +31,8 @@ interface Expense {
   category: string;
   cost: number;
   date?: string;
+  destination_id?: number | string | null;
+  country_name?: string | null;
 }
 
 interface BudgetData {
@@ -150,6 +152,11 @@ export function Budget() {
   ]);
   const [expenseCategory, setExpenseCategory] = useState(BUDGET_CATEGORIES[0].name);
   const [expenseCost, setExpenseCost] = useState('');
+  const [expenseDestination, setExpenseDestination] = useState<string>('Entire Trip');
+  const [expenseError, setExpenseError] = useState<string>('');
+  const [availableDestinations, setAvailableDestinations] = useState<
+    { id: string; name: string; country?: string }[]
+  >([]);
   const [balanceInput, setBalanceInput] = useState('');
 
   const addItemRow = () => {
@@ -167,6 +174,28 @@ export function Budget() {
       prev.map((row, i) => (i === idx ? { ...row, [field]: val } : row)),
     );
   };
+
+  // Load destinations from Planner for this trip
+  useEffect(() => {
+    if (!tripId) return;
+    try {
+      const stored = localStorage.getItem(`lakbye_workspace_dests_${tripId}`);
+      if (stored) {
+        const dests = JSON.parse(stored);
+        if (Array.isArray(dests)) {
+          setAvailableDestinations(
+            dests.map((d: any) => ({
+              id: d.id,
+              name: d.name,
+              country: d.country,
+            })),
+          );
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [tripId]);
 
   useEffect(() => {
     if (!user || !tripId) return;
@@ -199,6 +228,8 @@ export function Budget() {
                   category: e.category,
                   cost: Number(e.cost) || 0,
                   date: e.date,
+                  destination_id: e.destination_id,
+                  country_name: e.country_name,
                 }))
               : [],
           };
@@ -271,9 +302,16 @@ export function Budget() {
 
   const handleAddExpenseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!expenseName.trim()) return;
+    setExpenseError('');
+    if (!expenseName.trim()) {
+      setExpenseError('Please enter where you spent.');
+      return;
+    }
     const enteredCost = parseFloat(expenseCost);
-    if (isNaN(enteredCost) || enteredCost <= 0) return;
+    if (isNaN(enteredCost) || enteredCost <= 0) {
+      setExpenseError('Please enter a valid expense cost.');
+      return;
+    }
 
     const costInPhp =
       displayCurrency === 'PHP'
@@ -281,8 +319,18 @@ export function Budget() {
         : convert(enteredCost, displayCurrency, 'PHP', fxRates);
     const roundedCostPhp = Math.round(costInPhp * 100) / 100;
 
+    // Strict balance protection check (both client and server)
+    if (roundedCostPhp > budget.balance) {
+      setExpenseError('This expense exceeds your remaining trip budget.');
+      return;
+    }
+
     const totalItems =
       expenseItemRows.reduce((sum, r) => sum + (parseInt(r.quantity, 10) || 0), 0) || 1;
+
+    const selectedDestObj = availableDestinations.find(
+      (d) => d.name === expenseDestination,
+    );
 
     const tempId = `temp-${Date.now()}`;
     const newExpense: Expense = {
@@ -292,6 +340,10 @@ export function Budget() {
       category: expenseCategory,
       cost: roundedCostPhp,
       date: new Date().toISOString().split('T')[0],
+      destination_id: selectedDestObj ? selectedDestObj.id : null,
+      country_name: selectedDestObj
+        ? selectedDestObj.country || selectedDestObj.name
+        : null,
     };
 
     saveBudget({
@@ -307,6 +359,8 @@ export function Budget() {
     ]);
     setExpenseCategory(BUDGET_CATEGORIES[0].name);
     setExpenseCost('');
+    setExpenseDestination('Entire Trip');
+    setExpenseError('');
     setIsAddExpenseOpen(false);
 
     if (tripId) {
@@ -317,6 +371,8 @@ export function Budget() {
           category: newExpense.category,
           cost: newExpense.cost,
           date: newExpense.date,
+          destination_id: newExpense.destination_id,
+          country_name: newExpense.country_name,
         });
         if (res && res.expense) {
           setBudget((prev) => {
@@ -331,6 +387,8 @@ export function Budget() {
                       category: res.expense.category,
                       cost: Number(res.expense.cost) || 0,
                       date: res.expense.date,
+                      destination_id: res.expense.destination_id,
+                      country_name: res.expense.country_name,
                     }
                   : item,
               ),
@@ -339,8 +397,20 @@ export function Budget() {
             return reconciled;
           });
         }
-      } catch {
-        /* ignore error */
+      } catch (err: any) {
+        const msg =
+          err?.response?.data?.message ||
+          'This expense exceeds your remaining trip budget.';
+        console.warn('Expense addition rejected by server:', msg);
+        // Revert optimistic addition if server rejected
+        setBudget((prev) => {
+          const reverted: BudgetData = {
+            balance: Math.round((prev.balance + roundedCostPhp) * 100) / 100,
+            expenses: prev.expenses.filter((e) => e.id !== tempId),
+          };
+          localStorage.setItem(budgetKey, JSON.stringify(reverted));
+          return reverted;
+        });
       }
     }
   };
@@ -598,7 +668,20 @@ export function Budget() {
                   const catConfig = getCategoryConfig(expense.category);
                   return (
                     <div key={expense.id} className="budget-table-row">
-                      <div style={{ fontWeight: 600 }}>{expense.name}</div>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{expense.name}</div>
+                        {(expense.country_name || (expense as any).destination) && (
+                          <div
+                            style={{
+                              fontSize: '11.5px',
+                              color: 'rgba(0, 0, 0, 0.55)',
+                              marginTop: '2px',
+                            }}
+                          >
+                            📍 {expense.country_name || (expense as any).destination}
+                          </div>
+                        )}
+                      </div>
                       <div style={{ color: 'rgba(0, 0, 0, 0.7)' }}>
                         {expense.items || 1}
                       </div>
@@ -698,6 +781,38 @@ export function Budget() {
                   value={expenseName}
                   onChange={(e) => setExpenseName(e.target.value)}
                 />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="modal-expense-destination"
+                  className="budget-modal-section-title"
+                >
+                  Destination / Leg
+                </label>
+                <select
+                  id="modal-expense-destination"
+                  className="budget-modal-gradient-input"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '12px',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid rgba(72, 42, 19, 0.2)',
+                    fontSize: '14px',
+                    color: '#334155',
+                    marginTop: '4px',
+                  }}
+                  value={expenseDestination}
+                  onChange={(e) => setExpenseDestination(e.target.value)}
+                >
+                  <option value="Entire Trip">Entire Trip</option>
+                  {availableDestinations.map((d) => (
+                    <option key={d.id} value={d.name}>
+                      {d.name} {d.country ? `(${d.country})` : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -853,6 +968,22 @@ export function Budget() {
                   </div>
                 </div>
               </div>
+
+              {expenseError && (
+                <div
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    backgroundColor: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    color: '#b91c1c',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                  }}
+                >
+                  ⚠️ {expenseError}
+                </div>
+              )}
 
               <button type="submit" className="budget-modal-primary-btn">
                 Add Expense

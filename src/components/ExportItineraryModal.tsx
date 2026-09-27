@@ -58,17 +58,22 @@ export default function ExportItineraryModal({
           }
         }
         if (dests.length === 0 && merged.countries) {
-          dests = merged.countries.map((c, i) => ({
-            id: `dest-${i + 1}`,
-            name: c,
-            nights: Math.max(
+          dests = merged.countries.map((c, i) => {
+            const count = Math.max(
               1,
               Math.floor(merged.nights / (merged.countries.length || 1)),
-            ),
-            accommodation: 'Hotel / Resort',
-            activities: 'Sightseeing & Culture',
-            transportation: 'Flight / Train',
-          }));
+            );
+            return {
+              id: `dest-${i + 1}`,
+              name: c,
+              country: c,
+              days: count,
+              nights: count,
+              accommodation: 'Hotel / Resort',
+              activities: 'Sightseeing & Culture',
+              transportation: 'Flight / Train',
+            };
+          });
         }
         setDestinations(dests);
 

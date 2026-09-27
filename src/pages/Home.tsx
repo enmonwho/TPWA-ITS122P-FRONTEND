@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { useEarthScroll } from '../hooks/useEarthScroll';
 import earthImg from '../assets/earth.png';
 import FeatureGrid from '../components/FeatureGrid';
@@ -11,12 +13,15 @@ import CloudDoodle from '../components/CloudDoodle';
  * Layout matches the Figma "Landing Page" frame (#17:87):
  * - Hero section with "Saan aabot ang LakBye mo?" heading
  * - Scroll-driven Earth globe animation (untouched)
+ * - Centered "Start Planning" CTA button
  * - "LakBye has you covered" services section with feature cards
  * - Testimonials section
  * - CTA section
  */
 export default function Home() {
   const { earthRef, earthWrapRef, cloudsWrapRef } = useEarthScroll();
+  const { user } = useAuth();
+  const heroTarget = user ? '/dashboard' : '/login';
 
   return (
     <div className="earth-home-page">
@@ -83,6 +88,32 @@ export default function Home() {
           Plan your next adventure with ease. Create itineraries, discover exciting
           destinations, manage your budget, and keep all your travel plans in one place.
         </p>
+        <div
+          className="hero-cta-wrapper animate-fade-in-up delay-200"
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginTop: '28px',
+          }}
+        >
+          <Link
+            to={heroTarget}
+            className="btn-signup hover-lift"
+            style={{
+              padding: '14px 36px',
+              fontSize: '1.05rem',
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '9999px',
+              textDecoration: 'none',
+              boxShadow: '0 8px 24px rgba(254, 169, 42, 0.35)',
+            }}
+          >
+            Start Planning
+          </Link>
+        </div>
       </section>
 
       <FeatureGrid />

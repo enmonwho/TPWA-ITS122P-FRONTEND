@@ -20,7 +20,6 @@ import StatCard from '../components/StatCard';
 import CreateTripModal from '../components/CreateTripModal';
 import planNowIcon from '../assets/plan-now.svg';
 import tripSchedIcon from '../assets/trip-sched.svg';
-import totalSpentIcon from '../assets/total-spent.svg';
 import createTripBtnIcon from '../assets/create-trip-button.svg';
 import browseDestIcon from '../assets/browse-destination.svg';
 import { useAuth } from '../context/AuthContext';
@@ -31,6 +30,7 @@ import {
   mergeTripWithExtras,
   formatTripDateRange,
 } from '../lib/tripExtras';
+import { formatUserCurrency } from '../lib/formatters';
 
 export default function Dashboard() {
   const { user, setUser } = useAuth();
@@ -66,6 +66,8 @@ export default function Dashboard() {
       }
       return 'MM/DD/YYYY';
     })();
+
+  const userCurrency = user?.preferences?.currency || 'PHP';
 
   // Ensure username and preferences (like dateFormat) are loaded if session initialized before preferences were cached
   useEffect(() => {
@@ -494,9 +496,7 @@ export default function Dashboard() {
               />
             }
             value={
-              nextTrip?.daysUntil !== undefined
-                ? nextTrip.daysUntil.toString()
-                : undefined
+              nextTrip?.daysUntil !== undefined ? `${nextTrip.daysUntil} days` : undefined
             }
             title={nextTrip?.daysUntil === undefined ? 'None scheduled' : undefined}
             subtitle="Until Next Trip"
@@ -506,16 +506,8 @@ export default function Dashboard() {
           <StatCard
             gradient="--gradient-stat-spent"
             icon={<Wallet size={161} strokeWidth={1} className="dash-stat-icon-spent" />}
-            value={
-              totalSpent > 0
-                ? totalSpent.toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })
-                : '0.00'
-            }
+            value={formatUserCurrency(totalSpent, userCurrency)}
             subtitle="Total Spent"
-            iconButton={totalSpentIcon}
           />
         </div>
 
@@ -683,7 +675,10 @@ export default function Dashboard() {
                               navigate(ROUTES.TRIP(trip.id));
                             }
                           }}
-                          style={{ cursor: 'pointer' }}
+                          style={{
+                            cursor: 'pointer',
+                            zIndex: openMenuTripId === trip.id ? 60 : 1,
+                          }}
                         >
                           <div className="trip-cell-name">
                             <span className="trip-row-name">{trip.name}</span>
@@ -710,7 +705,7 @@ export default function Dashboard() {
                                 {displayStatus === 'upcoming' &&
                                   trip.daysUntil !== undefined && (
                                     <span className="trip-badge trip-badge--countdown">
-                                      In {trip.daysUntil} Day/s
+                                      {trip.daysUntil} days
                                     </span>
                                   )}
                               </div>
@@ -753,11 +748,18 @@ export default function Dashboard() {
                             </button>
 
                             {openMenuTripId === trip.id && (
-                              <div className="dashboard-trip-options-menu">
+                              <div
+                                className="dashboard-trip-options-menu"
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <button
                                   type="button"
                                   className="trip-options-menu-item"
-                                  onClick={() => handleOpenEdit(trip)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenMenuTripId(null);
+                                    handleOpenEdit(trip);
+                                  }}
                                 >
                                   <Pencil size={15} className="text-stone-500" />
                                   <span>Edit Details</span>
@@ -766,7 +768,11 @@ export default function Dashboard() {
                                 <button
                                   type="button"
                                   className="trip-options-menu-item"
-                                  onClick={() => handleToggleStatus(trip)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenMenuTripId(null);
+                                    handleToggleStatus(trip);
+                                  }}
                                 >
                                   <Archive size={15} className="text-stone-500" />
                                   <span>
@@ -779,7 +785,11 @@ export default function Dashboard() {
                                 <button
                                   type="button"
                                   className="trip-options-menu-item"
-                                  onClick={() => handleDuplicateTrip(trip)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenMenuTripId(null);
+                                    handleDuplicateTrip(trip);
+                                  }}
                                 >
                                   <Copy size={15} className="text-stone-500" />
                                   <span>Duplicate Trip</span>
@@ -790,7 +800,11 @@ export default function Dashboard() {
                                 <button
                                   type="button"
                                   className="trip-options-menu-item danger"
-                                  onClick={() => handleOpenDelete(trip)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenMenuTripId(null);
+                                    handleOpenDelete(trip);
+                                  }}
                                 >
                                   <Trash2 size={15} />
                                   <span>Delete Trip</span>

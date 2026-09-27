@@ -127,7 +127,7 @@ export default function PublicProfile() {
                 key={trip.id}
                 role="button"
                 tabIndex={0}
-                className="..."
+                className="bg-white border border-stone-200/80 rounded-2xl p-5 hover:shadow-md transition flex flex-col justify-between text-left cursor-pointer overflow-hidden"
                 onClick={() => {
                   if (isOwner) navigate(`/trip/${trip.id}`);
                 }}
@@ -148,20 +148,25 @@ export default function PublicProfile() {
                       />
                     </div>
                   )}
-                  <h3 className="text-base font-bold text-stone-900 mb-1">{trip.name}</h3>
+                  <h3
+                    className="text-base font-bold text-stone-900 mb-1 truncate"
+                    title={trip.name}
+                  >
+                    {trip.name}
+                  </h3>
                   {trip.countries && trip.countries.length > 0 && (
-                    <div className="flex items-center gap-1 text-xs text-stone-500 mb-3">
-                      <MapPin className="w-3.5 h-3.5 text-stone-400" />
-                      <span>{trip.countries.join(', ')}</span>
+                    <div className="flex items-center gap-1 text-xs text-stone-500 mb-3 truncate">
+                      <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                      <span className="truncate">{trip.countries.join(', ')}</span>
                     </div>
                   )}
                 </div>
 
                 <div className="flex items-center justify-between pt-3 border-t border-stone-100 text-xs font-medium text-stone-500">
-                  <span>
+                  <span className="truncate">
                     {formatDateOnly(trip.startDate)} - {formatDateOnly(trip.endDate)}
                   </span>
-                  <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-semibold uppercase tracking-wider text-[10px]">
+                  <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-semibold uppercase tracking-wider text-[10px] shrink-0">
                     {trip.status}
                   </span>
                 </div>

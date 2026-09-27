@@ -38,6 +38,7 @@ interface BookingLedgerItem {
   accommodation: string;
   budget: string;
   status: BookingStatus;
+  type: 'hotel' | 'activity';
 }
 
 async function withRetry<T>(fn: () => Promise<T>, delayMs = 800): Promise<T> {
@@ -108,13 +109,17 @@ export default function Bookings() {
 
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!syncNotice) return;
-    const timer = setTimeout(() => setSyncNotice(null), 6000);
-    return () => clearTimeout(timer);
-  }, [syncNotice]);
-
+  // Booking filters & modes
+  const [bookingTypeFilter, setBookingTypeFilter] = useState<
+    'all' | 'activity' | 'hotel'
+  >('all');
   const [isBookActivityOpen, setIsBookActivityOpen] = useState(false);
+  const [bookingMode, setBookingMode] = useState<'catalog' | 'custom'>('catalog');
+  const [customType, setCustomType] = useState<'activity' | 'hotel'>('activity');
+  const [customTitle, setCustomTitle] = useState('');
+  const [customLocation, setCustomLocation] = useState('');
+  const [customCost, setCustomCost] = useState('');
+  const [customNotes, setCustomNotes] = useState('');
   const [selectedActivityId, setSelectedActivityId] = useState<number | ''>('');
   const [bookingDate, setBookingDate] = useState('');
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
@@ -348,10 +353,22 @@ export default function Bookings() {
 
       return tripBookings.map((b, idx) => {
         const activity = catalogActivities.find((a) => a.id === b.activity_id);
-        const actTitle =
-          b.activity_title || activity?.title || `Activity #${b.activity_id}`;
+        const isHotel =
+          b.custom_type?.toLowerCase() === 'hotel' ||
+          (!b.activity_id &&
+            (b.custom_title?.toLowerCase().includes('hotel') ||
+              b.custom_title?.toLowerCase().includes('stay') ||
+              b.custom_title?.toLowerCase().includes('resort')));
+
+        const actTitle = isHotel
+          ? '—'
+          : b.custom_title ||
+            b.activity_title ||
+            activity?.title ||
+            `Activity #${b.activity_id}`;
 
         const destName =
+          b.custom_location ||
           (activity?.destination_id && destLookup.get(activity.destination_id)) ||
           (tripDestinations.length > 0 ? tripDestinations[0].location_name : null) ||
           (selectedTrip.countries && selectedTrip.countries[0]) ||
@@ -359,16 +376,19 @@ export default function Bookings() {
 
         const matchedAccom =
           accommodationExpenses[idx % Math.max(accommodationExpenses.length, 1)];
-        let accomLabel = b.vendor_name || 'Confirmed Stay / Boutique Hotel';
-        if (matchedAccom && !b.vendor_name) {
+        let accomLabel = 'Confirmed Stay / Boutique Hotel';
+        if (isHotel) {
+          accomLabel = b.custom_title || 'Boutique Hotel / Stay';
+        } else if (b.vendor_name) {
+          accomLabel = b.vendor_name;
+        } else if (matchedAccom) {
           accomLabel = `${matchedAccom.name} (₱${Number(matchedAccom.cost).toLocaleString()})`;
         }
 
         let budgetStr = 'Included';
-        if (b.total_price) {
-          budgetStr = `₱${Number(b.total_price).toLocaleString()}`;
-        } else if (activity?.cost) {
-          budgetStr = `₱${Number(activity.cost).toLocaleString()}`;
+        const costVal = b.total_price ?? b.cost ?? activity?.cost;
+        if (costVal !== undefined && costVal !== null && costVal !== '') {
+          budgetStr = `₱${Number(costVal).toLocaleString()}`;
         }
 
         const dateStr = b.booking_date
@@ -393,6 +413,7 @@ export default function Bookings() {
           accommodation: accomLabel,
           budget: budgetStr,
           status: itemStatus,
+          type: (isHotel ? 'hotel' : 'activity') as 'hotel' | 'activity',
         };
       });
     }
@@ -407,6 +428,11 @@ export default function Bookings() {
     allDestinations,
   ]);
 
+  const filteredLedgerItems = useMemo(() => {
+    if (bookingTypeFilter === 'all') return ledgerItems;
+    return ledgerItems.filter((i) => i.type === bookingTypeFilter);
+  }, [ledgerItems, bookingTypeFilter]);
+
   const handleTripCreated = () => loadTrips();
 
   const handleOpenBookModal = () => {
@@ -415,6 +441,10 @@ export default function Bookings() {
     if (catalogActivities.length > 0 && selectedActivityId === '') {
       setSelectedActivityId(catalogActivities[0].id);
     }
+    setCustomTitle('');
+    setCustomLocation(selectedTrip.countries?.[0] || '');
+    setCustomCost('');
+    setCustomNotes('');
     setBookingSuccessMsg(null);
     setBookingErrorMsg(null);
     setIsBookActivityOpen(true);
@@ -422,37 +452,76 @@ export default function Bookings() {
 
   const handleBookActivitySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedTrip || !selectedActivityId) return;
+    if (!selectedTrip) return;
+
+    const isCustom = bookingMode === 'custom';
+    if (isCustom && !customTitle.trim()) {
+      setBookingErrorMsg('Please enter a title or hotel/activity name.');
+      return;
+    }
+    if (!isCustom && !selectedActivityId) {
+      setBookingErrorMsg('Please select an activity from the catalog.');
+      return;
+    }
 
     setBookingSubmitting(true);
     setBookingSuccessMsg(null);
     setBookingErrorMsg(null);
 
-    const activity = catalogActivities.find((a) => a.id === Number(selectedActivityId));
-    const cost = activity ? Number(activity.cost) : 0;
+    const activity = !isCustom
+      ? catalogActivities.find((a) => a.id === Number(selectedActivityId))
+      : null;
+    const costNum = isCustom
+      ? customCost
+        ? parseFloat(customCost)
+        : undefined
+      : activity
+        ? Number(activity.cost)
+        : 0;
 
     try {
-      const newBooking = await withRetry(() =>
-        bookingsApi.create({
-          activity_id: Number(selectedActivityId),
-          trip_id: Number(selectedTrip.id),
-          booking_date: bookingDate,
-          total_price: cost,
-        }),
-      );
+      const payload = isCustom
+        ? {
+            trip_id: Number(selectedTrip.id),
+            custom_title: customTitle.trim(),
+            custom_type: customType,
+            custom_location: customLocation.trim() || undefined,
+            booking_date: bookingDate || undefined,
+            cost: costNum,
+            total_price: costNum,
+            notes: customNotes.trim() || undefined,
+          }
+        : {
+            activity_id: Number(selectedActivityId),
+            trip_id: Number(selectedTrip.id),
+            booking_date: bookingDate || undefined,
+            total_price: costNum,
+            cost: costNum,
+          };
+
+      const newBooking = await withRetry(() => bookingsApi.create(payload));
 
       setUserBookings((prev) => [
         {
           ...newBooking,
           trip_id: Number(selectedTrip.id),
-          activity_title: activity ? activity.title : `Activity #${selectedActivityId}`,
+          activity_title: isCustom
+            ? customTitle.trim()
+            : activity?.title || `Activity #${selectedActivityId}`,
+          custom_title: isCustom ? customTitle.trim() : undefined,
+          custom_type: isCustom ? customType : 'activity',
+          custom_location: isCustom ? customLocation.trim() : undefined,
+          cost: costNum,
+          total_price: costNum,
         },
         ...prev,
       ]);
       setSyncNotice(null);
       setBookingErrorMsg(null);
       setBookingSuccessMsg(
-        `Activity "${activity?.title || 'Selected Activity'}" booked successfully!`,
+        isCustom
+          ? `${customType === 'hotel' ? 'Stay reservation' : 'Activity'} "${customTitle}" booked successfully!`
+          : `Activity "${activity?.title || 'Selected Activity'}" booked successfully!`,
       );
       setTimeout(() => {
         setIsBookActivityOpen(false);
@@ -624,7 +693,7 @@ export default function Bookings() {
                         }}
                       >
                         <Ticket className="w-4 h-4" />
-                        <span>Book Activity</span>
+                        <span>Book Activity / Stay</span>
                       </button>
 
                       <button
@@ -638,6 +707,28 @@ export default function Bookings() {
                     </div>
                   </div>
 
+                  {/* Filter Tabs: All, Activities, Hotels & Stays */}
+                  <div className="flex items-center gap-2 mb-4 px-2">
+                    {(['all', 'activity', 'hotel'] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setBookingTypeFilter(t)}
+                        className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
+                          bookingTypeFilter === t
+                            ? 'bg-stone-800 text-white shadow-sm'
+                            : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                        }`}
+                      >
+                        {t === 'all'
+                          ? `All Reservations (${ledgerItems.length})`
+                          : t === 'activity'
+                            ? `Activities (${ledgerItems.filter((i) => i.type === 'activity').length})`
+                            : `Hotels & Stays (${ledgerItems.filter((i) => i.type === 'hotel').length})`}
+                      </button>
+                    ))}
+                  </div>
+
                   <div className="bookings-table-wrapper">
                     {detailsLoading ? (
                       <div className="flex flex-col items-center justify-center p-16 text-stone-500 gap-3">
@@ -646,7 +737,7 @@ export default function Bookings() {
                           Syncing trip bookings from backend...
                         </span>
                       </div>
-                    ) : ledgerItems.length > 0 ? (
+                    ) : filteredLedgerItems.length > 0 ? (
                       <table className="bookings-table">
                         <thead>
                           <tr className="bookings-table-header-row">
@@ -658,7 +749,7 @@ export default function Bookings() {
                           </tr>
                         </thead>
                         <tbody className="bookings-table-body">
-                          {ledgerItems.map((item) => (
+                          {filteredLedgerItems.map((item) => (
                             <tr key={item.id} className="bookings-table-row">
                               <td className="bookings-cell-date">
                                 <div className="flex items-center gap-2 flex-wrap">
@@ -991,54 +1082,186 @@ export default function Bookings() {
                   </div>
                 )}
 
+                {/* Mode Selector Tabs */}
+                <div className="flex border-b border-stone-200 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setBookingMode('catalog')}
+                    className={`flex-1 pb-2.5 text-xs font-semibold text-center border-b-2 transition ${
+                      bookingMode === 'catalog'
+                        ? 'border-orange-500 text-orange-600'
+                        : 'border-transparent text-stone-500 hover:text-stone-800'
+                    }`}
+                  >
+                    Catalog Activity
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBookingMode('custom')}
+                    className={`flex-1 pb-2.5 text-xs font-semibold text-center border-b-2 transition ${
+                      bookingMode === 'custom'
+                        ? 'border-orange-500 text-orange-600'
+                        : 'border-transparent text-stone-500 hover:text-stone-800'
+                    }`}
+                  >
+                    Custom Reservation / Hotel
+                  </button>
+                </div>
+
                 <form onSubmit={handleBookActivitySubmit} className="flex flex-col gap-4">
-                  <div>
-                    <label htmlFor="activity-select" className="modal-label">
-                      Select Activity
-                    </label>
-                    <select
-                      id="activity-select"
-                      className="modal-input-gradient"
-                      value={selectedActivityId}
-                      onChange={(e) => setSelectedActivityId(Number(e.target.value))}
-                      required
-                    >
-                      <option value="" disabled>
-                        Choose an activity...
-                      </option>
-                      {catalogActivities.map((act) => (
-                        <option key={act.id} value={act.id}>
-                          {act.title} — ₱{Number(act.cost).toLocaleString()}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {bookingMode === 'catalog' ? (
+                    <>
+                      <div>
+                        <label htmlFor="activity-select" className="modal-label">
+                          Select Activity
+                        </label>
+                        <select
+                          id="activity-select"
+                          className="modal-input-gradient"
+                          value={selectedActivityId}
+                          onChange={(e) => setSelectedActivityId(Number(e.target.value))}
+                          required={bookingMode === 'catalog'}
+                        >
+                          <option value="" disabled>
+                            Choose an activity...
+                          </option>
+                          {catalogActivities.map((act) => (
+                            <option key={act.id} value={act.id}>
+                              {act.title} — ₱{Number(act.cost).toLocaleString()}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
 
-                  <div>
-                    <label htmlFor="booking-date" className="modal-label">
-                      Booking Date
-                    </label>
-                    <input
-                      id="booking-date"
-                      type="date"
-                      className="modal-input-gradient"
-                      value={bookingDate}
-                      onChange={(e) => setBookingDate(e.target.value)}
-                      required
-                    />
-                  </div>
+                      <div>
+                        <label htmlFor="booking-date" className="modal-label">
+                          Booking Date
+                        </label>
+                        <input
+                          id="booking-date"
+                          type="date"
+                          className="modal-input-gradient"
+                          value={bookingDate}
+                          onChange={(e) => setBookingDate(e.target.value)}
+                          required
+                        />
+                      </div>
 
-                  <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 flex items-center justify-between text-xs mt-1">
-                    <span className="text-stone-600 font-medium">Estimated Cost:</span>
-                    <span className="text-base font-bold text-emerald-700 font-mono">
-                      {(() => {
-                        const act = catalogActivities.find(
-                          (a) => a.id === Number(selectedActivityId),
-                        );
-                        return act ? `₱${Number(act.cost).toLocaleString()}` : '—';
-                      })()}
-                    </span>
-                  </div>
+                      <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 flex items-center justify-between text-xs mt-1">
+                        <span className="text-stone-600 font-medium">
+                          Estimated Cost:
+                        </span>
+                        <span className="text-base font-bold text-emerald-700 font-mono">
+                          {(() => {
+                            const act = catalogActivities.find(
+                              (a) => a.id === Number(selectedActivityId),
+                            );
+                            return act ? `₱${Number(act.cost).toLocaleString()}` : '—';
+                          })()}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label htmlFor="custom-type" className="modal-label">
+                            Reservation Type
+                          </label>
+                          <select
+                            id="custom-type"
+                            className="modal-input-gradient"
+                            value={customType}
+                            onChange={(e) =>
+                              setCustomType(e.target.value as 'activity' | 'hotel')
+                            }
+                          >
+                            <option value="hotel">Hotel / Accommodation</option>
+                            <option value="activity">Activity / Tour</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label htmlFor="custom-date" className="modal-label">
+                            Date
+                          </label>
+                          <input
+                            id="custom-date"
+                            type="date"
+                            className="modal-input-gradient"
+                            value={bookingDate}
+                            onChange={(e) => setBookingDate(e.target.value)}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label htmlFor="custom-title" className="modal-label">
+                          {customType === 'hotel'
+                            ? 'Hotel / Property Name'
+                            : 'Activity / Service Name'}
+                        </label>
+                        <input
+                          id="custom-title"
+                          type="text"
+                          placeholder={
+                            customType === 'hotel'
+                              ? 'e.g. Shangri-La Boracay Resort'
+                              : 'e.g. Private Island Hopping Boat'
+                          }
+                          className="modal-input-gradient"
+                          value={customTitle}
+                          onChange={(e) => setCustomTitle(e.target.value)}
+                          required
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label htmlFor="custom-location" className="modal-label">
+                            Destination / Location
+                          </label>
+                          <input
+                            id="custom-location"
+                            type="text"
+                            placeholder="e.g. Station 1, Boracay"
+                            className="modal-input-gradient"
+                            value={customLocation}
+                            onChange={(e) => setCustomLocation(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="custom-cost" className="modal-label">
+                            Estimated Cost (₱ PHP)
+                          </label>
+                          <input
+                            id="custom-cost"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="e.g. 4500"
+                            className="modal-input-gradient"
+                            value={customCost}
+                            onChange={(e) => setCustomCost(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label htmlFor="custom-notes" className="modal-label">
+                          Special Requests / Details
+                        </label>
+                        <textarea
+                          id="custom-notes"
+                          rows={2}
+                          placeholder="e.g. Ocean view, early check-in, 4 guests"
+                          className="modal-input-gradient resize-none text-xs"
+                          value={customNotes}
+                          onChange={(e) => setCustomNotes(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
 
                   <div className="flex justify-end gap-3 mt-4">
                     <button
@@ -1054,10 +1277,14 @@ export default function Bookings() {
                     </button>
                     <button
                       type="submit"
-                      disabled={bookingSubmitting || !selectedActivityId}
+                      disabled={
+                        bookingSubmitting ||
+                        (bookingMode === 'catalog' && !selectedActivityId) ||
+                        (bookingMode === 'custom' && !customTitle.trim())
+                      }
                       className="btn-start-planning-modal"
                     >
-                      {bookingSubmitting ? 'Confirming...' : 'Confirm Booking'}
+                      {bookingSubmitting ? 'Confirming...' : 'Submit Reservation'}
                     </button>
                   </div>
                 </form>

@@ -11,6 +11,8 @@ import {
   Clock,
   Info,
   ShieldAlert,
+  DollarSign,
+  Pencil,
 } from 'lucide-react';
 import axios from 'axios';
 import lakbyeLogo from '../../assets/lakbye-logo.png';
@@ -29,6 +31,7 @@ import '../../styles/Staff.css';
 
 type StaffTab = 'pending' | 'bookings';
 type SortOrder = 'desc' | 'asc';
+type SortField = 'id' | 'customer' | 'title' | 'date' | 'cost' | 'status';
 
 /**
  * Helper to retry network operations once upon initial failure.
@@ -136,10 +139,18 @@ export default function StaffDashboard() {
   const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
   const [statusUpdatingId, setStatusUpdatingId] = useState<number | null>(null);
 
+  // Sorting state
+  const [sortField, setSortField] = useState<SortField>('date');
+
   // Modal detail viewing
   const [selectedBookingForModal, setSelectedBookingForModal] = useState<Booking | null>(
     null,
   );
+
+  // Set Cost modal state
+  const [costEditingBooking, setCostEditingBooking] = useState<Booking | null>(null);
+  const [bookingCostInput, setBookingCostInput] = useState<string>('');
+  const [isSavingCost, setIsSavingCost] = useState(false);
 
   // Staff User Display Name
   const staffName = user?.full_name || user?.email?.split('@')[0] || 'LakBye Staff';
@@ -294,8 +305,87 @@ export default function StaffDashboard() {
     return bookings.filter((b) => (b.status || '').toLowerCase() !== 'pending');
   }, [bookings]);
 
-  // Current working list based on tab
   const activeList = activeTab === 'pending' ? pendingBookings : processedBookings;
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const handleOpenCostModal = (b: Booking) => {
+    setCostEditingBooking(b);
+    setBookingCostInput(String(b.total_price ?? b.cost ?? ''));
+    setOpenActionMenuId(null);
+  };
+
+  const handleSaveBookingCost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!costEditingBooking) return;
+    const entered = parseFloat(bookingCostInput);
+    if (isNaN(entered) || entered < 0) return;
+
+    setIsSavingCost(true);
+    try {
+      await bookingsApi.updateStatus(
+        costEditingBooking.id,
+        costEditingBooking.status,
+        entered,
+      );
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === costEditingBooking.id
+            ? { ...b, total_price: entered, cost: entered }
+            : b,
+        ),
+      );
+      setCostEditingBooking(null);
+    } catch (err) {
+      console.error('Failed to update booking cost:', err);
+      alert('Failed to update booking cost. Please check server connection.');
+    } finally {
+      setIsSavingCost(false);
+    }
+  };
+
+  const renderSortHeader = (
+    field: SortField,
+    label: string,
+    textAlign: 'left' | 'center' = 'left',
+  ) => {
+    const isActive = sortField === field;
+    return (
+      <th
+        className="staff-th cursor-pointer select-none hover:bg-stone-100/70 transition-colors"
+        style={{ textAlign }}
+        onClick={() => handleSort(field)}
+        title={`Sort by ${label}`}
+      >
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
+            justifyContent: textAlign === 'center' ? 'center' : 'flex-start',
+          }}
+        >
+          <span>{label}</span>
+          <span
+            style={{
+              fontSize: '11px',
+              fontWeight: 'bold',
+              color: isActive ? '#EA580C' : '#94A3B8',
+            }}
+          >
+            {isActive ? (sortOrder === 'asc' ? '▲' : '▼') : '↕'}
+          </span>
+        </div>
+      </th>
+    );
+  };
 
   // Filter and Sort active list
   const filteredList = useMemo(() => {
@@ -314,7 +404,7 @@ export default function StaffDashboard() {
       result = result.filter((b) => {
         const idFormatted = `lb${String(b.id).padStart(4, '0')}`.toLowerCase();
         const idRaw = String(b.id);
-        const act = activityMap.get(b.activity_id);
+        const act = b.activity_id ? activityMap.get(Number(b.activity_id)) : undefined;
         const actTitle = (b.activity_title || act?.title || '').toLowerCase();
         const usr = userMap.get(b.user_id);
         const customerName = getCustomerDisplayName(b, usr).toLowerCase();
@@ -327,11 +417,38 @@ export default function StaffDashboard() {
       });
     }
 
-    // Sort by Date
+    // Multi-column sorting
     result.sort((a, b) => {
-      const dateA = new Date(a.created_at || a.booking_date || 0).getTime();
-      const dateB = new Date(b.created_at || b.booking_date || 0).getTime();
-      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+      let valA: any = 0;
+      let valB: any = 0;
+
+      if (sortField === 'id') {
+        valA = Number(a.id);
+        valB = Number(b.id);
+      } else if (sortField === 'customer') {
+        valA = getCustomerDisplayName(a, userMap.get(a.user_id)).toLowerCase();
+        valB = getCustomerDisplayName(b, userMap.get(b.user_id)).toLowerCase();
+      } else if (sortField === 'title') {
+        const actA = a.activity_id ? activityMap.get(Number(a.activity_id))?.title : '';
+        const actB = b.activity_id ? activityMap.get(Number(b.activity_id))?.title : '';
+        valA = (a.activity_title || actA || '').toLowerCase();
+        valB = (b.activity_title || actB || '').toLowerCase();
+      } else if (sortField === 'date') {
+        valA = new Date(a.booking_date || a.created_at || 0).getTime();
+        valB = new Date(b.booking_date || b.created_at || 0).getTime();
+      } else if (sortField === 'cost') {
+        const costA = a.activity_id ? activityMap.get(Number(a.activity_id))?.cost : 0;
+        const costB = b.activity_id ? activityMap.get(Number(b.activity_id))?.cost : 0;
+        valA = Number(a.total_price ?? a.cost ?? costA ?? 0);
+        valB = Number(b.total_price ?? b.cost ?? costB ?? 0);
+      } else if (sortField === 'status') {
+        valA = (a.status || '').toLowerCase();
+        valB = (b.status || '').toLowerCase();
+      }
+
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
     });
 
     return result;
@@ -340,6 +457,7 @@ export default function StaffDashboard() {
     activeTab,
     processedStatusFilter,
     searchQuery,
+    sortField,
     sortOrder,
     activityMap,
     userMap,
@@ -642,34 +760,39 @@ export default function StaffDashboard() {
               <table className="staff-table">
                 <thead>
                   <tr>
-                    <th className="staff-th">Booking ID</th>
-                    <th className="staff-th">Customer Name</th>
-                    <th className="staff-th">Activity Title</th>
-                    <th className="staff-th">Schedule Date &amp; Time</th>
-                    <th className="staff-th">Cost</th>
+                    {renderSortHeader('id', 'Booking ID')}
+                    {renderSortHeader('customer', 'Customer Name')}
+                    {renderSortHeader('title', 'Activity Title')}
+                    {renderSortHeader('date', 'Schedule Date & Time')}
+                    {renderSortHeader('cost', 'Cost')}
                     <th className="staff-th">Submitted At</th>
+                    {renderSortHeader('status', 'Status', 'center')}
                     <th className="staff-th" style={{ textAlign: 'center' }}>
-                      Status
+                      Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredList.map((booking) => {
-                    const activity = activityMap.get(booking.activity_id);
+                    const activity = booking.activity_id
+                      ? activityMap.get(Number(booking.activity_id))
+                      : undefined;
                     const customer = userMap.get(booking.user_id);
-                    const costVal = booking.total_price ?? activity?.cost ?? 0;
+                    const costVal =
+                      booking.total_price ?? booking.cost ?? activity?.cost ?? 0;
                     const bookingCode = `LB${String(booking.id).padStart(4, '0')}`;
                     const customerName = getCustomerDisplayName(booking, customer);
                     const activityTitle =
                       booking.activity_title ||
                       activity?.title ||
-                      `Activity #${booking.activity_id}`;
+                      `Activity #${booking.activity_id ?? 'Custom'}`;
                     const scheduleDate = booking.booking_date
                       ? formatDate(booking.booking_date)
                       : formatDateTime(booking.created_at);
                     const submittedAt = formatDateTime(booking.created_at);
                     const isUpdating = statusUpdatingId === booking.id;
                     const isDropdownOpen = openStatusDropdownId === booking.id;
+                    const isActionOpen = openActionMenuId === booking.id;
 
                     return (
                       <tr key={booking.id} className="staff-tr">
@@ -678,7 +801,31 @@ export default function StaffDashboard() {
                         <td className="staff-td staff-activity-title">{activityTitle}</td>
                         <td className="staff-td staff-time-val">{scheduleDate}</td>
                         <td className="staff-td staff-cost-val">
-                          ₱{Number(costVal).toLocaleString()}
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                            }}
+                          >
+                            <span>₱{Number(costVal).toLocaleString()}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenCostModal(booking)}
+                              title="Set / Edit Cost"
+                              style={{
+                                border: 'none',
+                                background: 'transparent',
+                                cursor: 'pointer',
+                                padding: '2px',
+                                color: '#E9724C',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                              }}
+                            >
+                              <Pencil size={12} />
+                            </button>
+                          </div>
                         </td>
                         <td className="staff-td staff-time-val">{submittedAt}</td>
                         <td className="staff-td" style={{ textAlign: 'center' }}>
@@ -736,6 +883,50 @@ export default function StaffDashboard() {
                             )}
                           </div>
                         </td>
+                        <td className="staff-td" style={{ textAlign: 'center' }}>
+                          <div className="staff-status-wrapper staff-action-wrapper">
+                            <button
+                              type="button"
+                              className="staff-action-btn"
+                              title="Actions"
+                              disabled={isUpdating}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenActionMenuId(isActionOpen ? null : booking.id);
+                              }}
+                            >
+                              <img
+                                src={staffMenuIcon}
+                                alt="Actions"
+                                className="staff-action-icon"
+                              />
+                            </button>
+
+                            {isActionOpen && (
+                              <div className="staff-dropdown-menu">
+                                <button
+                                  type="button"
+                                  className="staff-dropdown-item"
+                                  onClick={() => {
+                                    setOpenActionMenuId(null);
+                                    setSelectedBookingForModal(booking);
+                                  }}
+                                >
+                                  <Info size={14} />
+                                  <span>View Details</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="staff-dropdown-item"
+                                  onClick={() => handleOpenCostModal(booking)}
+                                >
+                                  <DollarSign size={14} />
+                                  <span>Set / Edit Price</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -746,15 +937,13 @@ export default function StaffDashboard() {
               <table className="staff-table">
                 <thead>
                   <tr>
-                    <th className="staff-th">Booking ID</th>
-                    <th className="staff-th">Customer Name</th>
-                    <th className="staff-th">Activity</th>
-                    <th className="staff-th">Schedule Date &amp; Time</th>
-                    <th className="staff-th">Cost</th>
+                    {renderSortHeader('id', 'Booking ID')}
+                    {renderSortHeader('customer', 'Customer Name')}
+                    {renderSortHeader('title', 'Activity')}
+                    {renderSortHeader('date', 'Schedule Date & Time')}
+                    {renderSortHeader('cost', 'Cost')}
                     <th className="staff-th">Processed At</th>
-                    <th className="staff-th" style={{ textAlign: 'center' }}>
-                      Status
-                    </th>
+                    {renderSortHeader('status', 'Status', 'center')}
                     <th className="staff-th" style={{ textAlign: 'center' }}>
                       Actions
                     </th>
@@ -762,15 +951,18 @@ export default function StaffDashboard() {
                 </thead>
                 <tbody>
                   {filteredList.map((booking) => {
-                    const activity = activityMap.get(booking.activity_id);
+                    const activity = booking.activity_id
+                      ? activityMap.get(Number(booking.activity_id))
+                      : undefined;
                     const customer = userMap.get(booking.user_id);
-                    const costVal = booking.total_price ?? activity?.cost ?? 0;
+                    const costVal =
+                      booking.total_price ?? booking.cost ?? activity?.cost ?? 0;
                     const bookingCode = `LB${String(booking.id).padStart(4, '0')}`;
                     const customerName = getCustomerDisplayName(booking, customer);
                     const activityTitle =
                       booking.activity_title ||
                       activity?.title ||
-                      `Activity #${booking.activity_id}`;
+                      `Activity #${booking.activity_id ?? 'Custom'}`;
                     const scheduleDate = booking.booking_date
                       ? formatDate(booking.booking_date)
                       : formatDateTime(booking.created_at);
@@ -786,7 +978,31 @@ export default function StaffDashboard() {
                         <td className="staff-td staff-activity-title">{activityTitle}</td>
                         <td className="staff-td staff-time-val">{scheduleDate}</td>
                         <td className="staff-td staff-cost-val">
-                          ₱{Number(costVal).toLocaleString()}
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                            }}
+                          >
+                            <span>₱{Number(costVal).toLocaleString()}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenCostModal(booking)}
+                              title="Set / Edit Cost"
+                              style={{
+                                border: 'none',
+                                background: 'transparent',
+                                cursor: 'pointer',
+                                padding: '2px',
+                                color: '#E9724C',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                              }}
+                            >
+                              <Pencil size={12} />
+                            </button>
+                          </div>
                         </td>
                         <td className="staff-td staff-time-val">{processedAt}</td>
                         <td className="staff-td" style={{ textAlign: 'center' }}>
@@ -826,6 +1042,14 @@ export default function StaffDashboard() {
                                 >
                                   <Info size={14} />
                                   <span>View Details</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="staff-dropdown-item"
+                                  onClick={() => handleOpenCostModal(booking)}
+                                >
+                                  <DollarSign size={14} />
+                                  <span>Set / Edit Price</span>
                                 </button>
                                 <button
                                   type="button"
@@ -935,8 +1159,10 @@ export default function StaffDashboard() {
               <span className="staff-detail-label">Activity</span>
               <span className="staff-detail-val">
                 {selectedBookingForModal.activity_title ||
-                  activityMap.get(selectedBookingForModal.activity_id)?.title ||
-                  `Activity #${selectedBookingForModal.activity_id}`}
+                  (selectedBookingForModal.activity_id
+                    ? activityMap.get(Number(selectedBookingForModal.activity_id))?.title
+                    : null) ||
+                  `Activity #${selectedBookingForModal.activity_id ?? 'Custom'}`}
               </span>
             </div>
 
@@ -946,7 +1172,9 @@ export default function StaffDashboard() {
                 ₱
                 {Number(
                   selectedBookingForModal.total_price ??
-                    activityMap.get(selectedBookingForModal.activity_id)?.cost ??
+                    (selectedBookingForModal.activity_id
+                      ? activityMap.get(Number(selectedBookingForModal.activity_id))?.cost
+                      : 0) ??
                     0,
                 ).toLocaleString()}
               </span>
@@ -998,6 +1226,134 @@ export default function StaffDashboard() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Set Cost Modal for Staff */}
+      {costEditingBooking && (
+        <div className="staff-modal-backdrop">
+          <button
+            type="button"
+            className="staff-modal-backdrop-dismiss"
+            aria-label="Close set cost modal"
+            onClick={() => setCostEditingBooking(null)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="staff-cost-modal-title"
+            className="staff-modal-card"
+            style={{ maxWidth: '420px' }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '16px',
+              }}
+            >
+              <h2 id="staff-cost-modal-title" className="staff-modal-title">
+                Set Booking Cost
+              </h2>
+              <button
+                type="button"
+                onClick={() => setCostEditingBooking(null)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#7B6F68',
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '13px', color: '#666', marginBottom: '16px' }}>
+              Assign or adjust the official total cost for booking{' '}
+              <strong>LB{String(costEditingBooking.id).padStart(4, '0')}</strong> (
+              {costEditingBooking.activity_title || 'Custom Activity'}).
+            </p>
+
+            <form onSubmit={handleSaveBookingCost}>
+              <div style={{ marginBottom: '16px' }}>
+                <label
+                  htmlFor="bookingCostInput"
+                  style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: '#401C02',
+                    marginBottom: '6px',
+                  }}
+                >
+                  Total Price (PHP / ₱)
+                </label>
+                <input
+                  id="bookingCostInput"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  required
+                  value={bookingCostInput}
+                  onChange={(e) => setBookingCostInput(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #D9D9D9',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    outline: 'none',
+                  }}
+                  placeholder="e.g. 2500"
+                />
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '8px',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setCostEditingBooking(null)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '6px',
+                    border: '1px solid #D9D9D9',
+                    background: '#FFFFFF',
+                    color: '#401C02',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingCost}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: '#E9724C',
+                    color: '#FFFFFF',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: isSavingCost ? 'not-allowed' : 'pointer',
+                    opacity: isSavingCost ? 0.7 : 1,
+                  }}
+                >
+                  {isSavingCost ? 'Saving...' : 'Save Cost'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

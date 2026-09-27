@@ -1,10 +1,16 @@
 export interface Destination {
-  id: number;
-  trip_id: number | null;
+  id: number | string;
+  trip_id: number | string | null;
   location_name: string;
-  latitude: number;
-  longitude: number;
-  order_sequence: number;
+  latitude?: number;
+  longitude?: number;
+  order_sequence?: number;
+  country?: string;
+  parent_destination_id?: number | string | null;
+  days?: number;
+  accommodation?: string;
+  activities?: string;
+  transportation?: string;
 }
 
 export interface Category {

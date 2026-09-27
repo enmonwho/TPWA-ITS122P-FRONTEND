@@ -245,9 +245,25 @@ export const destinationsApi = {
     latitude?: number;
     longitude?: number;
     order_sequence?: number;
+    country?: string;
+    parent_destination_id?: number | string | null;
+    days?: number;
+    accommodation?: string;
+    activities?: string;
+    transportation?: string;
   }): Promise<Destination> => {
     const response = await api.post<{ message: string; destination: Destination }>(
       '/destinations',
+      payload,
+    );
+    return response.data.destination;
+  },
+  update: async (
+    id: string | number,
+    payload: Partial<Destination>,
+  ): Promise<Destination> => {
+    const response = await api.put<{ message: string; destination: Destination }>(
+      `/destinations/${id}`,
       payload,
     );
     return response.data.destination;
@@ -289,6 +305,8 @@ export interface ExpenseApiResponse {
   category: string;
   cost: number;
   date: string;
+  destination_id?: number | string | null;
+  country_name?: string | null;
   created_at?: string;
 }
 
@@ -320,6 +338,8 @@ export const budgetApi = {
       category: string;
       cost: number;
       date?: string;
+      destination_id?: number | string | null;
+      country_name?: string | null;
     },
   ): Promise<{ message: string; expense: ExpenseApiResponse; balance: number }> => {
     const response = await api.post<{
@@ -388,12 +408,77 @@ export const bookingsApi = {
     );
     return response.data.booking;
   },
-  updateStatus: async (id: number | string, status: BookingStatus): Promise<Booking> => {
+  updateStatus: async (
+    id: number | string,
+    status: BookingStatus,
+    cost?: number,
+  ): Promise<Booking> => {
     const response = await api.put<{ message: string; booking: Booking }>(
       `/bookings/${id}`,
-      { status },
+      { status, cost },
     );
     return response.data.booking;
+  },
+};
+
+export interface FeedbackItem {
+  id: number | string;
+  user_id?: number | string;
+  user_name?: string;
+  username?: string;
+  avatar_url?: string;
+  country_name: string;
+  title: string;
+  comment: string;
+  rating: number;
+  status: 'pending' | 'approved' | 'rejected' | string;
+  created_at?: string;
+}
+
+export const feedbackApi = {
+  getApproved: async (): Promise<FeedbackItem[]> => {
+    try {
+      const res = await api.get<{ feedback: FeedbackItem[] }>('/feedback');
+      return res.data?.feedback || [];
+    } catch {
+      return [];
+    }
+  },
+  getAll: async (status?: string): Promise<FeedbackItem[]> => {
+    try {
+      const res = await api.get<{ feedback: FeedbackItem[] }>('/feedback', {
+        params: { all: true, status },
+      });
+      return res.data?.feedback || [];
+    } catch {
+      return [];
+    }
+  },
+  submit: async (payload: {
+    country_name: string;
+    title: string;
+    comment: string;
+    rating: number;
+  }): Promise<{ message: string; feedback: FeedbackItem }> => {
+    const res = await api.post<{ message: string; feedback: FeedbackItem }>(
+      '/feedback',
+      payload,
+    );
+    return res.data;
+  },
+  updateStatus: async (
+    id: number | string,
+    status: 'pending' | 'approved' | 'rejected',
+  ): Promise<{ message: string; feedback: FeedbackItem }> => {
+    const res = await api.put<{ message: string; feedback: FeedbackItem }>(
+      `/feedback/${id}/status`,
+      { status },
+    );
+    return res.data;
+  },
+  delete: async (id: number | string): Promise<{ message: string }> => {
+    const res = await api.delete<{ message: string }>(`/feedback/${id}`);
+    return res.data;
   },
 };
 
@@ -485,6 +570,20 @@ export const adminApi = {
     );
     return res.data;
   },
+  updateCategory: async (
+    id: number | string,
+    payload: { name: string; type: string },
+  ) => {
+    const res = await api.put<{ message: string; category: AdminCategory }>(
+      `/categories/${id}`,
+      payload,
+    );
+    return res.data;
+  },
+  deleteCategory: async (id: number | string): Promise<{ message: string }> => {
+    const res = await api.delete<{ message: string }>(`/categories/${id}`);
+    return res.data;
+  },
   getActivities: async (): Promise<AdminActivity[]> => {
     try {
       const res = await api.get<{ activities: AdminActivity[] } | AdminActivity[]>(
@@ -508,6 +607,25 @@ export const adminApi = {
       '/activities',
       payload,
     );
+    return res.data;
+  },
+  updateActivity: async (
+    id: number | string,
+    payload: Partial<{
+      title: string;
+      destination_id?: number;
+      category_id?: number;
+      cost: number;
+    }>,
+  ) => {
+    const res = await api.put<{ message: string; activity: AdminActivity }>(
+      `/activities/${id}`,
+      payload,
+    );
+    return res.data;
+  },
+  deleteActivity: async (id: number | string): Promise<{ message: string }> => {
+    const res = await api.delete<{ message: string }>(`/activities/${id}`);
     return res.data;
   },
   getAuditLogs: async (): Promise<SystemAuditLog[]> => {

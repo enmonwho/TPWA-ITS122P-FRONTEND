@@ -256,3 +256,6 @@ export function DateRangePicker({
     </div>
   );
 }
+
+export const TripDateRangePicker = DateRangePicker;
+export default DateRangePicker;

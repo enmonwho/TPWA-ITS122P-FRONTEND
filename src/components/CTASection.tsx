@@ -17,11 +17,13 @@ const CTASection: React.FC = () => {
       <CloudDoodle id={5} top="5%" left="80%" width="100px" opacity={0.9} />
       <CloudDoodle id={1} top="30%" left="70%" width="150px" opacity={1} />
       <div className="cta-container">
-        <h2 className="cta-heading">Join us now!</h2>
-        <p className="cta-subheading">Start your travel journey</p>
+        <h2 className="cta-heading">Ready for your Next Adventure?</h2>
+        <p className="cta-subheading">
+          Join thousands of travelers organizing their dream trips.
+        </p>
         <div>
           <Link to={planTarget} className="btn-signup hover-lift">
-            Start Planning
+            {user ? 'Go to Dashboard' : 'Create Free Account'}
           </Link>
         </div>
       </div>

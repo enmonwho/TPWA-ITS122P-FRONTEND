@@ -9,13 +9,19 @@ export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 export interface Booking {
   id: number;
   user_id: number;
-  activity_id: number;
+  activity_id?: number | null;
   trip_id?: number;
+  destination_id?: number;
   status: BookingStatus;
   total_price?: number | string;
+  cost?: number | string;
   booking_date?: string;
   created_at?: string;
   activity_title?: string;
+  custom_title?: string;
+  custom_type?: string;
+  custom_location?: string;
+  notes?: string;
   vendor_name?: string;
   customer_name?: string;
   customer_email?: string;
@@ -39,8 +45,14 @@ export interface Activity {
  * Payload to create a new booking request.
  */
 export interface BookingCreatePayload {
-  activity_id: number;
+  activity_id?: number | null;
   trip_id?: number;
+  destination_id?: number;
   booking_date?: string;
   total_price?: number;
+  cost?: number;
+  custom_title?: string;
+  custom_type?: 'hotel' | 'activity' | string;
+  custom_location?: string;
+  notes?: string;
 }

@@ -1122,7 +1122,10 @@ export default function MapView() {
                                 {dest.location_name}
                               </h4>
                               <p className="text-[11px] font-mono text-stone-400 mt-1">
-                                {dest.latitude.toFixed(4)}, {dest.longitude.toFixed(4)}
+                                {dest.latitude !== undefined &&
+                                dest.longitude !== undefined
+                                  ? `${dest.latitude.toFixed(4)}, ${dest.longitude.toFixed(4)}`
+                                  : 'Coordinates pending'}
                               </p>
                             </div>
                             <div className="flex items-center gap-1">
@@ -1142,7 +1145,7 @@ export default function MapView() {
                                 title="Delete place"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleDeleteDestination(dest.id);
+                                  handleDeleteDestination(Number(dest.id));
                                 }}
                                 className="p-1.5 text-red-400 hover:text-red-700 transition-colors"
                               >
@@ -1198,8 +1201,8 @@ export default function MapView() {
                   src={
                     selectedDestinationItem.trip.cover_photo ||
                     getMapboxStaticThumb(
-                      selectedDestinationItem.destination.longitude,
-                      selectedDestinationItem.destination.latitude,
+                      selectedDestinationItem.destination.longitude ?? 121.0,
+                      selectedDestinationItem.destination.latitude ?? 14.5,
                       400,
                       240,
                       10,

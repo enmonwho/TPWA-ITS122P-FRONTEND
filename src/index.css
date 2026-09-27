@@ -6994,6 +6994,95 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   font-size: 14px;
 }
 
+/* Packing Table & Controls (Normalizing to Budget System) */
+.packing-table-header {
+  display: grid;
+  grid-template-columns: 64px minmax(160px, 2fr) minmax(120px, 1.2fr) minmax(
+      130px,
+      1fr
+    ) 50px;
+  align-items: center;
+  width: 100%;
+  padding: 0 16px;
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-weight: 700;
+  font-size: 16px;
+  color: rgba(0, 0, 0, 0.7);
+  text-align: center;
+}
+
+.packing-table-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 64px minmax(160px, 2fr) minmax(120px, 1.2fr) minmax(
+      130px,
+      1fr
+    ) 50px;
+  align-items: center;
+  width: 100%;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  transition: background-color var(--transition-fast);
+  font-family: 'Poppins', var(--font-sans);
+  font-size: 15px;
+  text-align: center;
+}
+
+.packing-table-row:hover {
+  background-color: rgba(249, 244, 237, 0.6);
+}
+
+.packing-category-badge-btn {
+  cursor: pointer;
+  user-select: none;
+  border: 2px solid transparent;
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.packing-category-badge-btn:hover {
+  transform: translateY(-1px) scale(1.02);
+}
+
+.packing-category-badge-btn.active {
+  border-color: #1e293b;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  transform: scale(1.03);
+}
+
+.packing-qty-stepper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 9999px;
+  padding: 2px 10px;
+}
+
+.packing-qty-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid #94a3b8;
+  color: #334155;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.packing-qty-btn:hover {
+  background-color: #e2e8f0;
+}
+
 /* In-App Modals for Budget (Exact Figma Nodes 537:285 & 537:465) */
 @keyframes modalOverlayFadeIn {
   from {

@@ -5,6 +5,7 @@ import igIcon from '../assets/Instagram.png';
 import lakbyeFooterHighres from '../assets/lakbye-footer-highres.png';
 import { useAuth } from '../context/AuthContext';
 import AuthPromptModal from './AuthPromptModal';
+import FeedbackModal from './FeedbackModal';
 
 export default function Footer() {
   const { user } = useAuth();
@@ -12,6 +13,17 @@ export default function Footer() {
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalFeature, setAuthModalFeature] = useState('Budget Tracker');
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+
+  const handleFeedbackClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (user) {
+      setIsFeedbackModalOpen(true);
+    } else {
+      setAuthModalFeature('Review Submission');
+      setIsAuthModalOpen(true);
+    }
+  };
 
   const handleServiceClick = (
     e: React.MouseEvent,
@@ -102,19 +114,21 @@ export default function Footer() {
                 <h4 className="footer-col-title">Resources</h4>
                 <ul>
                   <li>
-                    <Link to="#" className="hover-underline">
-                      About Us
-                    </Link>
-                  </li>
-                  <li>
-                    <Link to="#" className="hover-underline">
+                    <button
+                      type="button"
+                      onClick={handleFeedbackClick}
+                      className="hover-underline text-left bg-transparent border-0 p-0 text-inherit font-inherit cursor-pointer"
+                    >
                       Give Us Feedback
-                    </Link>
+                    </button>
                   </li>
-                  <li>
-                    <Link to="#" className="hover-underline">
-                      Contact Us
-                    </Link>
+                  <li className="pt-1">
+                    <a
+                      href="mailto:lakbyeapp@gmail.com"
+                      className="hover-underline text-inherit text-xs opacity-80"
+                    >
+                      lakbyeapp@gmail.com
+                    </a>
                   </li>
                 </ul>
               </div>
@@ -149,6 +163,12 @@ export default function Footer() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         featureName={authModalFeature}
+      />
+
+      {/* Feedback Modal for authenticated travelers */}
+      <FeedbackModal
+        isOpen={isFeedbackModalOpen}
+        onClose={() => setIsFeedbackModalOpen(false)}
       />
     </>
   );

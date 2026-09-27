@@ -155,6 +155,37 @@ function SystemsReportTab() {
     return val.toLocaleString();
   };
 
+  const handleExportReport = () => {
+    if (!metrics) return;
+    const dateStr = new Date().toISOString().split('T')[0];
+    const timestamp = new Date().toLocaleString();
+
+    const rows = [
+      ['LakBye Travel Planner - Systems Analytics Report'],
+      [`Generated at: ${timestamp}`],
+      [],
+      ['Metric', 'Value'],
+      ['Total Registered Users', metrics.totalUsers],
+      ['Total Trips Planned', metrics.totalTrips],
+      ['Total Bookings Made', metrics.totalBookings],
+      ['Total Active Ongoing Trips', metrics.activeTrips],
+    ];
+
+    const csvContent =
+      'data:text/csv;charset=utf-8,' +
+      rows
+        .map((e) => e.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `lakbye-system-report-${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="admin-card-panel flex-1 flex flex-col">
       {/* Header */}
@@ -162,10 +193,10 @@ function SystemsReportTab() {
         <h1 className="text-2xl font-bold text-black font-sans">LakBye Systems Report</h1>
         <button
           type="button"
-          onClick={() => alert('Report generation feature coming soon.')}
-          className="flex items-center gap-2 px-4 py-2 border border-stone-200 rounded-full text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
+          onClick={handleExportReport}
+          className="flex items-center gap-2 px-4 py-2 border border-stone-200 rounded-full text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors cursor-pointer"
         >
-          <Download size={14} /> Export Report
+          <Download size={14} /> Export Report (CSV)
         </button>
       </div>
 
@@ -680,6 +711,7 @@ function CategoriesActivitiesTab() {
   const [isActModalOpen, setActModalOpen] = useState(false);
 
   // Forms
+  const [editingCategory, setEditingCategory] = useState<AdminCategory | null>(null);
   const [categoryName, setCategoryName] = useState('');
   const [categoryType, setCategoryType] = useState('');
   const [isSavingCat, setIsSavingCat] = useState(false);
@@ -739,22 +771,31 @@ function CategoriesActivitiesTab() {
     setCatError(null);
 
     try {
-      await adminApi.createCategory({
-        name: categoryName.trim(),
-        type: categoryType.trim() || 'General',
-      });
+      if (editingCategory) {
+        const catId = editingCategory.id ?? editingCategory.categoryid ?? 0;
+        await adminApi.updateCategory(catId, {
+          name: categoryName.trim(),
+          type: categoryType.trim() || 'General',
+        });
+      } else {
+        await adminApi.createCategory({
+          name: categoryName.trim(),
+          type: categoryType.trim() || 'General',
+        });
+      }
       setCatModalOpen(false);
+      setEditingCategory(null);
       setCategoryName('');
       setCategoryType('');
       await refreshData();
     } catch (err: unknown) {
-      console.error('Failed to create category:', err);
+      console.error('Failed to save category:', err);
       if (axios.isAxiosError(err) && err.response?.data?.message) {
         setCatError(err.response.data.message);
       } else if (err instanceof Error) {
         setCatError(err.message);
       } else {
-        setCatError('Failed to create category. Please check permissions.');
+        setCatError('Failed to save category. Please check permissions.');
       }
     } finally {
       setIsSavingCat(false);
@@ -847,13 +888,43 @@ function CategoriesActivitiesTab() {
                       <td>{c.type}</td>
                       <td>{c.activity_count ?? 0}</td>
                       <td>
-                        <button
-                          type="button"
-                          aria-label="Edit category"
-                          className="text-stone-500 hover:text-black"
-                        >
-                          <Edit size={14} />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            aria-label="Edit category"
+                            title="Edit Category"
+                            className="text-stone-500 hover:text-black cursor-pointer"
+                            onClick={() => {
+                              setEditingCategory(c);
+                              setCategoryName(c.name);
+                              setCategoryType(c.type || 'General');
+                              setCatModalOpen(true);
+                            }}
+                          >
+                            <Edit size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Delete category"
+                            title="Delete Category"
+                            className="text-stone-400 hover:text-red-600 cursor-pointer"
+                            onClick={async () => {
+                              if (window.confirm(`Delete category "${c.name}"?`)) {
+                                try {
+                                  await adminApi.deleteCategory(catId);
+                                  await refreshData();
+                                } catch (err) {
+                                  console.error('Failed to delete category:', err);
+                                  alert(
+                                    'Cannot delete category with associated activities.',
+                                  );
+                                }
+                              }
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -923,10 +994,26 @@ function CategoriesActivitiesTab() {
                     <td>
                       <button
                         type="button"
-                        aria-label="Activity options"
-                        className="text-stone-500 hover:text-black"
+                        aria-label="Delete activity"
+                        title="Delete Activity"
+                        className="text-stone-400 hover:text-red-600 transition-colors p-1 cursor-pointer"
+                        onClick={async () => {
+                          if (
+                            window.confirm(
+                              `Are you sure you want to delete activity "${a.title}"?`,
+                            )
+                          ) {
+                            try {
+                              await adminApi.deleteActivity(a.id);
+                              await refreshData();
+                            } catch (err) {
+                              console.error('Failed to delete activity:', err);
+                              alert('Failed to delete activity.');
+                            }
+                          }
+                        }}
                       >
-                        <MoreVertical size={16} />
+                        <Trash2 size={14} />
                       </button>
                     </td>
                   </tr>

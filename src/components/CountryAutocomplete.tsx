@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, X } from 'lucide-react';
 import { COUNTRIES } from '../constants/countries';
 
 interface CountryAutocompleteProps {
@@ -16,6 +16,7 @@ export function CountryAutocomplete({
   const [search, setSearch] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -29,18 +30,32 @@ export function CountryAutocomplete({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
+  // Tolerant fuzzy matching for partial inputs (e.g. 'Philippin' -> 'Philippines')
   const filteredCountries = useMemo(() => {
-    if (!search) return COUNTRIES.filter((c) => !value.includes(c));
-    const lowerSearch = search.toLowerCase();
-    return COUNTRIES.filter(
-      (c) => c.toLowerCase().includes(lowerSearch) && !value.includes(c),
-    );
+    const query = search.trim().toLowerCase();
+    const available = COUNTRIES.filter((c) => !value.includes(c));
+    if (!query) return available;
+
+    return available.filter((c) => {
+      const lower = c.toLowerCase();
+      if (lower.includes(query)) return true;
+      // Also match individual words
+      const words = lower.split(/\s+/);
+      return words.some((w) => w.startsWith(query) || query.startsWith(w));
+    });
   }, [search, value]);
 
   const handleSelect = (country: string) => {
-    onChange([...value, country]);
+    if (!value.includes(country)) {
+      onChange([...value, country]);
+    }
     setSearch('');
-    setIsOpen(false);
+    inputRef.current?.focus();
+  };
+
+  const handleDeselect = (countryToDeselect: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    onChange(value.filter((c) => c !== countryToDeselect));
   };
 
   return (
@@ -49,50 +64,59 @@ export function CountryAutocomplete({
       style={{
         borderColor: error ? 'red' : undefined,
         position: 'relative',
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '6px',
+        alignItems: 'center',
+        padding: '6px 12px',
+        minHeight: '44px',
       }}
       ref={dropdownRef}
+      onClick={() => inputRef.current?.focus()}
     >
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', minWidth: 0 }}>
-        {value.length > 0 && (
-          <span
-            style={{
-              color: 'var(--color-neutral-950)',
-              fontFamily: 'Poppins, sans-serif',
-              fontSize: '15px',
-              fontWeight: 500,
-              marginRight: '8px',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              maxWidth: '150px',
-            }}
-            title={value.join(', ')}
+      {/* Selected Country Badges with Deselect (x) buttons */}
+      {value.map((country) => (
+        <span
+          key={country}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-900 border border-amber-200/80 rounded-full text-xs font-semibold shrink-0 animate-fade-in"
+        >
+          <span>{country}</span>
+          <button
+            type="button"
+            onClick={(e) => handleDeselect(country, e)}
+            className="w-3.5 h-3.5 rounded-full hover:bg-amber-200/70 flex items-center justify-center transition-colors text-amber-700"
+            aria-label={`Deselect ${country}`}
           >
-            {value.join(', ')}
-          </span>
-        )}
-        <input
-          type="text"
-          className="modal-input"
-          placeholder={value.length > 0 ? '' : 'Select countries'}
-          value={search}
-          onFocus={() => setIsOpen(true)}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setIsOpen(true);
-          }}
-          style={{ flex: 1, minWidth: '50px' }}
-        />
-      </div>
+            <X size={11} strokeWidth={2.5} />
+          </button>
+        </span>
+      ))}
 
-      <div
-        style={{
-          width: '1px',
-          height: '24px',
-          backgroundColor: 'rgba(0,0,0,0.35)',
-          margin: '0 12px',
+      {/* Search Input */}
+      <input
+        ref={inputRef}
+        type="text"
+        className="modal-input"
+        placeholder={
+          value.length > 0
+            ? 'Add more...'
+            : 'Search and select countries (e.g. Philippines, Japan)...'
+        }
+        value={search}
+        onFocus={() => setIsOpen(true)}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setIsOpen(true);
         }}
-      ></div>
+        style={{
+          flex: 1,
+          minWidth: '120px',
+          border: 'none',
+          outline: 'none',
+          padding: '4px 0',
+        }}
+      />
+
       <button
         type="button"
         style={{
@@ -100,8 +124,14 @@ export function CountryAutocomplete({
           border: 'none',
           cursor: 'pointer',
           display: 'flex',
+          padding: '4px',
+          marginLeft: 'auto',
         }}
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen((prev) => !prev);
+        }}
+        aria-label="Toggle country selector"
       >
         <ChevronDown size={14} color="var(--color-neutral-950)" />
       </button>
@@ -111,39 +141,39 @@ export function CountryAutocomplete({
           className="popover-container"
           style={{
             position: 'absolute',
-            top: '100%',
+            top: 'calc(100% + 6px)',
             left: 0,
             right: 0,
-            marginTop: '8px',
             backgroundColor: '#fff',
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            maxHeight: '200px',
+            borderRadius: '12px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+            border: '1px solid #e2e8f0',
+            maxHeight: '220px',
             overflowY: 'auto',
-            zIndex: 50,
-            padding: '8px 0',
+            zIndex: 60,
+            padding: '6px 0',
           }}
         >
           {filteredCountries.length > 0 ? (
             filteredCountries.map((c) => (
-              // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
-              <div
+              <button
                 key={c}
-                className="country-suggestion-item"
+                type="button"
+                className="country-suggestion-item text-left w-full hover:bg-amber-50/70 transition-colors"
                 onClick={() => handleSelect(c)}
               >
                 {c}
-              </div>
+              </button>
             ))
           ) : (
             <div
               style={{
-                padding: '8px 12px',
+                padding: '10px 14px',
                 color: 'var(--color-neutral-500)',
-                fontSize: '14px',
+                fontSize: '13px',
               }}
             >
-              No matching countries.
+              No matching countries found.
             </div>
           )}
         </div>
@@ -151,3 +181,5 @@ export function CountryAutocomplete({
     </div>
   );
 }
+
+export default CountryAutocomplete;
