@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home,
@@ -6,10 +5,8 @@ import {
   Compass,
   Map as MapIcon,
   Settings,
-  LogOut,
-  Menu,
-  X,
   ArrowLeft,
+  LogOut,
 } from 'lucide-react';
 import lakbyeLogo from '../assets/lakbye-dashboard.png';
 import { useAuth } from '../context/AuthContext';
@@ -19,7 +16,6 @@ export default function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -50,15 +46,6 @@ export default function DashboardLayout() {
           <img src={lakbyeLogo} alt="LakBye Logo" className="dashboard-mobile-logo" />
         </Link>
         <div className="dashboard-mobile-header-actions">
-          <button
-            type="button"
-            className="dashboard-mobile-menu-btn"
-            onClick={() => setIsMobileDrawerOpen((prev) => !prev)}
-            aria-label="Toggle navigation drawer"
-            title="Menu"
-          >
-            {isMobileDrawerOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
           <Link
             to={ROUTES.CUSTOMER_PROFILE}
             className="dashboard-mobile-avatar-btn"
@@ -80,119 +67,6 @@ export default function DashboardLayout() {
           </button>
         </div>
       </header>
-
-      {/* Collapsible Mobile Drawer Overlay */}
-      {isMobileDrawerOpen && (
-        <div
-          className="dashboard-mobile-drawer-overlay"
-          onClick={() => setIsMobileDrawerOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Collapsible Mobile Drawer */}
-      <aside
-        className={`dashboard-mobile-drawer ${isMobileDrawerOpen ? 'open' : ''}`}
-        aria-label="Mobile Navigation Drawer"
-      >
-        <div className="dashboard-mobile-drawer-header">
-          <Link
-            to="/"
-            className="dashboard-mobile-drawer-logo"
-            onClick={() => setIsMobileDrawerOpen(false)}
-            title="Return to LakBye Home"
-          >
-            <img src={lakbyeLogo} alt="LakBye Logo" className="dashboard-mobile-logo" />
-          </Link>
-          <button
-            type="button"
-            className="dashboard-mobile-drawer-close"
-            onClick={() => setIsMobileDrawerOpen(false)}
-            aria-label="Close drawer"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* User Card */}
-        <div className="dashboard-mobile-drawer-user">
-          <div className="dashboard-mobile-avatar-btn">
-            <span className="dashboard-mobile-avatar-fallback">
-              {(user?.full_name || 'U').charAt(0).toUpperCase()}
-            </span>
-          </div>
-          <div className="dashboard-mobile-drawer-user-info">
-            <span className="dashboard-mobile-drawer-user-name">
-              {user?.full_name || 'Traveler'}
-            </span>
-            <span className="dashboard-mobile-drawer-user-email">
-              {user?.email || 'Logged in traveler'}
-            </span>
-          </div>
-        </div>
-
-        <div className="dashboard-drawer-divider" />
-
-        {/* Navigation Items */}
-        <div className="dashboard-mobile-drawer-nav">
-          {/* Explicit Exit to Home navigation item */}
-          <Link
-            to="/"
-            className="dashboard-mobile-drawer-item exit-to-home"
-            onClick={() => setIsMobileDrawerOpen(false)}
-          >
-            <ArrowLeft size={19} />
-            <span>Exit to Home</span>
-          </Link>
-
-          <div className="dashboard-mobile-drawer-section-label">Main Menu</div>
-
-          {navItems.map((item) => {
-            const isActive =
-              location.pathname === item.path ||
-              (location.pathname === '/dashboard' && item.path === '/dashboard');
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.name}
-                to={item.path}
-                className={`dashboard-mobile-drawer-item ${isActive ? 'active' : ''}`}
-                onClick={() => setIsMobileDrawerOpen(false)}
-              >
-                <Icon size={19} />
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
-
-          <div className="dashboard-mobile-drawer-section-label">Account</div>
-
-          <Link
-            to={ROUTES.PROFILE_SETTINGS}
-            className={`dashboard-mobile-drawer-item ${
-              location.pathname === ROUTES.PROFILE_SETTINGS ? 'active' : ''
-            }`}
-            onClick={() => setIsMobileDrawerOpen(false)}
-          >
-            <Settings size={19} />
-            <span>Profile & Settings</span>
-          </Link>
-        </div>
-
-        <div className="dashboard-mobile-drawer-footer">
-          <button
-            type="button"
-            className="dashboard-mobile-drawer-logout-btn"
-            onClick={() => {
-              setIsMobileDrawerOpen(false);
-              handleLogout();
-            }}
-          >
-            <LogOut size={18} />
-            <span>Log out</span>
-          </button>
-        </div>
-      </aside>
 
       {/* Sidebar (Desktop) */}
       <aside className="dashboard-sidebar">
@@ -236,6 +110,15 @@ export default function DashboardLayout() {
           >
             <Settings size={20} strokeWidth={2} />
             <span className="sidebar-nav-text">Settings</span>
+          </Link>
+          <Link
+            to={ROUTES.HOME}
+            className="sidebar-nav-item"
+            title="Return to Landing Page"
+            aria-label="Return to Landing Page"
+          >
+            <ArrowLeft size={20} strokeWidth={2} />
+            <span className="sidebar-nav-text">Return</span>
           </Link>
           <button className="sidebar-nav-item" onClick={handleLogout}>
             <LogOut size={20} strokeWidth={2} />
