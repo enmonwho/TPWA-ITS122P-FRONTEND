@@ -38,12 +38,18 @@ const throwAxiosError = (
 // Simulate network delay
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const getMockUsers = (): (User & { _password?: string })[] => {
+export type MockUserRecord = User & {
+  _password?: string;
+  _pastPasswords?: string[];
+  _resetToken?: string;
+};
+
+const getMockUsers = (): MockUserRecord[] => {
   const users = localStorage.getItem(STORAGE_KEYS.MOCK_USERS);
   return users ? JSON.parse(users) : [];
 };
 
-const saveMockUsers = (users: (User & { _password?: string })[]) => {
+const saveMockUsers = (users: MockUserRecord[]) => {
   localStorage.setItem(STORAGE_KEYS.MOCK_USERS, JSON.stringify(users));
 };
 
@@ -52,8 +58,16 @@ export const mockAuthApi = {
     await delay(600); // simulate network latency
     const users = getMockUsers();
 
-    if (users.some((u) => u.email === payload.email)) {
-      throwAxiosError(409, 'Email is already registered.');
+    const existingIndex = users.findIndex(
+      (u) => u.email.toLowerCase() === payload.email.toLowerCase(),
+    );
+
+    if (existingIndex !== -1) {
+      if (users[existingIndex].is_verified) {
+        throwAxiosError(409, 'Email is already registered.');
+      }
+      // If previous registration was never verified (abandoned), remove the stale record
+      users.splice(existingIndex, 1);
     }
 
     if (payload.password.length < 8) {
@@ -222,10 +236,49 @@ export const mockAuthApi = {
     };
   },
 
-  resetPassword: async (_payload: {
+  resetPassword: async (payload: {
     token: string;
     password: string;
   }): Promise<{ message: string }> => {
+    await delay(400);
+    const users = getMockUsers();
+
+    let targetIndex = users.findIndex((u) => u._resetToken === payload.token);
+    if (targetIndex === -1 && users.length > 0) {
+      targetIndex = 0;
+    }
+
+    if (targetIndex !== -1) {
+      const user = users[targetIndex];
+
+      // 1. Check if new password is identical to current password
+      if (user._password && user._password === payload.password) {
+        throwAxiosError(400, 'New password cannot be the same as your current password.');
+      }
+
+      // 2. Check if new password matches any past passwords
+      if (user._pastPasswords && user._pastPasswords.includes(payload.password)) {
+        throwAxiosError(
+          400,
+          'New password cannot be the same as any of your previous passwords.',
+        );
+      }
+
+      // 3. Save current password to history and update
+      const history = user._pastPasswords ? [...user._pastPasswords] : [];
+      if (user._password && !history.includes(user._password)) {
+        history.push(user._password);
+      }
+
+      users[targetIndex] = {
+        ...user,
+        _password: payload.password,
+        _pastPasswords: history,
+        _resetToken: undefined,
+      };
+      saveMockUsers(users);
+    }
+
     return {
       message: 'Password reset successfully (mock mode).',
     };
@@ -250,6 +303,18 @@ export const mockAuthApi = {
   resendVerification: async (_email: string): Promise<{ message: string }> => {
     return {
       message: 'Verification code resent (mock mode).',
+    };
+  },
+
+  cancelRegistration: async (email: string): Promise<{ message: string }> => {
+    await delay(200);
+    const users = getMockUsers();
+    const filtered = users.filter(
+      (u) => !(u.email.toLowerCase() === email.toLowerCase() && !u.is_verified),
+    );
+    saveMockUsers(filtered);
+    return {
+      message: 'Pending registration cancelled successfully (mock mode).',
     };
   },
 };

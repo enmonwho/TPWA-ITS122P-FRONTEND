@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import axios from 'axios';
 import AuthLayout from '../components/AuthLayout';
 import PasswordRequirements from '../components/PasswordRequirements';
 import { authApi } from '../services/api';
@@ -47,7 +48,11 @@ export default function ResetPassword() {
       setTimeout(() => navigate('/login'), 2500);
     } catch (err: unknown) {
       const msg =
-        err instanceof Error ? err.message : 'Reset failed. The link may have expired.';
+        axios.isAxiosError(err) && err.response?.data?.message
+          ? err.response.data.message
+          : err instanceof Error
+            ? err.message
+            : 'Reset failed. The link may have expired.';
       setErrorMessage(msg);
     } finally {
       setSubmitting(false);

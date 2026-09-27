@@ -128,6 +128,13 @@ const realAuthApi = {
     });
     return response.data;
   },
+
+  cancelRegistration: async (email: string): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>('/auth/cancel-registration', {
+      email,
+    });
+    return response.data;
+  },
 };
 const useMockAuth = import.meta.env.VITE_USE_MOCK_AUTH === 'true';
 

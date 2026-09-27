@@ -201,14 +201,22 @@ export default function VerifyEmail() {
   // Cleanly abandon unverified registration session and return to signup
   const handleChangeEmail = async () => {
     const cachedName = user?.full_name || '';
-    if (logout) {
-      await logout();
-    } else {
-      localStorage.removeItem(STORAGE_KEYS.TOKEN);
-      localStorage.removeItem(STORAGE_KEYS.USER);
-      if (setUser) setUser(null);
+    try {
+      if (email) {
+        await authApi.cancelRegistration(email);
+      }
+    } catch (err) {
+      console.warn('Failed to cancel unverified registration:', err);
+    } finally {
+      if (logout) {
+        await logout();
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.TOKEN);
+        localStorage.removeItem(STORAGE_KEYS.USER);
+        if (setUser) setUser(null);
+      }
+      navigate(ROUTES.SIGN_UP, { state: { fullName: cachedName } });
     }
-    navigate(ROUTES.SIGN_UP, { state: { fullName: cachedName } });
   };
 
   // Cleanly abandon unverified registration session and return to login

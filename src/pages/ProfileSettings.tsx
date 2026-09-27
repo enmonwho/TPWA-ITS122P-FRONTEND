@@ -17,9 +17,12 @@ import {
   LogOut,
 } from 'lucide-react';
 
+import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import PasswordRequirements from '../components/PasswordRequirements';
 import { ROUTES, STORAGE_KEYS } from '../lib/constants';
 import { userApi, preferencesApi } from '../services/api';
+import { analyzePassword } from '../lib/passwordValidation';
 import '../styles/ProfileSettings.css';
 
 interface StoredPreferences {
@@ -89,8 +92,10 @@ export default function ProfileSettings() {
   );
 
   // Security fields
+  const [currentPassword, setCurrentPassword] = useState<string>('');
   const [newPassword, setNewPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<boolean>(false);
 
   // Status indicators
@@ -170,8 +175,20 @@ export default function ProfileSettings() {
     setErrorMessage(null);
 
     if (newPassword) {
-      if (newPassword.length < 6) {
-        setErrorMessage('New password must be at least 6 characters long.');
+      if (!currentPassword) {
+        setErrorMessage('Please enter your current password to set a new password.');
+        setActiveTab('security');
+        return;
+      }
+      if (newPassword.trim() === currentPassword.trim()) {
+        setErrorMessage('New password cannot be the same as your current password.');
+        setActiveTab('security');
+        return;
+      }
+      const passAnalysis = analyzePassword(newPassword);
+      if (!passAnalysis.isValid) {
+        const unmet = passAnalysis.rules.find((r) => !r.valid);
+        setErrorMessage(unmet ? unmet.label : 'New password does not meet requirements.');
         setActiveTab('security');
         return;
       }
@@ -221,6 +238,12 @@ export default function ProfileSettings() {
       try {
         await userApi.updateProfile(user.id, payload);
       } catch (userApiErr) {
+        if (axios.isAxiosError(userApiErr) && userApiErr.response?.data?.message) {
+          setErrorMessage(userApiErr.response.data.message);
+          setIsSaving(false);
+          setActiveTab('security');
+          return;
+        }
         console.warn('Backend user profile update note:', userApiErr);
       }
 
@@ -237,6 +260,7 @@ export default function ProfileSettings() {
         preferences?: StoredPreferences;
       });
 
+      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
 
@@ -597,6 +621,30 @@ export default function ProfileSettings() {
 
             <div className="profile-form-grid">
               <div className="profile-field-group">
+                <label htmlFor="currentPassword" className="profile-field-label">
+                  Current Password
+                </label>
+                <div className="password-input-wrapper">
+                  <input
+                    id="currentPassword"
+                    type={showCurrentPassword ? 'text' : 'password'}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Enter current password"
+                    className="profile-field-input"
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    aria-label="Toggle current password visibility"
+                  >
+                    {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="profile-field-group">
                 <label htmlFor="newPassword" className="profile-field-label">
                   New Password
                 </label>
@@ -618,7 +666,7 @@ export default function ProfileSettings() {
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
-                <span className="profile-field-hint">Minimum 6 characters</span>
+                <PasswordRequirements password={newPassword} />
               </div>
 
               <div className="profile-field-group">
