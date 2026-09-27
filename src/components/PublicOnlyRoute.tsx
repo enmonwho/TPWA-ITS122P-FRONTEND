@@ -24,6 +24,11 @@ export default function PublicOnlyRoute({ children }: PublicOnlyRouteProps) {
     if (!isLoading && isInitialCheckRef.current) {
       isInitialCheckRef.current = false;
       if (user) {
+        // If user account is pending email verification, do not treat them as an active session on public routes
+        if (user.is_verified === false) {
+          return;
+        }
+
         const role = user.role?.toLowerCase() || '';
         if (role === 'admin') {
           navigate(ROUTES.ADMIN, { replace: true });

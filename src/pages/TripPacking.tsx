@@ -15,7 +15,7 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { tripsApi } from '../services/api';
-import { mergeTripWithExtras, formatDateOnly } from '../lib/tripExtras';
+import { mergeTripWithExtras, formatTripDateRange } from '../lib/tripExtras';
 import type { Trip } from '../types/trip';
 
 export type PackingCategory =
@@ -417,7 +417,7 @@ export default function TripPacking() {
 
       const datesStr =
         trip.startDate && trip.endDate
-          ? `${formatDateOnly(trip.startDate)} to ${formatDateOnly(trip.endDate)} (${trip.nights || 0} nights)`
+          ? `${formatTripDateRange(trip.startDate, trip.endDate)} (${trip.nights || 0} nights)`
           : `${trip.nights || 0} nights planned`;
       doc.text(`Travel Dates: ${datesStr}`, 20, 64);
 
@@ -563,7 +563,7 @@ export default function TripPacking() {
           </h1>
           <p className="text-xs text-stone-500 mt-0.5">
             {trip.startDate && trip.endDate
-              ? `${formatDateOnly(trip.startDate)} - ${formatDateOnly(trip.endDate)} • `
+              ? `${formatTripDateRange(trip.startDate, trip.endDate)} • `
               : ''}
             {trip.nights || 0} nights planned • Smart Baggage Tracker
           </p>

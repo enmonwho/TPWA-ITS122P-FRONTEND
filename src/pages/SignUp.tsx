@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 import AuthLayout from '../components/AuthLayout';
@@ -9,8 +9,17 @@ import { usePageLoader } from '../context/PageLoaderContext';
 import { ROUTES } from '../lib/constants';
 
 export default function SignUp() {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const location = useLocation();
+  const prefill = location.state as { fullName?: string } | null;
+
+  const [firstName, setFirstName] = useState(() => {
+    if (!prefill?.fullName) return '';
+    return prefill.fullName.split(' ')[0] || '';
+  });
+  const [lastName, setLastName] = useState(() => {
+    if (!prefill?.fullName) return '';
+    return prefill.fullName.split(' ').slice(1).join(' ') || '';
+  });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);

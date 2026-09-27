@@ -11,6 +11,7 @@ import {
   saveTripExtras,
   deleteTripExtras,
   formatDateOnly,
+  formatTripDateRange,
 } from '../lib/tripExtras';
 
 type TravelType = 'Solo' | 'Couple' | 'Friends' | 'Family' | '';
@@ -164,7 +165,7 @@ export function Settings() {
         <h1 className="workspace-trip-title">{trip.name}</h1>
         <div className="workspace-header-actions">
           <div className="workspace-pill-date">
-            {formatDateOnly(trip.startDate)} - {formatDateOnly(trip.endDate)}
+            {formatTripDateRange(trip.startDate, trip.endDate)}
           </div>
         </div>
       </header>

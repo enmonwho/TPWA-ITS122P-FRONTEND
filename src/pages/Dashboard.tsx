@@ -24,12 +24,12 @@ import totalSpentIcon from '../assets/total-spent.svg';
 import createTripBtnIcon from '../assets/create-trip-button.svg';
 import browseDestIcon from '../assets/browse-destination.svg';
 import { useAuth } from '../context/AuthContext';
-import { ROUTES } from '../lib/constants';
+import { ROUTES, STORAGE_KEYS } from '../lib/constants';
 import { tripsApi, journalsApi, preferencesApi } from '../services/api';
 import {
   mergeTripsWithExtras,
   mergeTripWithExtras,
-  formatDateOnly,
+  formatTripDateRange,
 } from '../lib/tripExtras';
 
 export default function Dashboard() {
@@ -50,16 +50,44 @@ export default function Dashboard() {
     }
   });
 
-  // Ensure username is loaded if session initialized before preferences were cached
+  // Active date format preference (e.g. 'MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD')
+  const userDateFormat =
+    user?.preferences?.dateFormat ||
+    (() => {
+      if (!user?.id) return 'MM/DD/YYYY';
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.USER_PREFERENCES(user.id));
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed.dateFormat) return parsed.dateFormat;
+        }
+      } catch {
+        // ignore
+      }
+      return 'MM/DD/YYYY';
+    })();
+
+  // Ensure username and preferences (like dateFormat) are loaded if session initialized before preferences were cached
   useEffect(() => {
-    if (user?.id && !user.username) {
+    if (!user?.id) return;
+    if (!user.username || !user.preferences?.dateFormat) {
       preferencesApi.getPreferences(user.id).then((saved) => {
-        if (saved?.username && setUser) {
-          setUser((prev) => (prev ? { ...prev, username: saved.username } : null));
+        if (saved && setUser) {
+          setUser((prev) => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              username: prev.username || saved.username,
+              preferences: {
+                ...(prev.preferences || {}),
+                ...saved,
+              },
+            };
+          });
         }
       });
     }
-  }, [user?.id, user?.username, setUser]);
+  }, [user?.id, user?.username, user?.preferences?.dateFormat, setUser]);
 
   // Fetch true journal count from backend database and local cache
   useEffect(() => {
@@ -690,8 +718,11 @@ export default function Dashboard() {
 
                             <div className="trip-cell-dates">
                               <span className="trip-badge trip-badge--date">
-                                {formatDateOnly(trip.startDate)} -{' '}
-                                {formatDateOnly(trip.endDate)}
+                                {formatTripDateRange(
+                                  trip.startDate,
+                                  trip.endDate,
+                                  userDateFormat,
+                                )}
                               </span>
                             </div>
 

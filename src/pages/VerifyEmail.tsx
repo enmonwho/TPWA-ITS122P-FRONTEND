@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import type { FormEvent, KeyboardEvent, ClipboardEvent, ChangeEvent } from 'react';
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { AlertCircle, CheckCircle2, Mail, ArrowRight } from 'lucide-react';
 
 import AuthLayout from '../components/AuthLayout';
+import { useAuth } from '../context/AuthContext';
 import { usePageLoader } from '../context/PageLoaderContext';
-import { ROUTES } from '../lib/constants';
+import { ROUTES, STORAGE_KEYS } from '../lib/constants';
 import { authApi } from '../services/api';
 
 export default function VerifyEmail() {
@@ -14,6 +15,7 @@ export default function VerifyEmail() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { triggerTransition } = usePageLoader();
+  const { user, setUser, logout } = useAuth();
 
   // Extract email from navigation state or URL query param
   const locationState = location.state as { email?: string; justResent?: boolean } | null;
@@ -137,6 +139,13 @@ export default function VerifyEmail() {
         otp: fullOtp,
       });
 
+      // Mark user as verified in state and storage so session is fully authenticated
+      if (user && setUser) {
+        const verifiedUser = { ...user, is_verified: true };
+        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(verifiedUser));
+        setUser(verifiedUser);
+      }
+
       await triggerTransition(async () => {
         navigate(ROUTES.ONBOARDING, { replace: true });
       }, 700);
@@ -187,6 +196,31 @@ export default function VerifyEmail() {
     } finally {
       setIsResending(false);
     }
+  };
+
+  // Cleanly abandon unverified registration session and return to signup
+  const handleChangeEmail = async () => {
+    const cachedName = user?.full_name || '';
+    if (logout) {
+      await logout();
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.TOKEN);
+      localStorage.removeItem(STORAGE_KEYS.USER);
+      if (setUser) setUser(null);
+    }
+    navigate(ROUTES.SIGN_UP, { state: { fullName: cachedName } });
+  };
+
+  // Cleanly abandon unverified registration session and return to login
+  const handleBackToLogin = async () => {
+    if (logout) {
+      await logout();
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.TOKEN);
+      localStorage.removeItem(STORAGE_KEYS.USER);
+      if (setUser) setUser(null);
+    }
+    navigate(ROUTES.LOGIN);
   };
 
   if (!email) {
@@ -281,13 +315,21 @@ export default function VerifyEmail() {
         {/* Alternative Links */}
         <div className="auth-prompt-container animate-fade-in-up delay-200 border-t border-stone-200/60 pt-3 mt-4">
           <span className="auth-prompt-text text-xs">Wrong email?</span>
-          <Link to={ROUTES.SIGN_UP} className="auth-link text-xs">
+          <button
+            type="button"
+            onClick={handleChangeEmail}
+            className="auth-link text-xs cursor-pointer bg-transparent border-none p-0 inline font-semibold hover:underline"
+          >
             Change email
-          </Link>
+          </button>
           <span className="text-stone-300 text-xs">•</span>
-          <Link to={ROUTES.LOGIN} className="auth-link text-xs">
+          <button
+            type="button"
+            onClick={handleBackToLogin}
+            className="auth-link text-xs cursor-pointer bg-transparent border-none p-0 inline font-semibold hover:underline"
+          >
             Back to Log In
-          </Link>
+          </button>
         </div>
       </form>
     </AuthLayout>

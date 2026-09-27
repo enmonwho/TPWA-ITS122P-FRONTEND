@@ -5,7 +5,7 @@ import { Trash2, X, CirclePlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import type { Trip } from '../types/trip';
 import { tripsApi, budgetApi } from '../services/api';
-import { mergeTripWithExtras, formatDateOnly } from '../lib/tripExtras';
+import { mergeTripWithExtras, formatTripDateRange } from '../lib/tripExtras';
 import { STORAGE_KEYS } from '../lib/constants';
 import {
   fetchExchangeRates,
@@ -411,7 +411,7 @@ export function Budget() {
         <h1 className="workspace-trip-title">{trip.name}</h1>
         <div className="workspace-header-actions">
           <div className="workspace-pill-date">
-            {formatDateOnly(trip.startDate)} - {formatDateOnly(trip.endDate)}
+            {formatTripDateRange(trip.startDate, trip.endDate)}
           </div>
         </div>
       </header>

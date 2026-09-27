@@ -11,10 +11,14 @@ import type {
 } from '../types';
 
 // Helper to simulate Axios errors exactly how the frontend expects them
-const throwAxiosError = (status: number, message: string) => {
+const throwAxiosError = (
+  status: number,
+  message: string,
+  extraData?: Record<string, unknown>,
+) => {
   const error = new AxiosError(message, status.toString());
   error.response = {
-    data: { message },
+    data: { message, ...extraData },
     status,
     statusText:
       status === 400
@@ -61,6 +65,7 @@ export const mockAuthApi = {
       full_name: payload.full_name,
       email: payload.email,
       role: 'customer',
+      is_verified: false,
       created_at: new Date().toISOString(),
     };
 
@@ -89,6 +94,13 @@ export const mockAuthApi = {
 
     if (!userRecord) {
       throwAxiosError(401, 'Invalid email or password.');
+      throw new Error('Unreachable');
+    }
+
+    if (userRecord.is_verified === false) {
+      throwAxiosError(403, 'Please verify your email before logging in.', {
+        needsVerification: true,
+      });
       throw new Error('Unreachable');
     }
 
@@ -219,10 +231,17 @@ export const mockAuthApi = {
     };
   },
 
-  verifyEmail: async (_payload: {
+  verifyEmail: async (payload: {
     email: string;
     otp: string;
   }): Promise<{ message: string }> => {
+    await delay(300);
+    const users = getMockUsers();
+    const userIndex = users.findIndex((u) => u.email === payload.email);
+    if (userIndex !== -1) {
+      users[userIndex].is_verified = true;
+      saveMockUsers(users);
+    }
     return {
       message: 'Email verified successfully (mock mode).',
     };

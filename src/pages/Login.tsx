@@ -77,7 +77,7 @@ export default function Login() {
           if (!hasPrefs) {
             navigate(ROUTES.ONBOARDING);
           } else {
-            navigate(ROUTES.DASHBOARD);
+            navigate(ROUTES.HOME);
           }
         }
       }, 700);

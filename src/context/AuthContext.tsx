@@ -3,7 +3,13 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { authApi } from '../services/api';
 import { STORAGE_KEYS } from '../lib/constants';
-import type { User, LoginPayload, RegisterPayload, AuthResponse } from '../types';
+import type {
+  User,
+  UserPreferences,
+  LoginPayload,
+  RegisterPayload,
+  AuthResponse,
+} from '../types';
 
 export interface AuthContextType {
   user: User | null;
@@ -17,15 +23,41 @@ export interface AuthContextType {
 const enrichUserWithPreferences = (baseUser: User): User => {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.USER_PREFERENCES(baseUser.id));
-    if (raw) {
-      const prefs = JSON.parse(raw);
-      return {
-        ...baseUser,
-        username: baseUser.username || prefs.username,
-        bio: baseUser.bio || prefs.bio,
-        preferences: baseUser.preferences || prefs,
-      };
-    }
+    const prefs = raw ? JSON.parse(raw) : {};
+    const basePrefs = baseUser.preferences || {};
+    const mergedPrefs: UserPreferences = {
+      ...prefs,
+      ...basePrefs,
+      dateFormat:
+        basePrefs.dateFormat ||
+        (baseUser as unknown as { date_format?: string }).date_format ||
+        prefs.dateFormat ||
+        'MM/DD/YYYY',
+      timeFormat:
+        basePrefs.timeFormat ||
+        (baseUser as unknown as { time_format?: string }).time_format ||
+        prefs.timeFormat ||
+        '12h',
+      currency:
+        basePrefs.currency ||
+        (baseUser as unknown as { currency?: string }).currency ||
+        prefs.currency ||
+        'PHP',
+      distanceUnit:
+        basePrefs.distanceUnit ||
+        (baseUser as unknown as { distance_unit?: string }).distance_unit ||
+        prefs.distanceUnit ||
+        'km',
+    };
+    return {
+      ...baseUser,
+      username:
+        baseUser.username ||
+        (baseUser as unknown as { user_name?: string }).user_name ||
+        prefs.username,
+      bio: baseUser.bio || prefs.bio,
+      preferences: mergedPrefs,
+    };
   } catch {
     // ignore parse error
   }

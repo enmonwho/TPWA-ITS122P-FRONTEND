@@ -184,7 +184,7 @@ export default function Header() {
         >
           {isLoading ? (
             <div className="header-auth-skeleton" aria-hidden="true" />
-          ) : user ? (
+          ) : user && user.is_verified !== false ? (
             <>
               {/* Traveler Search Bar (Only visible to logged-in users) */}
               <div className="relative hidden md:block" ref={searchRef}>
@@ -226,7 +226,7 @@ export default function Header() {
                               onClick={() => handleUserSelect(res.username)}
                               className="flex items-center gap-3 px-4 py-2.5 hover:bg-stone-50 transition-colors text-left w-full"
                             >
-                              <div className="w-8 h-8 rounded-full bg-stone-200 flex flex-shrink-0 items-center justify-center text-stone-500 text-xs font-bold overflow-hidden">
+                              <div className="w-8 h-8 rounded-full bg-stone-200 flex shrink-0 items-center justify-center text-stone-500 text-xs font-bold overflow-hidden">
                                 {res.avatar_url ? (
                                   <img
                                     src={res.avatar_url}

@@ -618,12 +618,29 @@ export const preferencesApi = {
     try {
       const meRes = await realAuthApi.getMe();
       if (meRes.user) {
-        const remotePrefs = meRes.user.preferences || {};
+        const userRec = meRes.user as unknown as Record<string, unknown>;
+        const remotePrefs = (userRec.preferences as UserPreferences) || {};
         const remoteUsername = meRes.user.username;
+        const remoteDateFormat = (remotePrefs.dateFormat ||
+          userRec.date_format ||
+          userRec.dateFormat) as string | undefined;
+        const remoteTimeFormat = (remotePrefs.timeFormat ||
+          userRec.time_format ||
+          userRec.timeFormat) as string | undefined;
+        const remoteCurrency = (remotePrefs.currency || userRec.currency) as
+          string | undefined;
+        const remoteDistanceUnit = (remotePrefs.distanceUnit ||
+          userRec.distance_unit ||
+          userRec.distanceUnit) as string | undefined;
+
         const merged: UserPreferences = {
           ...cachedPrefs,
           ...remotePrefs,
           ...(remoteUsername ? { username: remoteUsername } : {}),
+          ...(remoteDateFormat ? { dateFormat: remoteDateFormat } : {}),
+          ...(remoteTimeFormat ? { timeFormat: remoteTimeFormat } : {}),
+          ...(remoteCurrency ? { currency: remoteCurrency } : {}),
+          ...(remoteDistanceUnit ? { distanceUnit: remoteDistanceUnit } : {}),
         };
         localStorage.setItem(
           STORAGE_KEYS.USER_PREFERENCES(userId),

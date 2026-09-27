@@ -261,7 +261,7 @@ export default function Onboarding() {
     }
 
     triggerTransition(() => {
-      navigate(ROUTES.DASHBOARD);
+      navigate(ROUTES.HOME);
     }, 700);
   };
 
