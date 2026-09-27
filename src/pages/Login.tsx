@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -9,6 +9,13 @@ import { useAuth } from '../context/AuthContext';
 import { usePageLoader } from '../context/PageLoaderContext';
 import { ROUTES } from '../lib/constants';
 import { authApi, preferencesApi } from '../services/api';
+import {
+  getLockoutState,
+  recordFailedAttempt,
+  clearLockoutState,
+  formatRemainingTime,
+  type LockoutState,
+} from '../lib/loginLockout';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -19,6 +26,23 @@ export default function Login() {
   const [needsVerification, setNeedsVerification] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [resendSuccess, setResendSuccess] = useState('');
+  const [lockoutState, setLockoutState] = useState<LockoutState>(() => getLockoutState());
+
+  // Countdown timer for locked state
+  useEffect(() => {
+    if (!lockoutState.isLocked || lockoutState.isPermanent) return;
+
+    const timer = setInterval(() => {
+      const current = getLockoutState();
+      setLockoutState(current);
+      if (!current.isLocked) {
+        setErrorMessage('');
+        clearInterval(timer);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [lockoutState.isLocked, lockoutState.isPermanent]);
 
   // Validate required inputs
   const isFormValid = email.trim() !== '' && password.trim() !== '';
@@ -49,6 +73,8 @@ export default function Login() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (lockoutState.isLocked) return;
+
     setErrorMessage('');
     setNeedsVerification(false);
     setResendSuccess('');
@@ -57,6 +83,15 @@ export default function Login() {
     try {
       await triggerTransition(async () => {
         const response = await login({ email, password });
+
+        clearLockoutState();
+        setLockoutState({
+          isLocked: false,
+          remainingSeconds: 0,
+          isPermanent: false,
+          tier: 0,
+          attempts: 0,
+        });
 
         const role = response.user?.role?.toLowerCase();
         if (role === 'admin') {
@@ -90,9 +125,43 @@ export default function Login() {
           setErrorMessage(data.message || 'Please verify your email before logging in.');
           return;
         }
-        setErrorMessage(data?.message || 'Invalid email or password.');
+
+        const updatedLockout = recordFailedAttempt();
+        setLockoutState(updatedLockout);
+
+        if (updatedLockout.isPermanent) {
+          setErrorMessage(
+            'Too many failed login attempts. Please try again later or reset your password.',
+          );
+        } else if (updatedLockout.isLocked) {
+          setErrorMessage(
+            `Too many failed login attempts. Please wait ${formatRemainingTime(
+              updatedLockout.remainingSeconds,
+            )}.`,
+          );
+        } else {
+          setErrorMessage(data?.message || 'Invalid email or password.');
+        }
       } else if (err instanceof Error) {
-        setErrorMessage(err.message);
+        if (err.message.toLowerCase().includes('invalid email or password')) {
+          const updatedLockout = recordFailedAttempt();
+          setLockoutState(updatedLockout);
+          if (updatedLockout.isPermanent) {
+            setErrorMessage(
+              'Too many failed login attempts. Please try again later or reset your password.',
+            );
+          } else if (updatedLockout.isLocked) {
+            setErrorMessage(
+              `Too many failed login attempts. Please wait ${formatRemainingTime(
+                updatedLockout.remainingSeconds,
+              )}.`,
+            );
+          } else {
+            setErrorMessage(err.message);
+          }
+        } else {
+          setErrorMessage(err.message);
+        }
       } else {
         setErrorMessage('An unexpected error occurred. Please try again.');
       }
@@ -182,14 +251,20 @@ export default function Login() {
         <div className="auth-submit-container animate-fade-in-up delay-150">
           <button
             type="submit"
-            disabled={!isFormValid || isLoading}
+            disabled={!isFormValid || isLoading || lockoutState.isLocked}
             className={`auth-submit ${
-              !isFormValid || isLoading
+              !isFormValid || isLoading || lockoutState.isLocked
                 ? 'opacity-50 cursor-not-allowed bg-gray-400!'
                 : ''
             }`}
           >
-            {isLoading ? 'Logging In...' : 'Log In'}
+            {lockoutState.isPermanent
+              ? 'Try again later'
+              : lockoutState.isLocked
+                ? `Locked (${formatRemainingTime(lockoutState.remainingSeconds)})`
+                : isLoading
+                  ? 'Logging In...'
+                  : 'Log In'}
           </button>
         </div>
 
@@ -227,10 +302,21 @@ export default function Login() {
               </button>
             </div>
           </div>
-        ) : errorMessage ? (
+        ) : errorMessage ||
+          (lockoutState.isLocked &&
+            (lockoutState.isPermanent
+              ? 'Too many failed login attempts. Please try again later or reset your password.'
+              : `Too many failed login attempts. Please wait ${formatRemainingTime(lockoutState.remainingSeconds)}.`)) ? (
           <div className="auth-error-banner animate-fade-in-up" role="alert">
             <AlertCircle size={15} className="shrink-0" />
-            <span>{errorMessage}</span>
+            <span>
+              {errorMessage ||
+                (lockoutState.isPermanent
+                  ? 'Too many failed login attempts. Please try again later or reset your password.'
+                  : `Too many failed login attempts. Please wait ${formatRemainingTime(
+                      lockoutState.remainingSeconds,
+                    )}.`)}
+            </span>
           </div>
         ) : null}
 

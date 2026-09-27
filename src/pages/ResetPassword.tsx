@@ -2,8 +2,10 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import AuthLayout from '../components/AuthLayout';
+import PasswordRequirements from '../components/PasswordRequirements';
 import { authApi } from '../services/api';
 import { Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
+import { analyzePassword } from '../lib/passwordValidation';
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -26,8 +28,10 @@ export default function ResetPassword() {
       return;
     }
 
-    if (password.length < 8) {
-      setErrorMessage('Password must be at least 8 characters long.');
+    const passAnalysis = analyzePassword(password);
+    if (!passAnalysis.isValid) {
+      const unmet = passAnalysis.rules.find((r) => !r.valid);
+      setErrorMessage(unmet ? unmet.label : 'Password does not meet requirements.');
       return;
     }
 
@@ -87,6 +91,7 @@ export default function ResetPassword() {
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
+          <PasswordRequirements password={password} />
 
           <div className="auth-input-container">
             <input

@@ -4,9 +4,11 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 import AuthLayout from '../components/AuthLayout';
+import PasswordRequirements from '../components/PasswordRequirements';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoader } from '../context/PageLoaderContext';
 import { ROUTES } from '../lib/constants';
+import { analyzePassword } from '../lib/passwordValidation';
 
 export default function SignUp() {
   const location = useLocation();
@@ -44,8 +46,10 @@ export default function SignUp() {
     setPasswordError('');
     setGeneralError('');
 
-    if (password.length < 8) {
-      setPasswordError('Password must be at least 8 characters long.');
+    const passAnalysis = analyzePassword(password);
+    if (!passAnalysis.isValid) {
+      const unmet = passAnalysis.rules.find((r) => !r.valid);
+      setPasswordError(unmet ? unmet.label : 'Password does not meet requirements.');
       return;
     }
 
@@ -190,6 +194,7 @@ export default function SignUp() {
             )}
           </button>
         </div>
+        <PasswordRequirements password={password} />
         {passwordError && (
           <p className="auth-field-error animate-fade-in-up" role="alert">
             {passwordError}
