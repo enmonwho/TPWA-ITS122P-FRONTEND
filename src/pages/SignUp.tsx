@@ -62,12 +62,13 @@ export default function SignUp() {
     setIsLoading(true);
 
     try {
+      await register({
+        full_name: fullName,
+        email,
+        password,
+      });
+
       await triggerTransition(async () => {
-        await register({
-          full_name: fullName,
-          email,
-          password,
-        });
         navigate(ROUTES.VERIFY_EMAIL, { state: { email } });
       }, 700);
     } catch (err: unknown) {

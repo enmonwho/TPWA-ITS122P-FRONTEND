@@ -81,18 +81,20 @@ export default function Login() {
     setIsLoading(true);
 
     try {
+      // 1. Perform authentication attempt without full-screen loading page
+      const response = await login({ email, password });
+
+      clearLockoutState();
+      setLockoutState({
+        isLocked: false,
+        remainingSeconds: 0,
+        isPermanent: false,
+        tier: 0,
+        attempts: 0,
+      });
+
+      // 2. User is completely authenticated — now display loading page transition to navigate
       await triggerTransition(async () => {
-        const response = await login({ email, password });
-
-        clearLockoutState();
-        setLockoutState({
-          isLocked: false,
-          remainingSeconds: 0,
-          isPermanent: false,
-          tier: 0,
-          attempts: 0,
-        });
-
         const role = response.user?.role?.toLowerCase();
         if (role === 'admin') {
           navigate(ROUTES.ADMIN);
