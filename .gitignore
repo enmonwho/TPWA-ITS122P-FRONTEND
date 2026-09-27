@@ -32,3 +32,5 @@ dist-ssr
 
 # Docs
 LAKBYE_PROJECT_CONTEXT.md
+SESSION*.md
+*SUMMARY*.md

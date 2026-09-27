@@ -110,9 +110,73 @@ export function DateRangePicker({
     setViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
   };
 
-  const year = viewDate.getFullYear();
-  const month = viewDate.getMonth();
-  const monthGrid = generateMonthGrid(year, month);
+  const renderMonth = (offset: number) => {
+    const y = viewDate.getFullYear();
+    const m = viewDate.getMonth() + offset;
+    const dateObj = new Date(y, m, 1);
+    const grid = generateMonthGrid(dateObj.getFullYear(), dateObj.getMonth());
+
+    return (
+      <div className="w-full">
+        <h4 className="text-center font-bold text-slate-800 text-sm mb-3 select-none">
+          {dateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+        </h4>
+
+        <div className="grid grid-cols-7 gap-y-2 text-center text-xs text-slate-400 mb-2 font-medium">
+          {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((d) => (
+            <div key={d}>{d}</div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-y-1 gap-x-0 text-center">
+          {grid.map((dateStr, i) => {
+            if (!dateStr) return <div key={`empty-${offset}-${i}`} className="w-8 h-8" />;
+            const dayNum = parseInt(dateStr.split('-')[2], 10);
+            const disabled = isDateDisabled(dateStr);
+            const selected = isSelected(dateStr);
+            const inRange =
+              !disabled && (isActualRange(dateStr) || isHoverRange(dateStr));
+
+            return (
+              <div
+                key={dateStr}
+                className="relative flex items-center justify-center h-8"
+                onMouseEnter={() => !disabled && handleMouseEnter(dateStr)}
+                onMouseLeave={() => setHoverDate(null)}
+              >
+                {inRange && (
+                  <div className="absolute inset-y-0 left-0 right-0 bg-amber-50 z-0" />
+                )}
+                {selected && dateStr === startDate && endDate && (
+                  <div className="absolute inset-y-0 left-1/2 right-0 bg-amber-50 z-0" />
+                )}
+                {selected && dateStr === endDate && (
+                  <div className="absolute inset-y-0 left-0 right-1/2 bg-amber-50 z-0" />
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => handleDayClick(dateStr)}
+                  disabled={disabled}
+                  className={`w-8 h-8 rounded-full text-xs font-medium flex items-center justify-center relative z-10 transition-colors ${
+                    selected
+                      ? 'bg-amber-600 text-white font-bold shadow'
+                      : inRange
+                        ? 'text-amber-900 font-semibold'
+                        : disabled
+                          ? 'text-slate-300 cursor-not-allowed opacity-40'
+                          : 'text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  {dayNum}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="relative" ref={popoverRef}>
@@ -163,80 +227,29 @@ export function DateRangePicker({
       </div>
 
       {isOpen && (
-        <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-[310px] max-w-[calc(100vw-32px)] bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] border border-slate-200 p-4 z-[100] animate-slide-up">
-          <div className="flex items-center justify-between mb-3 px-1">
+        <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-[590px] max-w-[calc(100vw-32px)] bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] border border-slate-200 p-6 z-[100] animate-slide-up">
+          <div className="flex justify-between items-center absolute w-full left-0 px-6 top-6 z-10 pointer-events-none">
             <button
               type="button"
               onClick={() => shiftMonth(-1)}
-              className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-95 transition-all shadow-sm"
+              className="pointer-events-auto w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-95 transition-all shadow-sm bg-white cursor-pointer"
               aria-label="Previous month"
             >
               <ChevronLeft size={16} />
             </button>
-            <h4 className="font-bold text-slate-800 text-sm select-none">
-              {viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-            </h4>
             <button
               type="button"
               onClick={() => shiftMonth(1)}
-              className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-95 transition-all shadow-sm"
+              className="pointer-events-auto w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-95 transition-all shadow-sm bg-white cursor-pointer"
               aria-label="Next month"
             >
               <ChevronRight size={16} />
             </button>
           </div>
 
-          <div className="grid grid-cols-7 gap-y-2 text-center text-xs text-slate-400 mb-2 font-medium">
-            {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((d) => (
-              <div key={d}>{d}</div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7 gap-y-1 gap-x-0 text-center">
-            {monthGrid.map((dateStr, i) => {
-              if (!dateStr) return <div key={`empty-${i}`} className="w-8 h-8" />;
-              const dayNum = parseInt(dateStr.split('-')[2], 10);
-              const disabled = isDateDisabled(dateStr);
-              const selected = isSelected(dateStr);
-              const inRange =
-                !disabled && (isActualRange(dateStr) || isHoverRange(dateStr));
-
-              return (
-                <div
-                  key={dateStr}
-                  className="relative flex items-center justify-center h-8"
-                  onMouseEnter={() => !disabled && handleMouseEnter(dateStr)}
-                  onMouseLeave={() => setHoverDate(null)}
-                >
-                  {inRange && (
-                    <div className="absolute inset-y-0 left-0 right-0 bg-emerald-50 z-0" />
-                  )}
-                  {selected && dateStr === startDate && endDate && (
-                    <div className="absolute inset-y-0 left-1/2 right-0 bg-emerald-50 z-0" />
-                  )}
-                  {selected && dateStr === endDate && (
-                    <div className="absolute inset-y-0 left-0 right-1/2 bg-emerald-50 z-0" />
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => handleDayClick(dateStr)}
-                    disabled={disabled}
-                    className={`w-8 h-8 rounded-full text-xs font-medium flex items-center justify-center relative z-10 transition-colors ${
-                      selected
-                        ? 'bg-amber-600 text-white font-bold shadow'
-                        : inRange
-                          ? 'text-emerald-900 font-semibold'
-                          : disabled
-                            ? 'text-slate-300 cursor-not-allowed opacity-40'
-                            : 'text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    {dayNum}
-                  </button>
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 relative mt-1">
+            {renderMonth(0)}
+            <div className="hidden sm:block">{renderMonth(1)}</div>
           </div>
         </div>
       )}
