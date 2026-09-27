@@ -3343,6 +3343,11 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   font-size: 15px;
 }
 
+.sidebar-return-btn .sidebar-nav-text {
+  font-size: 13.5px;
+  line-height: 1.25;
+}
+
 .sidebar-nav-item.active {
   color: var(--color-brand-red);
 }

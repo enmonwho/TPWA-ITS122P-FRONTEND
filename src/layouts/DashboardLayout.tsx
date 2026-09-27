@@ -113,12 +113,13 @@ export default function DashboardLayout() {
           </Link>
           <Link
             to={ROUTES.HOME}
-            className="sidebar-nav-item"
-            title="Return to Landing Page"
-            aria-label="Return to Landing Page"
+            className="sidebar-nav-item sidebar-return-btn"
+            title="Return to Main"
+            aria-label="Return to Main"
+            id="dashboard-return-to-main"
           >
             <ArrowLeft size={20} strokeWidth={2} />
-            <span className="sidebar-nav-text">Return</span>
+            <span className="sidebar-nav-text">Return to Main</span>
           </Link>
           <button className="sidebar-nav-item" onClick={handleLogout}>
             <LogOut size={20} strokeWidth={2} />
