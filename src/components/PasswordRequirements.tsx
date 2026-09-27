@@ -16,9 +16,9 @@ export default function PasswordRequirements({ password }: PasswordRequirementsP
   const analysis = analyzePassword(password);
 
   return (
-    <div className="w-full mt-2 p-3 bg-stone-50/80 border border-stone-200/70 rounded-lg text-left animate-fade-in-up">
+    <div className="w-full mt-2 text-left animate-fade-in-up">
       {/* 4-Segment Strength Bar */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-1.5">
         <span className="text-[11px] font-medium text-stone-500">Password strength:</span>
         {analysis.strengthLabel && (
           <span
@@ -37,7 +37,7 @@ export default function PasswordRequirements({ password }: PasswordRequirementsP
         )}
       </div>
 
-      <div className="flex gap-1.5 w-full mb-3" aria-hidden="true">
+      <div className="flex gap-1.5 w-full mb-2.5" aria-hidden="true">
         {[1, 2, 3, 4].map((step) => (
           <div
             key={step}
@@ -58,8 +58,8 @@ export default function PasswordRequirements({ password }: PasswordRequirementsP
             }`}
           >
             <span
-              className={`inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] rounded-full shrink-0 font-bold transition-colors ${
-                rule.valid ? 'bg-emerald-100 text-emerald-700' : 'text-stone-400'
+              className={`inline-flex items-center justify-center w-3.5 text-xs shrink-0 select-none ${
+                rule.valid ? 'text-emerald-600 font-bold' : 'text-stone-400'
               }`}
             >
               {rule.valid ? '✓' : '•'}
