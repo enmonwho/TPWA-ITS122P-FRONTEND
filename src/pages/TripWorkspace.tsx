@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import routeIcon from '../assets/route.png';
 import dayByDayIcon from '../assets/day-by-day.png';
 import magnifierIcon from '../assets/magnifier.png';
+import { MapPin } from 'lucide-react';
 import { GlobeMap } from '../components';
 import { getCoordinatesForName } from '../constants/coordinates';
 import { useAuth } from '../context/AuthContext';
@@ -14,7 +15,17 @@ import {
   saveTripExtras,
   formatTripDateRange,
 } from '../lib/tripExtras';
+import {
+  ACCOMMODATION_OPTIONS,
+  ACTIVITIES_OPTIONS,
+  TRANSPORTATION_OPTIONS,
+  searchDestinations,
+  getAutoFillRecommendations,
+} from '../lib/tripAutoFill';
+import type { DestinationPlace } from '../lib/tripAutoFill';
 import axios from 'axios';
+import { getCachedTrip, setCachedTrip } from '../lib/tripCache';
+import type { TripWorkspaceOutletContext } from '../layouts/TripWorkspaceLayout';
 
 export interface WorkspaceDestination {
   id: string;
@@ -32,38 +43,102 @@ export interface WorkspaceDestination {
 const workspaceGridStyle = {
   display: 'grid',
   gridTemplateColumns:
-    'minmax(130px, 1.5fr) 68px minmax(120px, 1.8fr) minmax(120px, 1.8fr) minmax(120px, 1.5fr) 36px',
-  gap: '0.75rem',
+    'minmax(130px, 1.4fr) 64px minmax(135px, 1.8fr) minmax(135px, 1.8fr) minmax(130px, 1.5fr) 60px',
+  gap: '0.625rem',
   alignItems: 'center',
 };
+
+function getInitialDestinations(
+  tripId?: string,
+  cachedTrip?: Trip | null,
+): WorkspaceDestination[] {
+  if (!tripId) return [];
+  const savedDestStr = localStorage.getItem(`lakbye_workspace_dests_${tripId}`);
+  if (savedDestStr) {
+    try {
+      const parsed = JSON.parse(savedDestStr);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch {
+      // ignore
+    }
+  }
+  if (cachedTrip) {
+    const countries = cachedTrip.countries || [];
+    if (countries.length > 0) {
+      return countries.map((c, i) => {
+        const rec = getAutoFillRecommendations(c, c);
+        return {
+          id: `dest-${i + 1}`,
+          name: c,
+          country: c,
+          nights: Math.max(1, Math.floor(cachedTrip.nights / (countries.length || 1))),
+          accommodation: rec.accommodation,
+          activities: rec.activities,
+          transportation: rec.transportation,
+          latitude: rec.latitude,
+          longitude: rec.longitude,
+        };
+      });
+    }
+  }
+  return [];
+}
 
 export default function TripWorkspace() {
   const { tripId } = useParams<{ tripId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const outlet = useOutletContext<TripWorkspaceOutletContext | undefined>();
+  const cached = outlet?.trip || (tripId ? getCachedTrip(tripId) : null);
 
   const [activeTab, setActiveTab] = useState('route');
-  const [trip, setTrip] = useState<Trip | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [trip, setTrip] = useState<Trip | null>(() => cached);
+  const [loading, setLoading] = useState(() => !cached);
   const [notFound, setNotFound] = useState(false);
 
-  const [destinations, setDestinations] = useState<WorkspaceDestination[]>([]);
+  const [destinations, setDestinations] = useState<WorkspaceDestination[]>(() =>
+    getInitialDestinations(tripId, cached),
+  );
   const [newDestInput, setNewDestInput] = useState('');
-  const [activeDestinationId, setActiveDestinationId] = useState<string | null>(null);
+  const [activeDestinationId, setActiveDestinationId] = useState<string | null>(() => {
+    const init = getInitialDestinations(tripId, cached);
+    return init[0]?.id || null;
+  });
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(e.target as Node)
+      ) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (!user || !tripId) return;
     let cancelled = false;
 
     const fetchTrip = async () => {
-      setLoading(true);
+      if (!cached) {
+        setLoading(true);
+      }
       setNotFound(false);
       try {
         const apiTrip = await tripsApi.getTrip(tripId);
         if (cancelled) return;
 
         const merged = mergeTripWithExtras(apiTrip);
+        setCachedTrip(tripId, merged);
         setTrip(merged);
+        if (outlet?.setTrip) outlet.setTrip(merged);
 
         // Check if saved destinations exist in localStorage for this trip
         const savedDestStr = localStorage.getItem(`lakbye_workspace_dests_${tripId}`);
@@ -77,26 +152,26 @@ export default function TripWorkspace() {
         }
 
         if (!initialDests || initialDests.length === 0) {
-          initialDests = (merged.countries || []).map((c, i) => {
-            const coords = getCoordinatesForName(c);
-            return {
-              id: `dest-${i + 1}`,
-              name: c,
-              country: c,
-              nights: Math.max(
-                1,
-                Math.floor(merged.nights / (merged.countries.length || 1)),
-              ),
-              accommodation: 'Selected Hotel',
-              activities: 'Sightseeing & Culture',
-              transportation: 'Flight / Express Train',
-              latitude: coords ? coords[1] : undefined,
-              longitude: coords ? coords[0] : undefined,
-            };
-          });
+          const countries = merged.countries || [];
+          if (countries.length > 0) {
+            initialDests = countries.map((c, i) => {
+              const rec = getAutoFillRecommendations(c, c);
+              return {
+                id: `dest-${i + 1}`,
+                name: c,
+                country: c,
+                nights: Math.max(1, Math.floor(merged.nights / (countries.length || 1))),
+                accommodation: rec.accommodation,
+                activities: rec.activities,
+                transportation: rec.transportation,
+                latitude: rec.latitude,
+                longitude: rec.longitude,
+              };
+            });
+          }
         }
-        setDestinations(initialDests);
-        if (initialDests.length > 0) setActiveDestinationId(initialDests[0].id);
+        setDestinations((prev) => (prev.length > 0 ? prev : initialDests));
+        setActiveDestinationId((prev) => prev || (initialDests[0]?.id ?? null));
       } catch (err) {
         if (cancelled) return;
         if (
@@ -117,7 +192,7 @@ export default function TripWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, [user, tripId]);
+  }, [user, tripId, cached, outlet]);
 
   const persistDestinations = (updated: WorkspaceDestination[]) => {
     if (!tripId) return;
@@ -128,22 +203,28 @@ export default function TripWorkspace() {
     }
   };
 
-  const handleAddDestination = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newDestInput.trim()) return;
+  const handleAddDestination = (
+    e?: React.FormEvent,
+    customName?: string,
+    customCountry?: string,
+  ) => {
+    if (e) e.preventDefault();
+    const nameToAdd = (customName || newDestInput).trim();
+    if (!nameToAdd) return;
 
-    const name = newDestInput.trim();
-    const coords = getCoordinatesForName(name);
+    const primaryCountry = customCountry || trip?.countries?.[0];
+    const rec = getAutoFillRecommendations(nameToAdd, primaryCountry);
 
     const newDest: WorkspaceDestination = {
       id: `dest-custom-${Date.now()}`,
-      name,
+      name: nameToAdd,
+      country: customCountry || rec.country || primaryCountry || nameToAdd,
       nights: 3,
-      accommodation: 'TBD Hotel',
-      activities: 'Local Exploration',
-      transportation: 'Train / Taxi',
-      latitude: coords ? coords[1] : undefined,
-      longitude: coords ? coords[0] : undefined,
+      accommodation: rec.accommodation,
+      activities: rec.activities,
+      transportation: rec.transportation,
+      latitude: rec.latitude,
+      longitude: rec.longitude,
     };
 
     const updated = [...destinations, newDest];
@@ -151,6 +232,12 @@ export default function TripWorkspace() {
     persistDestinations(updated);
     setActiveDestinationId(newDest.id);
     setNewDestInput('');
+    setIsDropdownOpen(false);
+    setHighlightedIndex(-1);
+  };
+
+  const handleSelectPlace = (place: DestinationPlace) => {
+    handleAddDestination(undefined, place.name, place.country);
   };
 
   const handleUpdateDestination = (
@@ -176,6 +263,44 @@ export default function TripWorkspace() {
       setActiveDestinationId(updated.length > 0 ? updated[0].id : null);
   };
 
+  const getCumulativeDayRange = (idx: number) => {
+    let startDay = 1;
+    for (let i = 0; i < idx; i++) {
+      startDay += destinations[i].nights || 1;
+    }
+    const endDay = startDay + (destinations[idx].nights || 1) - 1;
+    return startDay === endDay ? `Day ${startDay}` : `Days ${startDay}–${endDay}`;
+  };
+
+  const matchingPlaces = searchDestinations(newDestInput, 8);
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isDropdownOpen || matchingPlaces.length === 0) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleAddDestination(e);
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex((prev) => (prev < matchingPlaces.length - 1 ? prev + 1 : 0));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : matchingPlaces.length - 1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (highlightedIndex >= 0 && matchingPlaces[highlightedIndex]) {
+        handleSelectPlace(matchingPlaces[highlightedIndex]);
+      } else {
+        handleAddDestination(e);
+      }
+    } else if (e.key === 'Escape') {
+      setIsDropdownOpen(false);
+    }
+  };
+
   const globeMarkers = destinations
     .map((dest, index) => {
       const coords =
@@ -197,7 +322,53 @@ export default function TripWorkspace() {
       (m): m is { id: string; lng: number; lat: number; title: string } => m !== null,
     );
 
-  if (loading) {
+  const renderDropdown = (
+    destId: string,
+    field: 'accommodation' | 'activities' | 'transportation',
+    currentValue: string | undefined,
+    options: string[],
+    placeholder: string,
+  ) => {
+    const isCustomValue = currentValue && !options.includes(currentValue);
+
+    return (
+      <select
+        value={currentValue || ''}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => {
+          const val = e.target.value;
+          if (val === '__custom__') {
+            const userVal = window.prompt(
+              `Enter custom ${field} for this stop:`,
+              currentValue || '',
+            );
+            if (userVal && userVal.trim()) {
+              handleUpdateDestination(destId, field, userVal.trim());
+            }
+          } else {
+            handleUpdateDestination(destId, field, val);
+          }
+        }}
+        className="w-full px-2 py-1 text-xs text-slate-800 bg-white/90 hover:bg-white border border-slate-200/80 hover:border-slate-300 rounded-md focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500/20 transition-all cursor-pointer truncate shadow-xs font-normal"
+        title={currentValue || placeholder}
+      >
+        <option value="" disabled>
+          {placeholder}
+        </option>
+        {isCustomValue && <option value={currentValue}>{currentValue} (Saved)</option>}
+        {options.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
+        ))}
+        <option value="__custom__" className="text-amber-600 font-semibold">
+          + Enter custom...
+        </option>
+      </select>
+    );
+  };
+
+  if (loading && !trip) {
     return (
       <div className="workspace-page">
         <div className="workspace-main-card">Loading...</div>
@@ -235,7 +406,6 @@ export default function TripWorkspace() {
     );
   }
 
-  // Common Tailwind classes for the inline inputs
   const inputClasses =
     'w-full px-2 py-1 text-slate-600 bg-transparent border border-transparent rounded hover:border-slate-300 focus:border-amber-500 focus:bg-white focus:outline-none transition-colors';
 
@@ -271,12 +441,14 @@ export default function TripWorkspace() {
 
           <div className="workspace-itinerary-table">
             <div className="workspace-table-header-row" style={workspaceGridStyle}>
-              <div className="workspace-col-destination">Destination</div>
+              <div className="workspace-col-destination">
+                {activeTab === 'day' ? 'Schedule & Destination' : 'Destination'}
+              </div>
               <div className="workspace-col-nights text-center">Nights</div>
               <div className="workspace-col-accommodation">Accommodation</div>
               <div className="workspace-col-activities">Activities</div>
               <div className="workspace-col-transportation">Transportation</div>
-              <div className="workspace-col-actions" />
+              <div className="workspace-col-actions text-center" />
             </div>
 
             <div className="workspace-destination-rows">
@@ -295,20 +467,28 @@ export default function TripWorkspace() {
                   className={`workspace-destination-row ${activeDestinationId === dest.id ? 'active' : ''}`}
                   style={workspaceGridStyle}
                 >
-                  <div className="workspace-col-destination flex items-center gap-2">
+                  <div className="workspace-col-destination flex items-center gap-2.5">
                     <span className="dest-index-badge">{index + 1}</span>
-                    <span
-                      className="font-semibold text-slate-800 truncate"
-                      title={dest.name}
-                    >
-                      {dest.name}
-                    </span>
+                    <div className="flex flex-col min-w-0">
+                      <span
+                        className="font-semibold text-slate-800 truncate"
+                        title={dest.name}
+                      >
+                        {dest.name}
+                      </span>
+                      {activeTab === 'day' && (
+                        <span className="text-[11px] font-normal text-slate-400">
+                          {getCumulativeDayRange(index)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="workspace-col-nights flex justify-center">
                     <input
                       type="number"
                       min="1"
                       value={dest.nights || 1}
+                      onClick={(e) => e.stopPropagation()}
                       onChange={(e) =>
                         handleUpdateDestination(
                           dest.id,
@@ -321,39 +501,33 @@ export default function TripWorkspace() {
                     />
                   </div>
                   <div className="workspace-col-accommodation">
-                    <input
-                      type="text"
-                      value={dest.accommodation || ''}
-                      onChange={(e) =>
-                        handleUpdateDestination(dest.id, 'accommodation', e.target.value)
-                      }
-                      placeholder="e.g. Hotel Name"
-                      className={inputClasses}
-                    />
+                    {renderDropdown(
+                      dest.id,
+                      'accommodation',
+                      dest.accommodation,
+                      ACCOMMODATION_OPTIONS,
+                      'Select Accommodation',
+                    )}
                   </div>
                   <div className="workspace-col-activities">
-                    <input
-                      type="text"
-                      value={dest.activities || ''}
-                      onChange={(e) =>
-                        handleUpdateDestination(dest.id, 'activities', e.target.value)
-                      }
-                      placeholder="e.g. Sightseeing"
-                      className={inputClasses}
-                    />
+                    {renderDropdown(
+                      dest.id,
+                      'activities',
+                      dest.activities,
+                      ACTIVITIES_OPTIONS,
+                      'Select Activity',
+                    )}
                   </div>
                   <div className="workspace-col-transportation">
-                    <input
-                      type="text"
-                      value={dest.transportation || ''}
-                      onChange={(e) =>
-                        handleUpdateDestination(dest.id, 'transportation', e.target.value)
-                      }
-                      placeholder="e.g. Flight / Train"
-                      className={inputClasses}
-                    />
+                    {renderDropdown(
+                      dest.id,
+                      'transportation',
+                      dest.transportation,
+                      TRANSPORTATION_OPTIONS,
+                      'Select Transportation',
+                    )}
                   </div>
-                  <div className="workspace-col-actions flex justify-center">
+                  <div className="workspace-col-actions flex items-center justify-center">
                     <button
                       type="button"
                       onClick={(e) => handleDeleteDestination(dest.id, e)}
@@ -368,24 +542,71 @@ export default function TripWorkspace() {
               ))}
             </div>
 
-            <form
-              onSubmit={handleAddDestination}
-              className="workspace-add-destination-row"
+            <div
+              ref={searchContainerRef}
+              className="workspace-add-destination-container flex flex-col"
             >
-              <img src={magnifierIcon} alt="Search" className="workspace-search-icon" />
-              <input
-                type="text"
-                value={newDestInput}
-                onChange={(e) => setNewDestInput(e.target.value)}
-                placeholder="Add destination (e.g. Tokyo, Paris, Rome, Kyoto)..."
-                className="workspace-add-input"
-              />
-              {newDestInput.trim() && (
-                <button type="submit" className="workspace-add-btn">
-                  Add +
-                </button>
-              )}
-            </form>
+              <form
+                onSubmit={(e) => handleAddDestination(e)}
+                className="workspace-add-destination-row"
+              >
+                <img src={magnifierIcon} alt="Search" className="workspace-search-icon" />
+                <input
+                  type="text"
+                  value={newDestInput}
+                  onFocus={() => setIsDropdownOpen(true)}
+                  onChange={(e) => {
+                    setNewDestInput(e.target.value);
+                    setIsDropdownOpen(true);
+                    setHighlightedIndex(-1);
+                  }}
+                  onKeyDown={handleInputKeyDown}
+                  placeholder="Add destination (e.g. Tokyo, Paris, Rome, Kyoto)..."
+                  className="workspace-add-input"
+                  autoComplete="off"
+                />
+                {newDestInput.trim() && (
+                  <button type="submit" className="workspace-add-btn">
+                    Add +
+                  </button>
+                )}
+              </form>
+
+              {isDropdownOpen &&
+                matchingPlaces.length > 0 &&
+                newDestInput.trim().length > 0 && (
+                  <div className="workspace-dest-dropdown" role="listbox">
+                    {matchingPlaces.map((place, idx) => (
+                      <div
+                        key={`${place.name}-${place.country}`}
+                        role="option"
+                        tabIndex={0}
+                        aria-selected={idx === highlightedIndex}
+                        className={`workspace-dest-option ${idx === highlightedIndex ? 'highlighted' : ''}`}
+                        onMouseEnter={() => setHighlightedIndex(idx)}
+                        onClick={() => handleSelectPlace(place)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleSelectPlace(place);
+                          }
+                        }}
+                      >
+                        <div className="workspace-dest-option-main">
+                          <div className="workspace-dest-option-icon">
+                            <MapPin size={15} />
+                          </div>
+                          <span className="workspace-dest-option-name">{place.name}</span>
+                          <span className="workspace-dest-option-country">
+                            {place.country}
+                          </span>
+                        </div>
+                        <span className="workspace-dest-option-action">Add +</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+            </div>
           </div>
         </div>
 

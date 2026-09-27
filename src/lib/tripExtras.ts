@@ -4,9 +4,56 @@ import type { Trip } from '../types/trip';
 export interface TripExtras {
   countries: string[];
   travelType: string;
+  coverPhoto?: string;
 }
 
-const DEFAULT_EXTRAS: TripExtras = { countries: [], travelType: '' };
+const DEFAULT_EXTRAS: TripExtras = { countries: [], travelType: '', coverPhoto: '' };
+
+/**
+ * Compresses an image file to a web-optimized JPEG data URL using HTML5 canvas.
+ * Scales down large images to maxWidth x maxHeight (default 1280x720) and compresses to ~80-150KB.
+ * Ensures the image payload is small enough for localStorage quotas, network uploads, and fast rendering.
+ */
+export function compressImage(
+  file: File,
+  maxWidth = 1280,
+  maxHeight = 720,
+  quality = 0.78,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Failed to read image file'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Failed to decode image'));
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = Math.max(1, Math.round(width * ratio));
+          height = Math.max(1, Math.round(height * ratio));
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(reader.result as string);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressedDataUrl);
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 export function getTripExtras(tripId: string | number): TripExtras {
   try {
@@ -184,6 +231,7 @@ export function mergeTripsWithExtras(trips: Trip[]): Trip[] {
       ...trip,
       countries: extras.countries,
       travelType: extras.travelType,
+      cover_photo: trip.cover_photo || extras.coverPhoto || null,
       nights: derived.nights,
       daysUntil: derived.daysUntil,
     };

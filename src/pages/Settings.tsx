@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { Pencil, Camera, Users, Lock, Globe } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../lib/constants';
 import type { Trip } from '../types/trip';
+import type { TripWorkspaceOutletContext } from '../layouts/TripWorkspaceLayout';
+import { getCachedTrip, setCachedTrip } from '../lib/tripCache';
 import { CountryAutocomplete, DateRangePicker } from '../components';
 import { tripsApi } from '../services/api';
 import {
@@ -12,6 +14,7 @@ import {
   deleteTripExtras,
   formatDateOnly,
   formatTripDateRange,
+  compressImage,
 } from '../lib/tripExtras';
 
 type TravelType = 'Solo' | 'Couple' | 'Friends' | 'Family' | '';
@@ -21,18 +24,28 @@ export function Settings() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const outlet = useOutletContext<TripWorkspaceOutletContext | undefined>();
+  const cached = outlet?.trip || (tripId ? getCachedTrip(tripId) : null);
 
-  const [trip, setTrip] = useState<Trip | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [trip, setTrip] = useState<Trip | null>(() => cached);
+  const [loading, setLoading] = useState(() => !cached);
 
   // Form states
-  const [tripName, setTripName] = useState('');
-  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [travelType, setTravelType] = useState<TravelType>('');
-  const [coverPhoto, setCoverPhoto] = useState('');
-  const [visibility, setVisibility] = useState('private');
+  const [tripName, setTripName] = useState(() => cached?.name || '');
+  const [selectedCountries, setSelectedCountries] = useState<string[]>(
+    () => cached?.countries || [],
+  );
+  const [startDate, setStartDate] = useState(() =>
+    cached ? formatDateOnly(cached.startDate) : '',
+  );
+  const [endDate, setEndDate] = useState(() =>
+    cached ? formatDateOnly(cached.endDate) : '',
+  );
+  const [travelType, setTravelType] = useState<TravelType>(
+    () => (cached?.travelType as TravelType) || '',
+  );
+  const [coverPhoto, setCoverPhoto] = useState(() => cached?.cover_photo || '');
+  const [visibility, setVisibility] = useState(() => cached?.visibility || 'private');
   const [saveStatus, setSaveStatus] = useState('');
 
   useEffect(() => {
@@ -40,13 +53,18 @@ export function Settings() {
     let cancelled = false;
 
     const fetchTrip = async () => {
-      setLoading(true);
+      if (!cached) {
+        setLoading(true);
+      }
       try {
         const apiTrip = await tripsApi.getTrip(tripId);
         if (cancelled) return;
 
         const merged = mergeTripWithExtras(apiTrip);
         setTrip(merged);
+        setCachedTrip(tripId, merged);
+        if (outlet?.setTrip) outlet.setTrip(merged);
+
         setTripName(merged.name);
         setSelectedCountries(merged.countries);
         setStartDate(formatDateOnly(merged.startDate));
@@ -56,7 +74,7 @@ export function Settings() {
         setVisibility(merged.visibility || 'private');
       } catch {
         /* ignore fetch cancellation or load errors */
-        if (!cancelled) setTrip(null);
+        if (!cancelled && !cached) setTrip(null);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -66,7 +84,7 @@ export function Settings() {
     return () => {
       cancelled = true;
     };
-  }, [user, tripId]);
+  }, [user, tripId, cached, outlet]);
 
   const saveChanges = async (
     updates: Partial<Trip & { coverPhoto?: string; visibility?: string }>,
@@ -83,6 +101,13 @@ export function Settings() {
     if (updates.coverPhoto !== undefined) apiPayload.cover_photo = updates.coverPhoto;
     if (updates.visibility !== undefined) apiPayload.visibility = updates.visibility;
 
+    // Always persist coverPhoto to tripExtras and cache so it is immediately preserved
+    if (updates.coverPhoto !== undefined) {
+      saveTripExtras(tripId, { coverPhoto: updates.coverPhoto });
+      setTrip((prev) => (prev ? { ...prev, cover_photo: updates.coverPhoto } : null));
+      setCachedTrip(tripId, { ...trip, cover_photo: updates.coverPhoto });
+    }
+
     if (updates.countries !== undefined || updates.travelType !== undefined) {
       const extrasUpdate: Record<string, unknown> = {};
       if (updates.countries !== undefined) extrasUpdate.countries = updates.countries;
@@ -95,35 +120,59 @@ export function Settings() {
         const updatedTrip = await tripsApi.updateTrip(tripId, apiPayload);
         const merged = mergeTripWithExtras(updatedTrip);
         setTrip(merged);
+        setCachedTrip(tripId, merged);
+        if (outlet?.setTrip) outlet.setTrip(merged);
         setSaveStatus('Saved!');
         setTimeout(() => setSaveStatus(''), 2000);
-      } catch {
-        setSaveStatus('Error saving');
-        setTimeout(() => setSaveStatus(''), 2000);
+      } catch (err) {
+        console.warn('API update failed, verifying local fallback:', err);
+        // If updates included coverPhoto, it was already safely persisted in tripExtras and cache
+        if (updates.coverPhoto !== undefined) {
+          const fallbackTrip: Trip = {
+            ...trip,
+            ...updates,
+            cover_photo: updates.coverPhoto,
+          };
+          setTrip(fallbackTrip);
+          setCachedTrip(tripId, fallbackTrip);
+          if (outlet?.setTrip) outlet.setTrip(fallbackTrip);
+          setSaveStatus('Saved!');
+          setTimeout(() => setSaveStatus(''), 2000);
+        } else {
+          setSaveStatus('Error saving');
+          setTimeout(() => setSaveStatus(''), 2000);
+        }
       }
     } else {
-      setTrip({ ...trip, ...updates } as Trip);
+      const nextTrip = { ...trip, ...updates } as Trip;
+      setTrip(nextTrip);
+      setCachedTrip(tripId, nextTrip);
+      if (outlet?.setTrip) outlet.setTrip(nextTrip);
       setSaveStatus('Saved!');
       setTimeout(() => setSaveStatus(''), 2000);
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image file must be smaller than 5MB.');
+    if (file.size > 15 * 1024 * 1024) {
+      alert('Image file must be smaller than 15MB.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = reader.result as string;
-      setCoverPhoto(base64);
-      saveChanges({ coverPhoto: base64 });
-    };
-    reader.readAsDataURL(file);
+    try {
+      setSaveStatus('Optimizing image...');
+      // Compress and resize image to web-optimized dimensions (< 120KB)
+      const compressed = await compressImage(file, 1280, 720, 0.78);
+      setCoverPhoto(compressed);
+      await saveChanges({ coverPhoto: compressed });
+    } catch (err) {
+      console.error('Failed to process cover photo:', err);
+      setSaveStatus('Error saving');
+      setTimeout(() => setSaveStatus(''), 2000);
+    }
   };
 
   const handleDelete = async () => {
@@ -144,7 +193,7 @@ export function Settings() {
     }
   };
 
-  if (loading)
+  if (loading && !trip)
     return (
       <div className="workspace-page">
         <div className="workspace-main-card">Loading settings...</div>

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useOutletContext } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { Trash2, X, CirclePlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import type { Trip } from '../types/trip';
+import type { TripWorkspaceOutletContext } from '../layouts/TripWorkspaceLayout';
+import { getCachedTrip, setCachedTrip } from '../lib/tripCache';
 import { tripsApi, budgetApi } from '../services/api';
 import { mergeTripWithExtras, formatTripDateRange } from '../lib/tripExtras';
 import { STORAGE_KEYS } from '../lib/constants';
@@ -68,10 +70,12 @@ function getDonutFontSize(len: number): string {
 
 export function Budget() {
   const { tripId } = useParams<{ tripId: string }>();
+  const outlet = useOutletContext<TripWorkspaceOutletContext | undefined>();
+  const cached = outlet?.trip || (tripId ? getCachedTrip(tripId) : null);
   const budgetKey = `lakbye_budget_${tripId}`;
   const { user } = useAuth();
 
-  const [trip, setTrip] = useState<Trip | null>(null);
+  const [trip, setTrip] = useState<Trip | null>(() => cached);
   const [budget, setBudget] = useState<BudgetData>(() => {
     try {
       const stored = localStorage.getItem(budgetKey);
@@ -173,7 +177,10 @@ export function Budget() {
       try {
         const apiTrip = await tripsApi.getTrip(tripId);
         if (!cancelled) {
-          setTrip(mergeTripWithExtras(apiTrip));
+          const merged = mergeTripWithExtras(apiTrip);
+          setTrip(merged);
+          setCachedTrip(tripId, merged);
+          if (outlet?.setTrip) outlet.setTrip(merged);
         }
       } catch {
         /* ignore error */
@@ -207,7 +214,7 @@ export function Budget() {
     return () => {
       cancelled = true;
     };
-  }, [user, tripId, budgetKey]);
+  }, [user, tripId, budgetKey, outlet]);
 
   useEffect(() => {
     if (!isAddExpenseOpen && !isAddBalanceOpen) return;
@@ -392,7 +399,9 @@ export function Budget() {
       ? categoryTotals
       : [{ name: 'Empty', value: 1, color: '#E5E5EA' }];
 
-  if (!trip) {
+  const currentTrip = trip || cached;
+
+  if (!currentTrip) {
     return (
       <div className="workspace-page">
         <div
@@ -408,10 +417,10 @@ export function Budget() {
   return (
     <div className="workspace-page">
       <header className="workspace-header-card animate-slide-up">
-        <h1 className="workspace-trip-title">{trip.name}</h1>
+        <h1 className="workspace-trip-title">{currentTrip.name}</h1>
         <div className="workspace-header-actions">
           <div className="workspace-pill-date">
-            {formatTripDateRange(trip.startDate, trip.endDate)}
+            {formatTripDateRange(currentTrip.startDate, currentTrip.endDate)}
           </div>
         </div>
       </header>

@@ -1,149 +1,492 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link, useOutletContext } from 'react-router-dom';
 import {
-  Download,
   Plus,
   Trash2,
   CheckCircle2,
   Circle,
-  Package,
-  ArrowLeft,
-  Sparkles,
   RotateCcw,
+  X,
   Check,
+  Shirt,
+  Briefcase,
+  Sparkles,
+  Smartphone,
+  FileText,
+  Layers,
+  Baby,
+  Palmtree,
+  Tent,
+  Luggage,
+  Activity,
+  Bike,
+  Wine,
+  Utensils,
+  Dumbbell,
+  Mountain,
+  Wind,
+  Compass,
+  Music,
+  Camera,
+  Footprints,
+  Waves,
+  Snowflake,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { tripsApi } from '../services/api';
 import { mergeTripWithExtras, formatTripDateRange } from '../lib/tripExtras';
+import { getCachedTrip, setCachedTrip } from '../lib/tripCache';
+import type { TripWorkspaceOutletContext } from '../layouts/TripWorkspaceLayout';
 import type { Trip } from '../types/trip';
-
-export type PackingCategory =
-  'Essentials' | 'Clothing' | 'Toiletries' | 'Electronics' | 'Documents';
 
 export interface PackingItem {
   id: string;
   name: string;
   qty: number;
   packed: boolean;
-  category: PackingCategory;
+  category: string;
 }
 
-const CATEGORIES: PackingCategory[] = [
-  'Essentials',
+const BUILTIN_CATEGORIES = [
   'Clothing',
+  'Essentials',
   'Toiletries',
   'Electronics',
   'Documents',
 ];
 
-const CATEGORY_COLORS: Record<
-  PackingCategory,
-  { bg: string; text: string; border: string }
-> = {
-  Essentials: { bg: '#fffbeb', text: '#b45309', border: '#fde68a' },
-  Clothing: { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
-  Toiletries: { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0' },
-  Electronics: { bg: '#faf5ff', text: '#7e22ce', border: '#e9d5ff' },
-  Documents: { bg: '#fff1f2', text: '#be123c', border: '#fecdd3' },
-};
+export interface PredefinedCategory {
+  name: string;
+  icon: React.ElementType;
+  defaultItems: { name: string; qty: number }[];
+}
+
+const PREDEFINED_CATEGORIES: PredefinedCategory[] = [
+  {
+    name: 'Baby',
+    icon: Baby,
+    defaultItems: [
+      { name: 'Diapers & Changing Mat', qty: 10 },
+      { name: 'Baby Wipes & Rash Cream', qty: 1 },
+      { name: 'Baby Bottles & Formula / Milk', qty: 3 },
+      { name: 'Pacifiers & Clips', qty: 2 },
+      { name: 'Extra Onesies & Outfits', qty: 5 },
+      { name: 'Baby Blanket / Swaddle', qty: 2 },
+      { name: 'Stroller / Baby Carrier', qty: 1 },
+    ],
+  },
+  {
+    name: 'Beach',
+    icon: Palmtree,
+    defaultItems: [
+      { name: 'Beach Towel', qty: 2 },
+      { name: 'Swimsuit / Trunks', qty: 2 },
+      { name: 'Sunscreen SPF 50+', qty: 1 },
+      { name: 'Sunglasses & Sun Hat', qty: 1 },
+      { name: 'Flip Flops / Water Shoes', qty: 1 },
+      { name: 'Waterproof Phone Pouch', qty: 1 },
+      { name: 'Snorkel & Mask', qty: 1 },
+    ],
+  },
+  {
+    name: 'Business',
+    icon: Briefcase,
+    defaultItems: [
+      { name: 'Business Suit / Blazer', qty: 2 },
+      { name: 'Dress Shirts / Blouses', qty: 3 },
+      { name: 'Formal Shoes & Belt', qty: 1 },
+      { name: 'Laptop & Charger', qty: 1 },
+      { name: 'Business Cards & Pen', qty: 1 },
+      { name: 'Portfolio / Notebook', qty: 1 },
+    ],
+  },
+  {
+    name: 'Camping',
+    icon: Tent,
+    defaultItems: [
+      { name: 'Tent & Ground Stakes', qty: 1 },
+      { name: 'Sleeping Bag & Sleeping Pad', qty: 1 },
+      { name: 'Headlamp / Flashlight & Extra Batteries', qty: 1 },
+      { name: 'Portable Camp Stove & Fuel', qty: 1 },
+      { name: 'Multi-tool / Pocket Knife', qty: 1 },
+      { name: 'Insect Repellent & Matches', qty: 1 },
+    ],
+  },
+  {
+    name: 'Carry-on',
+    icon: Luggage,
+    defaultItems: [
+      { name: 'Travel Neck Pillow', qty: 1 },
+      { name: 'Noise-Cancelling Headphones', qty: 1 },
+      { name: 'Eye Mask & Earplugs', qty: 1 },
+      { name: 'Disinfecting Surface Wipes', qty: 1 },
+      { name: 'TSA Liquid Toiletries (<100ml)', qty: 1 },
+      { name: 'Change of Clothes (Spare)', qty: 1 },
+    ],
+  },
+  {
+    name: 'Crossfit',
+    icon: Activity,
+    defaultItems: [
+      { name: 'Crossfit / Training Shoes', qty: 1 },
+      { name: 'Gym Grips & Wrist Wraps', qty: 1 },
+      { name: 'Speed Jump Rope', qty: 1 },
+      { name: 'Knee Sleeves', qty: 1 },
+      { name: 'Shaker Bottle & Supplements', qty: 1 },
+      { name: 'Moisture-Wicking Athletic Tops', qty: 3 },
+    ],
+  },
+  {
+    name: 'Cycling',
+    icon: Bike,
+    defaultItems: [
+      { name: 'Cycling Helmet', qty: 1 },
+      { name: 'Cycling Jersey & Padded Bibs', qty: 2 },
+      { name: 'Bike Water Bottles & Electrolytes', qty: 2 },
+      { name: 'Mini Hand Pump & Spare Inner Tube', qty: 1 },
+      { name: 'Bike Multi-tool & Tire Levers', qty: 1 },
+      { name: 'Cycling Gloves & Sunglasses', qty: 1 },
+    ],
+  },
+  {
+    name: 'Electronics',
+    icon: Smartphone,
+    defaultItems: [
+      { name: 'Smartphone & Heavy-duty Cable', qty: 1 },
+      { name: 'High-Capacity Power Bank', qty: 1 },
+      { name: 'Universal Travel Power Adapter', qty: 1 },
+      { name: 'Wireless Headphones / Earbuds', qty: 1 },
+      { name: 'Laptop / Tablet & Charger', qty: 1 },
+    ],
+  },
+  {
+    name: 'Fancy Dinner',
+    icon: Wine,
+    defaultItems: [
+      { name: 'Cocktail Dress / Formal Suit', qty: 1 },
+      { name: 'Dress Shoes / High Heels', qty: 1 },
+      { name: 'Fine Jewelry / Luxury Watch', qty: 1 },
+      { name: 'Perfume / Cologne (Travel Size)', qty: 1 },
+      { name: 'Clutch / Evening Handbag', qty: 1 },
+    ],
+  },
+  {
+    name: 'Food',
+    icon: Utensils,
+    defaultItems: [
+      { name: 'Reusable Travel Cutlery & Straw', qty: 1 },
+      { name: 'Collapsible Food Containers', qty: 2 },
+      { name: 'Healthy Travel Snacks / Protein Bars', qty: 5 },
+      { name: 'Insulated Thermal Lunch Bag', qty: 1 },
+      { name: 'Ziploc Bags & Wet Wipes', qty: 1 },
+    ],
+  },
+  {
+    name: 'Gym',
+    icon: Dumbbell,
+    defaultItems: [
+      { name: 'Workout Tops & Shorts', qty: 3 },
+      { name: 'Training Sneakers & Athletic Socks', qty: 1 },
+      { name: 'Microfiber Gym Towel', qty: 1 },
+      { name: 'Stainless Water Bottle', qty: 1 },
+      { name: 'Locker Combination Padlock', qty: 1 },
+    ],
+  },
+  {
+    name: 'Hiking',
+    icon: Mountain,
+    defaultItems: [
+      { name: 'Hiking Boots / Trail Runners', qty: 1 },
+      { name: 'Merino Wool Hiking Socks', qty: 3 },
+      { name: 'Trekking Poles', qty: 1 },
+      { name: 'Hydration Bladder / Canteen (2L)', qty: 1 },
+      { name: 'Waterproof Rain Shell / Poncho', qty: 1 },
+      { name: 'Trail First-Aid Kit & Whistle', qty: 1 },
+    ],
+  },
+  {
+    name: 'Kitesurfing',
+    icon: Wind,
+    defaultItems: [
+      { name: 'Kite & Control Bar', qty: 1 },
+      { name: 'TwinTip or Surf Board', qty: 1 },
+      { name: 'Waist / Seat Harness', qty: 1 },
+      { name: 'Wetsuit & Impact Vest', qty: 1 },
+      { name: 'Kite Pump with Pressure Gauge', qty: 1 },
+      { name: 'Water-resistant Mineral Sunscreen', qty: 1 },
+    ],
+  },
+  {
+    name: 'Make-up',
+    icon: Sparkles,
+    defaultItems: [
+      { name: 'Foundation, Concealer & Powder', qty: 1 },
+      { name: 'Eyeshadow Palette & Mascara', qty: 1 },
+      { name: 'Lipstick & Lip Glosses', qty: 2 },
+      { name: 'Make-up Brushes & Beauty Blender', qty: 1 },
+      { name: 'Micellar Water / Make-up Wipes', qty: 1 },
+      { name: 'Compact LED Mirror', qty: 1 },
+    ],
+  },
+  {
+    name: 'Motorcycling',
+    icon: Compass,
+    defaultItems: [
+      { name: 'DOT/ECE Certified Helmet', qty: 1 },
+      { name: 'Armored Riding Jacket & Pants', qty: 1 },
+      { name: 'Reinforced Riding Boots & Gloves', qty: 1 },
+      { name: 'Waterproof Rain Over-Suit', qty: 1 },
+      { name: 'Motorcycle Phone Mount & USB Cable', qty: 1 },
+      { name: 'Tire Pressure Gauge & Patch Kit', qty: 1 },
+    ],
+  },
+  {
+    name: 'Music Festival',
+    icon: Music,
+    defaultItems: [
+      { name: 'Festival Outfits & Costumes', qty: 2 },
+      { name: 'High-Fidelity Earplugs (Musicians)', qty: 1 },
+      { name: 'Fanny Pack / Anti-theft Crossbody', qty: 1 },
+      { name: 'Hydration Backpack', qty: 1 },
+      { name: 'Body Glitter & Face Gems', qty: 1 },
+      { name: 'Bandana / Dust Mask & Sunglasses', qty: 1 },
+    ],
+  },
+  {
+    name: 'Photography',
+    icon: Camera,
+    defaultItems: [
+      { name: 'DSLR / Mirrorless Camera Body', qty: 1 },
+      { name: 'Prime / Zoom Lenses', qty: 2 },
+      { name: 'Extra Rechargeable Batteries & Charger', qty: 2 },
+      { name: 'High-Speed SD Cards & Case', qty: 2 },
+      { name: 'Compact Carbon Fiber Tripod', qty: 1 },
+      { name: 'Lens Blower & Microfiber Cloths', qty: 1 },
+    ],
+  },
+  {
+    name: 'Running',
+    icon: Footprints,
+    defaultItems: [
+      { name: 'Running Shoes & Anti-Blister Socks', qty: 2 },
+      { name: 'Lightweight Running Tops & Shorts', qty: 3 },
+      { name: 'GPS Running Watch & Heart Rate Strap', qty: 1 },
+      { name: 'Running Waist Belt / Handheld Bottle', qty: 1 },
+      { name: 'Anti-Chafing Balm', qty: 1 },
+    ],
+  },
+  {
+    name: 'Swimming',
+    icon: Waves,
+    defaultItems: [
+      { name: 'Competition / Lap Swimsuit', qty: 2 },
+      { name: 'Anti-Fog Swimming Goggles', qty: 1 },
+      { name: 'Silicone Swim Cap', qty: 1 },
+      { name: 'Quick-Dry Microfiber Towel', qty: 1 },
+      { name: 'Waterproof Dry Bag', qty: 1 },
+      { name: 'Earplugs & Nose Clip', qty: 1 },
+    ],
+  },
+  {
+    name: 'Winter Sports',
+    icon: Snowflake,
+    defaultItems: [
+      { name: 'Waterproof Ski / Snowboard Jacket & Pants', qty: 1 },
+      { name: 'Thermal Base Layer Tops & Bottoms', qty: 2 },
+      { name: 'Ski Goggles & Helmet', qty: 1 },
+      { name: 'Insulated Waterproof Gloves / Mittens', qty: 1 },
+      { name: 'Balaclava / Neck Gaiter', qty: 1 },
+      { name: 'Merino Wool Ski Socks', qty: 2 },
+      { name: 'Hand & Toe Warmers', qty: 4 },
+    ],
+  },
+];
+
+function getCategoryIcon(cat: string): React.ElementType {
+  switch (cat.toLowerCase()) {
+    case 'clothing':
+      return Shirt;
+    case 'essentials':
+      return Briefcase;
+    case 'toiletries':
+      return Sparkles;
+    case 'electronics':
+      return Smartphone;
+    case 'documents':
+      return FileText;
+    case 'baby':
+      return Baby;
+    case 'beach':
+      return Palmtree;
+    case 'business':
+      return Briefcase;
+    case 'camping':
+      return Tent;
+    case 'carry-on':
+      return Luggage;
+    case 'crossfit':
+      return Activity;
+    case 'cycling':
+      return Bike;
+    case 'fancy dinner':
+      return Wine;
+    case 'food':
+      return Utensils;
+    case 'gym':
+      return Dumbbell;
+    case 'hiking':
+      return Mountain;
+    case 'kitesurfing':
+      return Wind;
+    case 'make-up':
+      return Sparkles;
+    case 'motorcycling':
+      return Compass;
+    case 'music festival':
+      return Music;
+    case 'photography':
+      return Camera;
+    case 'running':
+      return Footprints;
+    case 'swimming':
+      return Waves;
+    case 'winter sports':
+      return Snowflake;
+    default:
+      return Layers;
+  }
+}
 
 function generateDefaultItems(nights: number): PackingItem[] {
   const safeNights = Math.max(1, nights || 3);
   return [
-    // Essentials
-    {
-      id: 'item-1',
-      name: 'Passport / Government ID',
-      qty: 1,
-      packed: false,
-      category: 'Essentials',
-    },
-    {
-      id: 'item-2',
-      name: 'Cash & Credit / Debit Cards',
-      qty: 1,
-      packed: false,
-      category: 'Essentials',
-    },
-    {
-      id: 'item-3',
-      name: 'Daypack or Travel Backpack',
-      qty: 1,
-      packed: false,
-      category: 'Essentials',
-    },
-    {
-      id: 'item-4',
-      name: 'Reusable Water Bottle',
-      qty: 1,
-      packed: false,
-      category: 'Essentials',
-    },
-
     // Clothing
+    { id: 'c-1', name: 'Belt(s)', qty: 1, packed: false, category: 'Clothing' },
+    { id: 'c-2', name: 'Boots', qty: 1, packed: false, category: 'Clothing' },
     {
-      id: 'item-5',
+      id: 'c-3',
+      name: 'Bra(s)',
+      qty: Math.max(2, safeNights),
+      packed: false,
+      category: 'Clothing',
+    },
+    { id: 'c-4', name: 'Dress', qty: 2, packed: false, category: 'Clothing' },
+    { id: 'c-5', name: 'Flip Flops', qty: 1, packed: false, category: 'Clothing' },
+    { id: 'c-6', name: 'Hat', qty: 1, packed: false, category: 'Clothing' },
+    { id: 'c-7', name: 'Heels', qty: 1, packed: false, category: 'Clothing' },
+    { id: 'c-8', name: 'Hoodie', qty: 1, packed: false, category: 'Clothing' },
+    { id: 'c-9', name: 'Jacket', qty: 1, packed: false, category: 'Clothing' },
+    { id: 'c-10', name: 'Jeans', qty: 2, packed: false, category: 'Clothing' },
+    { id: 'c-11', name: 'Pants', qty: 2, packed: false, category: 'Clothing' },
+    {
+      id: 'c-12',
       name: 'T-Shirts / Casual Tops',
       qty: safeNights,
       packed: false,
       category: 'Clothing',
     },
     {
-      id: 'item-6',
+      id: 'c-13',
       name: 'Underwear & Socks',
       qty: safeNights + 1,
       packed: false,
       category: 'Clothing',
     },
     {
-      id: 'item-7',
-      name: 'Shorts / Lightweight Pants',
-      qty: Math.max(2, Math.floor(safeNights / 2)),
+      id: 'c-14',
+      name: 'Sleepwear / Pajamas',
+      qty: 2,
       packed: false,
       category: 'Clothing',
     },
+    { id: 'c-15', name: 'Swimwear', qty: 1, packed: false, category: 'Clothing' },
+    { id: 'c-16', name: 'Walking Shoes', qty: 1, packed: false, category: 'Clothing' },
+
+    // Essentials
     {
-      id: 'item-8',
-      name: 'Sleepwear / Loungewear',
-      qty: Math.max(1, Math.floor(safeNights / 3)),
-      packed: false,
-      category: 'Clothing',
-    },
-    {
-      id: 'item-9',
-      name: 'Comfortable Walking Shoes',
+      id: 'e-1',
+      name: 'Passport / Government ID',
       qty: 1,
       packed: false,
-      category: 'Clothing',
+      category: 'Essentials',
     },
     {
-      id: 'item-10',
-      name: 'Light Windbreaker or Jacket',
+      id: 'e-2',
+      name: 'Cash & Credit / Debit Cards',
       qty: 1,
       packed: false,
-      category: 'Clothing',
+      category: 'Essentials',
+    },
+    {
+      id: 'e-3',
+      name: 'Daypack or Travel Backpack',
+      qty: 1,
+      packed: false,
+      category: 'Essentials',
+    },
+    {
+      id: 'e-4',
+      name: 'Reusable Water Bottle',
+      qty: 1,
+      packed: false,
+      category: 'Essentials',
+    },
+    {
+      id: 'e-5',
+      name: 'House & Luggage Keys',
+      qty: 1,
+      packed: false,
+      category: 'Essentials',
+    },
+    {
+      id: 'e-6',
+      name: 'Emergency Contacts & Copies',
+      qty: 1,
+      packed: false,
+      category: 'Essentials',
     },
 
     // Toiletries
     {
-      id: 'item-11',
+      id: 't-1',
       name: 'Toothbrush & Travel Toothpaste',
       qty: 1,
       packed: false,
       category: 'Toiletries',
     },
     {
-      id: 'item-12',
+      id: 't-2',
       name: 'Shampoo & Body Soap',
       qty: 1,
       packed: false,
       category: 'Toiletries',
     },
-    { id: 'item-13', name: 'Deodorant', qty: 1, packed: false, category: 'Toiletries' },
+    { id: 't-3', name: 'Deodorant', qty: 1, packed: false, category: 'Toiletries' },
     {
-      id: 'item-14',
+      id: 't-4',
       name: 'Sunscreen & Lip Balm',
+      qty: 1,
+      packed: false,
+      category: 'Toiletries',
+    },
+    {
+      id: 't-5',
+      name: 'Hairbrush & Styling Essentials',
+      qty: 1,
+      packed: false,
+      category: 'Toiletries',
+    },
+    {
+      id: 't-6',
+      name: 'Hand Sanitizer & Wet Wipes',
+      qty: 1,
+      packed: false,
+      category: 'Toiletries',
+    },
+    {
+      id: 't-7',
+      name: 'Personal Medication & First Aid',
       qty: 1,
       packed: false,
       category: 'Toiletries',
@@ -151,28 +494,28 @@ function generateDefaultItems(nights: number): PackingItem[] {
 
     // Electronics
     {
-      id: 'item-15',
+      id: 'el-1',
       name: 'Smartphone & Charging Cable',
       qty: 1,
       packed: false,
       category: 'Electronics',
     },
     {
-      id: 'item-16',
+      id: 'el-2',
       name: 'High-Capacity Power Bank',
       qty: 1,
       packed: false,
       category: 'Electronics',
     },
     {
-      id: 'item-17',
+      id: 'el-3',
       name: 'Universal Travel Adapter Plug',
       qty: 1,
       packed: false,
       category: 'Electronics',
     },
     {
-      id: 'item-18',
+      id: 'el-4',
       name: 'Earphones / Headphones',
       qty: 1,
       packed: false,
@@ -181,22 +524,29 @@ function generateDefaultItems(nights: number): PackingItem[] {
 
     // Documents
     {
-      id: 'item-19',
+      id: 'd-1',
       name: 'Flight Boarding Passes / E-Tickets',
       qty: 1,
       packed: false,
       category: 'Documents',
     },
     {
-      id: 'item-20',
+      id: 'd-2',
       name: 'Hotel & Tour Booking Vouchers',
       qty: 1,
       packed: false,
       category: 'Documents',
     },
     {
-      id: 'item-21',
-      name: 'First Aid Kit & Personal Medication',
+      id: 'd-3',
+      name: 'Travel Insurance Documents',
+      qty: 1,
+      packed: false,
+      category: 'Documents',
+    },
+    {
+      id: 'd-4',
+      name: 'Driver’s License / International Permit',
       qty: 1,
       packed: false,
       category: 'Documents',
@@ -206,160 +556,252 @@ function generateDefaultItems(nights: number): PackingItem[] {
 
 export default function TripPacking() {
   const { tripId } = useParams<{ tripId: string }>();
-  const navigate = useNavigate();
+  const outlet = useOutletContext<TripWorkspaceOutletContext | undefined>();
+  const cachedTrip = outlet?.trip || (tripId ? getCachedTrip(tripId) : null);
 
-  const [trip, setTrip] = useState<Trip | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [trip, setTrip] = useState<Trip | null>(() => cachedTrip);
+  const [loading, setLoading] = useState(() => !cachedTrip);
 
-  const [activeCategory, setActiveCategory] = useState<PackingCategory | 'All'>('All');
-  const [statusFilter, setStatusFilter] = useState<'All' | 'Packed' | 'Unpacked'>('All');
+  const [activeCategory, setActiveCategory] = useState<string>('Clothing');
+  const [customCategories, setCustomCategories] = useState<string[]>(() => {
+    if (!tripId) return [];
+    try {
+      const stored = localStorage.getItem(`lakbye_packing_custom_cats_${tripId}`);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
 
-  const [items, setItems] = useState<PackingItem[]>([]);
+  const [items, setItems] = useState<PackingItem[]>(() => {
+    if (!tripId) return [];
+    try {
+      const stored = localStorage.getItem(`lakbye_packing_items_${tripId}`);
+      if (stored) return JSON.parse(stored);
+      if (cachedTrip) return generateDefaultItems(cachedTrip.nights || 3);
+    } catch {
+      /* ignore */
+    }
+    return cachedTrip ? generateDefaultItems(cachedTrip.nights || 3) : [];
+  });
+
+  // Add Item / Category inputs
   const [newItemName, setNewItemName] = useState('');
-  const [newItemQty, setNewItemQty] = useState(1);
-  const [newItemCategory, setNewItemCategory] = useState<PackingCategory>('Essentials');
+  const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false);
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
 
+  // Export State
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isExportSuccess, setIsExportSuccess] = useState(false);
 
-  // Storage key scoped to this trip
-  const storageKey = `lakbye_packing_${tripId}`;
+  const storageKey = `lakbye_packing_items_${tripId}`;
+  const customCatKey = `lakbye_packing_custom_cats_${tripId}`;
 
-  // Load trip and persistent packing items
+  // 1. Fetch Trip Data
   useEffect(() => {
     if (!tripId) return;
-
     let cancelled = false;
 
-    const loadData = async () => {
-      setLoading(true);
+    const fetchTrip = async () => {
+      if (!cachedTrip) {
+        setLoading(true);
+      }
       try {
         const apiTrip = await tripsApi.getTrip(tripId);
         if (cancelled) return;
-
         const merged = mergeTripWithExtras(apiTrip);
+        setCachedTrip(tripId, merged);
         setTrip(merged);
+        if (outlet?.setTrip) outlet.setTrip(merged);
 
-        // Load cached items or generate defaults
-        const raw = localStorage.getItem(storageKey);
-        if (raw) {
+        // Load custom categories
+        const storedCats = localStorage.getItem(customCatKey);
+        if (storedCats) {
           try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setItems(parsed);
-              setLoading(false);
-              return;
-            }
+            setCustomCategories(JSON.parse(storedCats));
           } catch {
-            // fall back to generation
+            setCustomCategories([]);
           }
         }
 
-        const defaults = generateDefaultItems(merged.nights || 3);
-        setItems(defaults);
-        localStorage.setItem(storageKey, JSON.stringify(defaults));
+        // Load or initialize packing items
+        const storedItems = localStorage.getItem(storageKey);
+        if (storedItems) {
+          try {
+            setItems(JSON.parse(storedItems));
+          } catch {
+            setItems(generateDefaultItems(merged.nights || 3));
+          }
+        } else {
+          const defaults = generateDefaultItems(merged.nights || 3);
+          setItems(defaults);
+          localStorage.setItem(storageKey, JSON.stringify(defaults));
+        }
       } catch (err) {
-        console.error('Failed to load trip for packing list:', err);
+        if (!cancelled) {
+          console.error('Failed to fetch trip for packing:', err);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
 
-    loadData();
-
+    fetchTrip();
     return () => {
       cancelled = true;
     };
-  }, [tripId, storageKey]);
+  }, [tripId, storageKey, customCatKey, cachedTrip, outlet]);
 
-  // Persist items on change
-  const saveItems = (updated: PackingItem[]) => {
+  const allCategories = useMemo(() => {
+    return [...BUILTIN_CATEGORIES, ...customCategories];
+  }, [customCategories]);
+
+  // Persist items
+  const persistItems = (updated: PackingItem[]) => {
     setItems(updated);
-    try {
+    if (tripId) {
       localStorage.setItem(storageKey, JSON.stringify(updated));
-    } catch (err) {
-      console.warn('Failed to persist packing items:', err);
     }
   };
 
-  const togglePacked = (id: string) => {
-    saveItems(
-      items.map((item) => (item.id === id ? { ...item, packed: !item.packed } : item)),
-    );
+  // Toggle item packed status
+  const handleToggleItem = (id: string) => {
+    const updated = items.map((i) => (i.id === id ? { ...i, packed: !i.packed } : i));
+    persistItems(updated);
   };
 
-  const updateQty = (id: string, delta: number) => {
-    saveItems(
-      items.map((item) =>
-        item.id === id ? { ...item, qty: Math.max(1, item.qty + delta) } : item,
-      ),
-    );
+  // Update item quantity
+  const handleUpdateQty = (id: string, delta: number) => {
+    const updated = items.map((i) => {
+      if (i.id === id) {
+        const newQty = Math.max(1, i.qty + delta);
+        return { ...i, qty: newQty };
+      }
+      return i;
+    });
+    persistItems(updated);
   };
 
-  const deleteItem = (id: string) => {
-    saveItems(items.filter((item) => item.id !== id));
+  // Delete item
+  const handleDeleteItem = (id: string) => {
+    const updated = items.filter((i) => i.id !== id);
+    persistItems(updated);
   };
 
+  // Add Item
   const handleAddItem = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newItemName.trim()) return;
-
-    const targetCategory = activeCategory === 'All' ? newItemCategory : activeCategory;
+    const cleanName = newItemName.trim();
+    if (!cleanName) return;
 
     const newItem: PackingItem = {
-      id: `custom-${Date.now()}`,
-      name: newItemName.trim(),
-      qty: Math.max(1, newItemQty),
+      id: `item-${Date.now()}`,
+      name: cleanName,
+      qty: 1,
       packed: false,
-      category: targetCategory,
+      category: activeCategory,
     };
 
-    saveItems([...items, newItem]);
+    const updated = [...items, newItem];
+    persistItems(updated);
     setNewItemName('');
-    setNewItemQty(1);
   };
 
-  const handleResetDefaults = () => {
+  // Select Predefined Category from Modal
+  const handleSelectPredefinedCategory = (cat: PredefinedCategory) => {
+    if (!allCategories.includes(cat.name)) {
+      const updatedCats = [...customCategories, cat.name];
+      setCustomCategories(updatedCats);
+      if (tripId) {
+        localStorage.setItem(customCatKey, JSON.stringify(updatedCats));
+      }
+
+      // Add default items for this category
+      const newItems: PackingItem[] = cat.defaultItems.map((item, idx) => ({
+        id: `${cat.name.toLowerCase().replace(/[^a-z0-9]/g, '')}-${Date.now()}-${idx}`,
+        name: item.name,
+        qty: item.qty,
+        packed: false,
+        category: cat.name,
+      }));
+
+      const updatedItems = [...items, ...newItems];
+      persistItems(updatedItems);
+    }
+
+    setActiveCategory(cat.name);
+    setNewCategoryName('');
+    setShowCustomInput(false);
+    setIsAddCategoryModalOpen(false);
+  };
+
+  // Add Custom Category / List
+  const handleCreateCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanCat = newCategoryName.trim();
+    if (!cleanCat) return;
+
+    if (!allCategories.includes(cleanCat)) {
+      const updatedCats = [...customCategories, cleanCat];
+      setCustomCategories(updatedCats);
+      if (tripId) {
+        localStorage.setItem(customCatKey, JSON.stringify(updatedCats));
+      }
+    }
+    setActiveCategory(cleanCat);
+    setNewCategoryName('');
+    setShowCustomInput(false);
+    setIsAddCategoryModalOpen(false);
+  };
+
+  // Delete Custom Category
+  const handleDeleteCategory = (catToDelete: string) => {
     if (
-      window.confirm(
-        'Reset packing checklist to smart recommendations? Any custom items will be replaced.',
+      !window.confirm(
+        `Are you sure you want to delete the list "${catToDelete}" and all its items?`,
       )
     ) {
-      const defaults = generateDefaultItems(trip?.nights || 3);
-      saveItems(defaults);
+      return;
     }
+    const updatedCats = customCategories.filter((c) => c !== catToDelete);
+    setCustomCategories(updatedCats);
+    if (tripId) {
+      localStorage.setItem(customCatKey, JSON.stringify(updatedCats));
+    }
+    const updatedItems = items.filter((i) => i.category !== catToDelete);
+    persistItems(updatedItems);
+    setActiveCategory(BUILTIN_CATEGORIES[0]);
   };
 
-  // Filtered Items
-  const filteredItems = useMemo(() => {
-    return items.filter((item) => {
-      if (activeCategory !== 'All' && item.category !== activeCategory) return false;
-      if (statusFilter === 'Packed' && !item.packed) return false;
-      if (statusFilter === 'Unpacked' && item.packed) return false;
-      return true;
-    });
-  }, [items, activeCategory, statusFilter]);
+  // Reset category items to defaults
+  const handleResetCategory = () => {
+    if (!window.confirm(`Reset "${activeCategory}" to recommended items?`)) return;
+    const defaults = generateDefaultItems(trip?.nights || 3).filter(
+      (i) => i.category === activeCategory,
+    );
+    const otherItems = items.filter((i) => i.category !== activeCategory);
+    const updated = [...otherItems, ...defaults];
+    persistItems(updated);
+  };
 
-  // Overall Statistics
+  // Progress Calculations
   const totalItemsCount = items.length;
   const packedItemsCount = items.filter((i) => i.packed).length;
-  const progressPercent =
+  const overallProgress =
     totalItemsCount > 0 ? Math.round((packedItemsCount / totalItemsCount) * 100) : 0;
 
-  // Category counts
-  const categoryStats = useMemo(() => {
-    const stats: Record<string, { total: number; packed: number }> = {};
-    CATEGORIES.forEach((cat) => {
-      const catItems = items.filter((i) => i.category === cat);
-      stats[cat] = {
-        total: catItems.length,
-        packed: catItems.filter((i) => i.packed).length,
-      };
-    });
-    return stats;
-  }, [items]);
+  const categoryItems = useMemo(() => {
+    return items.filter((i) => i.category === activeCategory);
+  }, [items, activeCategory]);
 
-  // Client-Side PDF Export using jsPDF and jspdf-autotable
+  const categoryPackedCount = categoryItems.filter((i) => i.packed).length;
+  const categoryProgress =
+    categoryItems.length > 0
+      ? Math.round((categoryPackedCount / categoryItems.length) * 100)
+      : 0;
+
+  // PDF Export Function
   const handleExportPdf = () => {
     if (!trip) return;
     setIsExportingPdf(true);
@@ -371,15 +813,14 @@ export default function TripPacking() {
         format: 'a4',
       });
 
-      const primaryColor: [number, number, number] = [234, 88, 12]; // Brand Amber / Orange
-      const darkColor: [number, number, number] = [15, 23, 42]; // Slate 900
-      const lightGray: [number, number, number] = [248, 250, 252]; // Slate 50
+      const primaryColor: [number, number, number] = [197, 40, 61]; // #c5283d
+      const darkColor: [number, number, number] = [15, 23, 42];
 
-      // 1. Top Decorative Brand Banner
+      // Top brand bar
       doc.setFillColor(...primaryColor);
       doc.rect(0, 0, 210, 8, 'F');
 
-      // 2. Header Title
+      // Title
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(22);
       doc.setTextColor(...darkColor);
@@ -389,563 +830,470 @@ export default function TripPacking() {
       doc.setTextColor(...primaryColor);
       doc.text('Packing Checklist & Inventory', 15, 30);
 
-      // Tagline
-      doc.setFont('helvetica', 'italic');
-      doc.setFontSize(10);
-      doc.setTextColor(100, 116, 139);
-      doc.text('Saan aabot ang LakBye mo?', 15, 36);
-
-      // 3. Trip Details Box
-      doc.setFillColor(...lightGray);
-      doc.setDrawColor(226, 232, 240);
-      doc.roundedRect(15, 42, 180, 32, 3, 3, 'FD');
-
+      // Trip details
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
       doc.setTextColor(...darkColor);
-      doc.text(`Trip: ${trip.name}`, 20, 50);
+      doc.text(`Trip: ${trip.name}`, 15, 42);
 
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9.5);
+      doc.setFontSize(10);
       doc.setTextColor(71, 85, 105);
-
-      const locationStr =
-        trip.countries && trip.countries.length > 0
-          ? trip.countries.join(', ')
-          : 'Philippines';
-      doc.text(`Destination: ${locationStr}`, 20, 57);
-
       const datesStr =
         trip.startDate && trip.endDate
           ? `${formatTripDateRange(trip.startDate, trip.endDate)} (${trip.nights || 0} nights)`
           : `${trip.nights || 0} nights planned`;
-      doc.text(`Travel Dates: ${datesStr}`, 20, 64);
-
-      // Progress Summary in Box Right
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.setTextColor(...primaryColor);
+      doc.text(`Travel Dates: ${datesStr}`, 15, 48);
       doc.text(
-        `Status: ${packedItemsCount} of ${totalItemsCount} Packed (${progressPercent}%)`,
-        120,
-        50,
+        `Progress: ${packedItemsCount} of ${totalItemsCount} Packed (${overallProgress}%)`,
+        15,
+        54,
       );
 
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.setTextColor(100, 116, 139);
-      doc.text(
-        `Generated on: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}`,
-        120,
-        57,
-      );
-      doc.text('Track your baggage checklist before departure', 120, 64);
-
-      // 4. Categorized Items Table
+      // Table of items
       const tableRows = items.map((item, idx) => [
         (idx + 1).toString(),
         item.category,
         item.name,
         `${item.qty}x`,
-        item.packed ? '[ X ] Packed' : '[   ] To Pack',
+        item.packed ? '[X] Packed' : '[ ] Unpacked',
       ]);
 
       autoTable(doc, {
-        startY: 80,
-        head: [['#', 'Category', 'Item Name', 'Qty', 'Packing Status']],
+        startY: 60,
+        head: [['#', 'Category', 'Item Name', 'Qty', 'Status']],
         body: tableRows,
         theme: 'striped',
         headStyles: {
           fillColor: primaryColor,
           textColor: [255, 255, 255],
           fontStyle: 'bold',
-          fontSize: 9.5,
-          halign: 'left',
-        },
-        bodyStyles: {
           fontSize: 9,
-          textColor: [30, 41, 59],
         },
-        columnStyles: {
-          0: { cellWidth: 10, halign: 'center' },
-          1: { cellWidth: 35, fontStyle: 'bold' },
-          2: { cellWidth: 80 },
-          3: { cellWidth: 18, halign: 'center' },
-          4: { cellWidth: 37, fontStyle: 'bold' },
+        styles: {
+          font: 'helvetica',
+          fontSize: 8.5,
+          cellPadding: 3,
         },
-        didParseCell: (data) => {
-          if (data.section === 'body' && data.column.index === 4) {
-            const rawVal = String(data.cell.raw);
-            if (rawVal.includes('Packed')) {
-              data.cell.styles.textColor = [22, 101, 52]; // Dark green
-            } else {
-              data.cell.styles.textColor = [194, 65, 12]; // Orange / Needs pack
-            }
-          }
-        },
-        margin: { left: 15, right: 15 },
       });
 
-      // 5. Printable Footer Note
-      const pageCount = (
-        doc as unknown as { internal: { getNumberOfPages: () => number } }
-      ).internal.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.setTextColor(148, 163, 184);
-        doc.text(
-          `LakBye Travel Planner • Page ${i} of ${pageCount} • Have a safe and memorable journey!`,
-          105,
-          290,
-          { align: 'center' },
-        );
-      }
-
-      // 6. Trigger Download
       const safeFilename = `${trip.name.replace(/[^a-zA-Z0-9_-]/g, '_')}_Packing_List.pdf`;
       doc.save(safeFilename);
-
       setIsExportSuccess(true);
       setTimeout(() => setIsExportSuccess(false), 3000);
     } catch (err) {
       console.error('Failed to generate packing PDF:', err);
-      alert('Unable to export packing PDF. Please try again.');
     } finally {
       setIsExportingPdf(false);
     }
   };
 
-  if (loading) {
+  if (loading && !trip) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3 text-stone-500">
-        <Package className="w-10 h-10 animate-bounce text-amber-500" />
-        <p className="text-sm font-semibold">Loading packing checklist...</p>
+      <div className="workspace-page packing-workspace-page">
+        <div
+          className="workspace-main-card"
+          style={{ padding: '40px', textAlign: 'center' }}
+        >
+          Loading packing checklist...
+        </div>
       </div>
     );
   }
 
   if (!trip) {
     return (
-      <div className="max-w-4xl mx-auto p-8 text-center">
-        <h2 className="text-xl font-bold text-stone-800 mb-2">Trip Not Found</h2>
-        <p className="text-stone-500 text-sm mb-4">
-          The requested trip could not be loaded.
-        </p>
-        <Link to="/dashboard" className="btn-lakbye-gradient text-xs py-2 px-4">
-          Return to Dashboard
-        </Link>
+      <div
+        className="workspace-page"
+        style={{ justifyContent: 'center', alignItems: 'center', display: 'flex' }}
+      >
+        <div className="dashboard-empty-state">
+          <h3 className="dashboard-empty-title">Trip Not Found</h3>
+          <p className="dashboard-empty-text">The requested trip could not be loaded.</p>
+          <Link to="/dashboard" className="btn-create-trip dashboard-btn-create">
+            Back to Dashboard
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-4 md:p-8 animate-fade-in-up">
-      {/* Top Header & Breadcrumb Toolbar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <button
-              type="button"
-              onClick={() => navigate(`/trip/${tripId}`)}
-              className="text-stone-500 hover:text-stone-900 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
-            >
-              <ArrowLeft size={14} /> Back to Itinerary
-            </button>
-            <span className="text-stone-300">•</span>
-            <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">
-              Packing Checklist
-            </span>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-stone-900 tracking-tight">
-            {trip.name}
-          </h1>
-          <p className="text-xs text-stone-500 mt-0.5">
-            {trip.startDate && trip.endDate
-              ? `${formatTripDateRange(trip.startDate, trip.endDate)} • `
-              : ''}
-            {trip.nights || 0} nights planned • Smart Baggage Tracker
-          </p>
+    <div className="workspace-page packing-workspace-page">
+      {/* Workspace Header matching Planner & Budget pages */}
+      <header className="workspace-header-card animate-slide-up">
+        <div className="flex items-center gap-2.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
+          <h1 className="workspace-trip-title">{trip.name}</h1>
         </div>
 
-        {/* Toolbar Action Buttons */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <button
-            type="button"
-            onClick={handleResetDefaults}
-            title="Reset to recommended packing list"
-            className="px-3 py-2 rounded-xl bg-white border border-stone-200 text-stone-600 hover:text-stone-900 hover:border-stone-300 text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
-          >
-            <RotateCcw size={14} />
-            <span className="hidden sm:inline">Reset Smart List</span>
-          </button>
+        <div className="workspace-header-actions">
+          <div className="workspace-pill-date">
+            {formatTripDateRange(trip.startDate, trip.endDate)}
+          </div>
 
           <button
             type="button"
             onClick={handleExportPdf}
-            disabled={isExportingPdf}
-            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs transition-all cursor-pointer ${
-              isExportSuccess
-                ? 'bg-emerald-600 text-white'
-                : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white'
-            }`}
+            className="workspace-share-btn"
+            title="Export packing checklist to PDF"
           >
-            {isExportSuccess ? (
-              <>
-                <Check size={15} />
-                <span>Downloaded!</span>
-              </>
-            ) : isExportingPdf ? (
-              <>
-                <Sparkles size={15} className="animate-spin" />
-                <span>Exporting...</span>
-              </>
-            ) : (
-              <>
-                <Download size={15} />
-                <span>Export PDF</span>
-              </>
-            )}
+            {isExportSuccess
+              ? 'Exported!'
+              : isExportingPdf
+                ? 'Exporting...'
+                : 'Export PDF'}
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Overview Stat Cards & Progress Bar */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-            <Package size={20} />
-          </div>
-          <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400 block">
-              Total Items
-            </span>
-            <span className="text-xl font-extrabold text-stone-900">
-              {totalItemsCount}
-            </span>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-            <CheckCircle2 size={20} />
-          </div>
-          <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400 block">
-              Packed
-            </span>
-            <span className="text-xl font-extrabold text-emerald-600">
-              {packedItemsCount}
-            </span>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
-            <Circle size={20} />
-          </div>
-          <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400 block">
-              Remaining
-            </span>
-            <span className="text-xl font-extrabold text-stone-800">
-              {totalItemsCount - packedItemsCount}
-            </span>
-          </div>
-        </div>
-
-        {/* Progress Card */}
-        <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs flex flex-col justify-center">
-          <div className="flex items-center justify-between text-xs font-bold mb-1.5">
-            <span className="text-stone-600">Progress</span>
-            <span className="text-amber-600">{progressPercent}%</span>
-          </div>
-          <div className="w-full h-2.5 bg-stone-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-300"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Main Grid: Category Tabs Sidebar + Checklist Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Categories Navigation (4 cols on lg) */}
-        <div className="lg:col-span-4 bg-white p-4 rounded-2xl border border-stone-200 shadow-xs">
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-stone-400">
-              Categories
-            </h2>
-            <span className="text-[11px] font-semibold text-stone-500">
-              {packedItemsCount}/{totalItemsCount} done
-            </span>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            {/* "All Categories" Tab */}
+      {/* Main Two-Zone Card */}
+      <div className="workspace-main-card packing-main-card animate-slide-up delay-150">
+        {/* Left Zone: Packing Lists / Categories */}
+        <div className="packing-left-zone">
+          <div className="packing-left-header">
+            <h2 className="packing-section-title">Packing list</h2>
             <button
               type="button"
-              onClick={() => setActiveCategory('All')}
-              className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
-                activeCategory === 'All'
-                  ? 'border-amber-500 bg-amber-50/50 shadow-xs'
-                  : 'border-transparent hover:bg-stone-50 text-stone-700'
-              }`}
+              onClick={() => {
+                setShowCustomInput(false);
+                setNewCategoryName('');
+                setIsAddCategoryModalOpen(true);
+              }}
+              className="packing-new-list-btn"
             >
-              <div className="flex items-center gap-2.5">
-                <span className="text-sm font-bold text-stone-900">All Items</span>
-              </div>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-stone-100 text-stone-600">
-                {totalItemsCount}
-              </span>
+              <Plus size={14} /> New list
             </button>
-
-            {/* Individual Category Tabs */}
-            {CATEGORIES.map((cat) => {
-              const stat = categoryStats[cat] || { total: 0, packed: 0 };
-              const isSelected = activeCategory === cat;
-              const isComplete = stat.total > 0 && stat.packed === stat.total;
-
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setActiveCategory(cat)}
-                  className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
-                    isSelected
-                      ? 'border-amber-500 bg-amber-50/50 shadow-xs'
-                      : 'border-transparent hover:bg-stone-50 text-stone-700'
-                  }`}
-                >
-                  <div>
-                    <span className="text-sm font-semibold text-stone-900 block">
-                      {cat}
-                    </span>
-                    <span className="text-[11px] text-stone-400">
-                      {stat.packed} of {stat.total} packed
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    {isComplete && (
-                      <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-bold">
-                        ✓
-                      </span>
-                    )}
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-stone-100 text-stone-600">
-                      {stat.total}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
           </div>
 
-          {/* Quick Filter: All vs Packed vs Unpacked */}
-          <div className="mt-5 pt-4 border-t border-stone-100">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400 block mb-2 px-1">
-              Checklist Filter
-            </span>
-            <div className="grid grid-cols-3 gap-1 bg-stone-100 p-1 rounded-xl">
-              {(['All', 'Unpacked', 'Packed'] as const).map((filter) => (
-                <button
-                  key={filter}
-                  type="button"
-                  onClick={() => setStatusFilter(filter)}
-                  className={`py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                    statusFilter === filter
-                      ? 'bg-white text-stone-900 shadow-xs'
-                      : 'text-stone-500 hover:text-stone-800'
-                  }`}
+          {/* Overall Progress Bar */}
+          <div className="packing-progress-container">
+            <div className="packing-progress-info">
+              <span className="packing-progress-percentage">{overallProgress}%</span>
+            </div>
+            <div className="packing-progress-track">
+              <div
+                className="packing-progress-fill"
+                style={{ width: `${overallProgress}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Categories Grid */}
+          <div className="packing-categories-grid">
+            {allCategories.map((cat) => {
+              const isSelected = activeCategory === cat;
+              const catItems = items.filter((i) => i.category === cat);
+              const packedCatItems = catItems.filter((i) => i.packed);
+              const IconComponent = getCategoryIcon(cat);
+
+              return (
+                <div
+                  key={cat}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setActiveCategory(cat)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setActiveCategory(cat);
+                    }
+                  }}
+                  className={`packing-category-card ${isSelected ? 'active' : ''}`}
                 >
-                  {filter}
-                </button>
-              ))}
+                  <div className="packing-cat-icon-wrap">
+                    <IconComponent size={19} />
+                  </div>
+                  <h3 className="packing-cat-title" title={cat}>
+                    {cat}
+                  </h3>
+                  <span className="packing-cat-count">
+                    {packedCatItems.length} / {catItems.length}
+                  </span>
+                </div>
+              );
+            })}
+
+            {/* Add a list Card */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                setShowCustomInput(false);
+                setNewCategoryName('');
+                setIsAddCategoryModalOpen(true);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setShowCustomInput(false);
+                  setNewCategoryName('');
+                  setIsAddCategoryModalOpen(true);
+                }
+              }}
+              className="packing-category-card packing-category-card--add"
+            >
+              <div className="packing-cat-icon-wrap packing-cat-icon-wrap--add">
+                <Plus size={18} />
+              </div>
+              <h3 className="packing-cat-title">New list</h3>
+              <span className="packing-cat-subtext">Add a list</span>
             </div>
           </div>
         </div>
 
-        {/* Right Column: Items List & Add Form (8 cols on lg) */}
-        <div className="lg:col-span-8 bg-white p-5 md:p-6 rounded-2xl border border-stone-200 shadow-xs">
-          {/* Header of Active List */}
-          <div className="flex items-center justify-between border-b border-stone-100 pb-4 mb-4">
+        {/* Divider */}
+        <div className="workspace-vertical-divider"></div>
+
+        {/* Right Zone: Items Checklist */}
+        <div className="packing-right-zone">
+          <div className="packing-right-header">
             <div>
-              <h2 className="text-lg font-bold text-stone-900">
-                {activeCategory === 'All' ? 'All Packing Items' : activeCategory}
-              </h2>
-              <p className="text-xs text-stone-400 mt-0.5">
-                Showing {filteredItems.length}{' '}
-                {filteredItems.length === 1 ? 'item' : 'items'}
-                {statusFilter !== 'All' ? ` (${statusFilter})` : ''}
-              </p>
+              <h2 className="packing-right-title">{activeCategory}</h2>
+              <span className="packing-right-subtitle">
+                {categoryPackedCount} of {categoryItems.length} packed
+              </span>
             </div>
 
-            <div className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-              {filteredItems.filter((i) => i.packed).length} / {filteredItems.length}{' '}
-              packed
-            </div>
-          </div>
-
-          {/* Items Checklist Rows */}
-          <div className="space-y-2 mb-6 max-h-[460px] overflow-y-auto pr-1 no-scrollbar">
-            {filteredItems.length === 0 ? (
-              <div className="py-12 flex flex-col items-center justify-center text-center text-stone-400 gap-2">
-                <Package size={36} className="text-stone-300" />
-                <p className="text-sm font-medium">No items match your filter.</p>
-                <p className="text-xs text-stone-400">
-                  Add a new item below or change your selected category.
-                </p>
-              </div>
-            ) : (
-              filteredItems.map((item) => {
-                const colors =
-                  CATEGORY_COLORS[item.category] || CATEGORY_COLORS.Essentials;
-
-                return (
-                  <div
-                    key={item.id}
-                    className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
-                      item.packed
-                        ? 'bg-stone-50/60 border-stone-200/80 opacity-75'
-                        : 'bg-white border-stone-200 hover:border-amber-300 shadow-xs'
-                    }`}
-                  >
-                    {/* Left: Checkbox + Name + Category badge */}
-                    <button
-                      type="button"
-                      className="flex items-center gap-3.5 min-w-0 cursor-pointer select-none text-left bg-transparent border-0 p-0 focus:outline-none"
-                      onClick={() => togglePacked(item.id)}
-                    >
-                      <span
-                        className={`w-5 h-5 rounded-md flex items-center justify-center transition-all shrink-0 ${
-                          item.packed
-                            ? 'bg-emerald-500 text-white shadow-xs'
-                            : 'border-2 border-stone-300 hover:border-amber-500 bg-white'
-                        }`}
-                        aria-hidden="true"
-                      >
-                        {item.packed && <Check size={13} strokeWidth={3} />}
-                      </span>
-
-                      <div className="min-w-0">
-                        <span
-                          className={`text-sm font-semibold block truncate ${
-                            item.packed ? 'line-through text-stone-400' : 'text-stone-800'
-                          }`}
-                        >
-                          {item.name}
-                        </span>
-                        {activeCategory === 'All' && (
-                          <span
-                            className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded-md border mt-0.5"
-                            style={{
-                              backgroundColor: colors.bg,
-                              color: colors.text,
-                              borderColor: colors.border,
-                            }}
-                          >
-                            {item.category}
-                          </span>
-                        )}
-                      </div>
-                    </button>
-
-                    {/* Right: Quantity modifiers + Delete */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      <div className="flex items-center gap-1 bg-stone-100 rounded-lg p-0.5 border border-stone-200">
-                        <button
-                          type="button"
-                          onClick={() => updateQty(item.id, -1)}
-                          className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-stone-600 hover:bg-white transition-colors cursor-pointer"
-                          aria-label="Decrease quantity"
-                        >
-                          -
-                        </button>
-                        <span className="w-6 text-center text-xs font-extrabold text-stone-800">
-                          {item.qty}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => updateQty(item.id, 1)}
-                          className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-stone-600 hover:bg-white transition-colors cursor-pointer"
-                          aria-label="Increase quantity"
-                        >
-                          +
-                        </button>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => deleteItem(item.id)}
-                        className="p-1.5 text-stone-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50 cursor-pointer"
-                        title="Delete item"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {/* Add Item Form */}
-          <form
-            onSubmit={handleAddItem}
-            className="p-3 bg-stone-50 rounded-2xl border border-stone-200 flex flex-col sm:flex-row items-center gap-2.5"
-          >
-            <input
-              type="text"
-              required
-              value={newItemName}
-              onChange={(e) => setNewItemName(e.target.value)}
-              placeholder={`Add an item to ${activeCategory === 'All' ? newItemCategory : activeCategory}...`}
-              className="flex-1 w-full px-3.5 py-2 text-xs bg-white border border-stone-200 rounded-xl focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 shadow-xs"
-            />
-
-            {/* Category dropdown if on "All" */}
-            {activeCategory === 'All' && (
-              <select
-                value={newItemCategory}
-                onChange={(e) => setNewItemCategory(e.target.value as PackingCategory)}
-                className="w-full sm:w-auto px-2.5 py-2 text-xs font-semibold bg-white border border-stone-200 rounded-xl text-stone-700 cursor-pointer"
-                aria-label="Item Category"
+            <div className="packing-right-actions">
+              <button
+                type="button"
+                onClick={handleResetCategory}
+                className="packing-icon-btn"
+                title="Reset recommended items in this category"
+                aria-label="Reset items"
               >
-                {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            )}
+                <RotateCcw size={15} />
+              </button>
 
-            {/* Quantity */}
-            <div className="flex items-center gap-1 shrink-0">
-              <span className="text-[11px] font-semibold text-stone-500">Qty:</span>
-              <input
-                type="number"
-                min="1"
-                max="99"
-                value={newItemQty}
-                onChange={(e) =>
-                  setNewItemQty(Math.max(1, parseInt(e.target.value, 10) || 1))
-                }
-                className="w-14 px-2 py-2 text-xs text-center font-bold bg-white border border-stone-200 rounded-xl"
+              {!BUILTIN_CATEGORIES.includes(activeCategory) && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteCategory(activeCategory)}
+                  className="packing-icon-btn packing-icon-btn--danger"
+                  title="Delete this custom list"
+                  aria-label="Delete list"
+                >
+                  <Trash2 size={15} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Category Progress Bar */}
+          <div className="packing-progress-container">
+            <div className="packing-progress-info">
+              <span className="packing-progress-percentage">{categoryProgress}%</span>
+            </div>
+            <div className="packing-progress-track">
+              <div
+                className="packing-progress-fill"
+                style={{ width: `${categoryProgress}%` }}
               />
             </div>
+          </div>
 
-            <button
-              type="submit"
-              className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer shrink-0"
-            >
-              <Plus size={14} />
-              <span>Add Item</span>
-            </button>
+          {/* Items Checklist List */}
+          <div className="packing-items-scroll-area">
+            {categoryItems.map((item) => (
+              <div
+                key={item.id}
+                role="button"
+                tabIndex={0}
+                className={`packing-item-row ${item.packed ? 'packed' : ''}`}
+                onClick={() => handleToggleItem(item.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleToggleItem(item.id);
+                  }
+                }}
+              >
+                <div className="packing-item-checkbox">
+                  {item.packed ? (
+                    <CheckCircle2 size={19} className="text-emerald-600 shrink-0" />
+                  ) : (
+                    <Circle size={19} className="text-slate-300 shrink-0" />
+                  )}
+                </div>
+
+                <span className="packing-item-name">{item.name}</span>
+
+                <span className="packing-item-qty-badge">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUpdateQty(item.id, -1);
+                    }}
+                    className="packing-qty-stepper-btn"
+                    title="Decrease quantity"
+                  >
+                    -
+                  </button>
+                  <span>{item.qty}x</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUpdateQty(item.id, 1);
+                    }}
+                    className="packing-qty-stepper-btn"
+                    title="Increase quantity"
+                  >
+                    +
+                  </button>
+                </span>
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteItem(item.id);
+                  }}
+                  className="packing-item-delete-btn"
+                  title="Delete item"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+
+            {categoryItems.length === 0 && (
+              <div className="packing-empty-state">
+                <p>No items in {activeCategory} yet. Add one below!</p>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Add Item Input */}
+          <form onSubmit={handleAddItem} className="packing-add-item-form">
+            <Plus size={16} className="packing-add-item-icon" />
+            <input
+              type="text"
+              value={newItemName}
+              onChange={(e) => setNewItemName(e.target.value)}
+              placeholder={`Add item to ${activeCategory}...`}
+              className="packing-add-item-input"
+            />
+            {newItemName.trim() && (
+              <button type="submit" className="workspace-add-btn">
+                Add +
+              </button>
+            )}
           </form>
         </div>
       </div>
+
+      {/* Select Categories / Create New List Modal */}
+      {isAddCategoryModalOpen && (
+        <div
+          className="packing-modal-overlay animate-fade-in"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="select-categories-title"
+        >
+          <div
+            className="packing-modal-backdrop"
+            onClick={() => setIsAddCategoryModalOpen(false)}
+            aria-hidden="true"
+          />
+
+          <div className="packing-category-modal-card animate-slide-up">
+            {/* Modal Header */}
+            <div className="packing-cat-modal-header">
+              <h3 id="select-categories-title" className="packing-cat-modal-title">
+                Select categories
+              </h3>
+
+              <div className="packing-cat-modal-header-actions">
+                <button
+                  type="button"
+                  onClick={() => setShowCustomInput((prev) => !prev)}
+                  className="packing-create-custom-btn"
+                >
+                  <Plus size={15} />
+                  <span>Create custom list</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsAddCategoryModalOpen(false)}
+                  className="packing-cat-modal-close-btn"
+                  aria-label="Close modal"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Inline Custom List Form (when toggled) */}
+            {showCustomInput && (
+              <form
+                onSubmit={handleCreateCategory}
+                className="packing-custom-list-inline-form animate-fade-in"
+              >
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="Enter custom list name (e.g. Scuba Diving)..."
+                  className="packing-custom-list-input"
+                />
+                <button
+                  type="submit"
+                  disabled={!newCategoryName.trim()}
+                  className="packing-custom-list-submit-btn"
+                >
+                  Create
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCustomInput(false);
+                    setNewCategoryName('');
+                  }}
+                  className="packing-custom-list-cancel-btn"
+                >
+                  Cancel
+                </button>
+              </form>
+            )}
+
+            {/* Predefined Categories 2-Column Grid matching reference image */}
+            <div className="packing-predefined-grid">
+              {PREDEFINED_CATEGORIES.map((cat) => {
+                const isAdded = allCategories.includes(cat.name);
+                const IconComp = cat.icon;
+
+                return (
+                  <button
+                    key={cat.name}
+                    type="button"
+                    onClick={() => handleSelectPredefinedCategory(cat)}
+                    className={`packing-predefined-item ${isAdded ? 'is-added' : ''}`}
+                  >
+                    <div className="packing-predefined-left">
+                      <IconComp size={18} className="packing-predefined-icon" />
+                      <span className="packing-predefined-name">{cat.name}</span>
+                    </div>
+
+                    <div className="packing-predefined-action">
+                      {isAdded ? (
+                        <span className="packing-predefined-badge added">
+                          <Check size={12} /> added
+                        </span>
+                      ) : (
+                        <span className="packing-predefined-badge select">select</span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

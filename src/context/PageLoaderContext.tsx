@@ -33,6 +33,15 @@ function isDashboardPath(path: string): boolean {
   return path === '/dashboard' || path.startsWith('/dashboard/');
 }
 
+/**
+ * Helper to determine if two paths belong to the same trip workspace.
+ */
+function isSameTripWorkspace(prev: string, curr: string): boolean {
+  const prevMatch = prev.match(/^\/trip\/([^/]+)/);
+  const currMatch = curr.match(/^\/trip\/([^/]+)/);
+  return Boolean(prevMatch && currMatch && prevMatch[1] === currMatch[1]);
+}
+
 export function PageLoaderProvider({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const prevPathRef = useRef<string | null>(null);
@@ -55,7 +64,6 @@ export function PageLoaderProvider({ children }: { children: React.ReactNode }) 
       if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
       setFadingOut(false);
       setLoading(true);
-
       timerRef.current = setTimeout(() => {
         hide();
       }, minDurationMs);
@@ -107,9 +115,12 @@ export function PageLoaderProvider({ children }: { children: React.ReactNode }) 
     // Check if switching between two dashboard pages
     const isInternalDashboard = isDashboardPath(prevPath) && isDashboardPath(currentPath);
 
-    // If switching between dashboard pages, bypass loader (instant transition)
+    // Check if switching between pages inside the same trip workspace
+    const isInternalTripWorkspace = isSameTripWorkspace(prevPath, currentPath);
+
+    // If switching within dashboard or within trip workspace, bypass loader (instant transition)
     // Otherwise, show spinning earth transition loader
-    if (!isInternalDashboard) {
+    if (!isInternalDashboard && !isInternalTripWorkspace) {
       show(550);
     }
   }, [location.pathname, show]);

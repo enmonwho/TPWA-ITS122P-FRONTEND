@@ -1,20 +1,54 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import lakbyeLogo from '../assets/lakbye-white-logo.png';
 import sidebarPlanner from '../assets/sidebar-planner.png';
 import sidebarBudget from '../assets/sidebar-budget.png';
 import sidebarSettings from '../assets/sidebar-settings.png';
 import leftArrow from '../assets/left-arrow.png';
-import { Menu, X, Backpack, Download } from 'lucide-react';
-import { ExportItineraryModal } from '../components';
+import { Menu, X, Backpack } from 'lucide-react';
+import { tripsApi } from '../services/api';
+import { mergeTripWithExtras } from '../lib/tripExtras';
+import { getCachedTrip, setCachedTrip } from '../lib/tripCache';
+import type { Trip } from '../types/trip';
+
+export interface TripWorkspaceOutletContext {
+  trip: Trip | null;
+  setTrip: React.Dispatch<React.SetStateAction<Trip | null>>;
+  tripId: string;
+}
 
 export default function TripWorkspaceLayout() {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const match = location.pathname.match(/\/trip\/([^/]+)/);
   const tripId = match ? match[1] : '';
+
+  const [trip, setTrip] = useState<Trip | null>(() => getCachedTrip(tripId));
+
+  useEffect(() => {
+    if (!tripId) return;
+    let cancelled = false;
+
+    const loadTrip = async () => {
+      try {
+        const apiTrip = await tripsApi.getTrip(tripId);
+        if (cancelled) return;
+        const merged = mergeTripWithExtras(apiTrip);
+        setCachedTrip(tripId, merged);
+        setTrip(merged);
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Failed to pre-fetch trip in TripWorkspaceLayout:', err);
+        }
+      }
+    };
+
+    loadTrip();
+    return () => {
+      cancelled = true;
+    };
+  }, [tripId]);
 
   const navItems = [
     { name: 'Planner', path: `/trip/${tripId}`, icon: sidebarPlanner },
@@ -75,13 +109,13 @@ export default function TripWorkspaceLayout() {
               >
                 {IconComponent ? (
                   <IconComponent
-                    size={22}
+                    size={20}
                     color={
                       isActive
                         ? 'var(--color-brand-red)'
                         : 'var(--color-dash-sidebar-text)'
                     }
-                    style={{ marginRight: '16px' }}
+                    className="workspace-nav-icon shrink-0"
                   />
                 ) : (
                   <img
@@ -96,17 +130,6 @@ export default function TripWorkspaceLayout() {
           })}
         </nav>
 
-        {/* Export PDF Button Docked at Bottom (#8) */}
-        <div style={{ marginTop: 'auto', padding: '0 24px', marginBottom: '24px' }}>
-          <button
-            type="button"
-            onClick={() => setIsExportModalOpen(true)}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-amber-50 text-amber-700 font-semibold rounded-xl border border-amber-200 hover:bg-amber-100 transition-colors cursor-pointer"
-          >
-            <Download size={16} /> Export PDF
-          </button>
-        </div>
-
         <div className="workspace-sidebar-bottom-divider"></div>
 
         <div className="workspace-logo-container">
@@ -117,14 +140,10 @@ export default function TripWorkspaceLayout() {
       </aside>
 
       <main className="workspace-main-content">
-        <Outlet />
+        <Outlet
+          context={{ trip, setTrip, tripId } satisfies TripWorkspaceOutletContext}
+        />
       </main>
-
-      <ExportItineraryModal
-        isOpen={isExportModalOpen}
-        onClose={() => setIsExportModalOpen(false)}
-        tripId={tripId}
-      />
     </div>
   );
 }
