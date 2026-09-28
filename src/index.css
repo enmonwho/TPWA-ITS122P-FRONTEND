@@ -5691,7 +5691,9 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
-  right: 0;
+  min-width: 380px;
+  width: max(100%, 380px);
+  max-width: min(520px, calc(100vw - 32px));
   background-color: #ffffff;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
@@ -5700,6 +5702,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
     0 8px 10px -6px rgba(0, 0, 0, 0.04);
   max-height: 270px;
   overflow-y: auto;
+  overflow-x: hidden;
   z-index: 100;
   padding: 6px;
 }
@@ -5708,6 +5711,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   padding: 9px 14px;
   border-radius: 8px;
   cursor: pointer;
@@ -5761,6 +5765,8 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   font-weight: 500;
   color: var(--color-brand-red, #c5283d);
   opacity: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: opacity var(--transition-fast);
 }
 
@@ -6997,10 +7003,9 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 /* Packing Table & Controls (Normalizing to Budget System) */
 .packing-table-header {
   display: grid;
-  grid-template-columns: 64px minmax(160px, 2fr) minmax(120px, 1.2fr) minmax(
-      130px,
-      1fr
-    ) 50px;
+  grid-template-columns:
+    64px minmax(160px, 2fr) minmax(120px, 1.2fr) minmax(130px, 1fr)
+    50px;
   align-items: center;
   width: 100%;
   padding: 0 16px;
@@ -7014,10 +7019,9 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 .packing-table-row {
   position: relative;
   display: grid;
-  grid-template-columns: 64px minmax(160px, 2fr) minmax(120px, 1.2fr) minmax(
-      130px,
-      1fr
-    ) 50px;
+  grid-template-columns:
+    64px minmax(160px, 2fr) minmax(120px, 1.2fr) minmax(130px, 1fr)
+    50px;
   align-items: center;
   width: 100%;
   padding: 14px 16px;

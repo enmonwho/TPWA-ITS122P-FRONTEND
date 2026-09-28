@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useOutletContext } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { Trash2, X, CirclePlus } from 'lucide-react';
@@ -154,9 +154,28 @@ export function Budget() {
   const [expenseCost, setExpenseCost] = useState('');
   const [expenseDestination, setExpenseDestination] = useState<string>('Entire Trip');
   const [expenseError, setExpenseError] = useState<string>('');
-  const [availableDestinations, setAvailableDestinations] = useState<
+  const availableDestinations = useMemo<
     { id: string; name: string; country?: string }[]
-  >([]);
+  >(() => {
+    if (!tripId) return [];
+    void isAddExpenseOpen;
+    try {
+      const stored = localStorage.getItem(`lakbye_workspace_dests_${tripId}`);
+      if (stored) {
+        const dests = JSON.parse(stored);
+        if (Array.isArray(dests)) {
+          return dests.map((d: { id: string; name: string; country?: string }) => ({
+            id: d.id,
+            name: d.name,
+            country: d.country,
+          }));
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  }, [tripId, isAddExpenseOpen]);
   const [balanceInput, setBalanceInput] = useState('');
 
   const addItemRow = () => {
@@ -175,70 +194,64 @@ export function Budget() {
     );
   };
 
-  // Load destinations from Planner for this trip
-  useEffect(() => {
-    if (!tripId) return;
-    try {
-      const stored = localStorage.getItem(`lakbye_workspace_dests_${tripId}`);
-      if (stored) {
-        const dests = JSON.parse(stored);
-        if (Array.isArray(dests)) {
-          setAvailableDestinations(
-            dests.map((d: any) => ({
-              id: d.id,
-              name: d.name,
-              country: d.country,
-            })),
-          );
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }, [tripId]);
-
   useEffect(() => {
     if (!user || !tripId) return;
 
     let cancelled = false;
 
     const fetchData = async () => {
-      try {
-        const apiTrip = await tripsApi.getTrip(tripId);
-        if (!cancelled) {
-          const merged = mergeTripWithExtras(apiTrip);
-          setTrip(merged);
-          setCachedTrip(tripId, merged);
-          if (outlet?.setTrip) outlet.setTrip(merged);
-        }
-      } catch {
-        /* ignore error */
-      }
+      // Concurrently fetch trip and budget to eliminate waterfall loading delays
+      const tripPromise = tripsApi
+        .getTrip(tripId)
+        .then((apiTrip) => {
+          if (!cancelled) {
+            const merged = mergeTripWithExtras(apiTrip);
+            setTrip(merged);
+            setCachedTrip(tripId, merged);
+            if (outlet?.setTrip) outlet.setTrip(merged);
+          }
+        })
+        .catch(() => {
+          /* ignore error */
+        });
 
-      try {
-        const budgetData = await budgetApi.getBudget(tripId);
-        if (!cancelled && budgetData) {
-          const loadedBudget: BudgetData = {
-            balance: typeof budgetData.balance === 'number' ? budgetData.balance : 0,
-            expenses: Array.isArray(budgetData.expenses)
-              ? budgetData.expenses.map((e) => ({
-                  id: String(e.id),
-                  name: e.name,
-                  items: Number(e.items) || 1,
-                  category: e.category,
-                  cost: Number(e.cost) || 0,
-                  date: e.date,
-                  destination_id: e.destination_id,
-                  country_name: e.country_name,
-                }))
-              : [],
-          };
-          setBudget(loadedBudget);
-          localStorage.setItem(budgetKey, JSON.stringify(loadedBudget));
-        }
-      } catch {
-        /* ignore error */
-      }
+      const budgetPromise = budgetApi
+        .getBudget(tripId)
+        .then((budgetData) => {
+          if (!cancelled && budgetData) {
+            const loadedBudget: BudgetData = {
+              balance: typeof budgetData.balance === 'number' ? budgetData.balance : 0,
+              expenses: Array.isArray(budgetData.expenses)
+                ? budgetData.expenses.map((e) => ({
+                    id: String(e.id),
+                    name: e.name,
+                    items: Number(e.items) || 1,
+                    category: e.category,
+                    cost: Number(e.cost) || 0,
+                    date: e.date,
+                    destination_id: e.destination_id,
+                    country_name: e.country_name,
+                  }))
+                : [],
+            };
+            setBudget((prev) => {
+              if (
+                prev.balance === loadedBudget.balance &&
+                prev.expenses.length === loadedBudget.expenses.length &&
+                JSON.stringify(prev.expenses) === JSON.stringify(loadedBudget.expenses)
+              ) {
+                return prev;
+              }
+              localStorage.setItem(budgetKey, JSON.stringify(loadedBudget));
+              return loadedBudget;
+            });
+          }
+        })
+        .catch(() => {
+          /* ignore error */
+        });
+
+      await Promise.all([tripPromise, budgetPromise]);
     };
 
     fetchData();
@@ -441,33 +454,54 @@ export function Budget() {
     }
   };
 
-  const categoryTotals = BUDGET_CATEGORIES.map((cat) => {
-    const val = budget.expenses
-      .filter((e) => {
-        const normExp = e.category.toLowerCase().replace(/m+/, 'm');
-        const normCat = cat.name.toLowerCase().replace(/m+/, 'm');
-        return normExp === normCat;
-      })
-      .reduce((sum, e) => sum + Number(e.cost), 0);
+  const categoryTotals = useMemo(() => {
+    return BUDGET_CATEGORIES.map((cat) => {
+      const val = budget.expenses
+        .filter((e) => {
+          const normExp = e.category.toLowerCase().replace(/m+/, 'm');
+          const normCat = cat.name.toLowerCase().replace(/m+/, 'm');
+          return normExp === normCat;
+        })
+        .reduce((sum, e) => sum + Number(e.cost), 0);
 
-    return {
-      name: cat.name,
-      value: convert(val, 'PHP', displayCurrency, fxRates),
-      color: cat.color,
-    };
-  }).filter((c) => c.value > 0);
+      return {
+        name: cat.name,
+        value: convert(val, 'PHP', displayCurrency, fxRates),
+        color: cat.color,
+      };
+    }).filter((c) => c.value > 0);
+  }, [budget.expenses, displayCurrency, fxRates]);
 
-  const totalSpentPhp = budget.expenses.reduce((sum, e) => sum + Number(e.cost), 0);
-  const convertedTotalSpent = convert(totalSpentPhp, 'PHP', displayCurrency, fxRates);
-  const formattedSpent = formatCurrency(convertedTotalSpent, displayCurrency);
+  const totalSpentPhp = useMemo(
+    () => budget.expenses.reduce((sum, e) => sum + Number(e.cost), 0),
+    [budget.expenses],
+  );
 
-  const convertedBalance = convert(budget.balance, 'PHP', displayCurrency, fxRates);
-  const currentSymbol = getCurrencySymbol(displayCurrency);
+  const convertedTotalSpent = useMemo(
+    () => convert(totalSpentPhp, 'PHP', displayCurrency, fxRates),
+    [totalSpentPhp, displayCurrency, fxRates],
+  );
 
-  const chartData =
-    categoryTotals.length > 0
+  const formattedSpent = useMemo(
+    () => formatCurrency(convertedTotalSpent, displayCurrency),
+    [convertedTotalSpent, displayCurrency],
+  );
+
+  const convertedBalance = useMemo(
+    () => convert(budget.balance, 'PHP', displayCurrency, fxRates),
+    [budget.balance, displayCurrency, fxRates],
+  );
+
+  const currentSymbol = useMemo(
+    () => getCurrencySymbol(displayCurrency),
+    [displayCurrency],
+  );
+
+  const chartData = useMemo(() => {
+    return categoryTotals.length > 0
       ? categoryTotals
       : [{ name: 'Empty', value: 1, color: '#E5E5EA' }];
+  }, [categoryTotals]);
 
   const currentTrip = trip || cached;
 
@@ -495,7 +529,7 @@ export function Budget() {
         </div>
       </header>
 
-      <div className="budget-main-card animate-slide-up delay-150">
+      <div className="budget-main-card animate-slide-up">
         <div className="budget-left-zone">
           <div className="budget-left-header">
             <h2 className="budget-title">Budget</h2>
@@ -549,7 +583,6 @@ export function Budget() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  key={`donut-wheel-${budget.expenses.length}-${Math.round(convertedTotalSpent)}-${displayCurrency}`}
                   data={chartData}
                   cx="50%"
                   cy="50%"
@@ -558,9 +591,7 @@ export function Budget() {
                   stroke="none"
                   dataKey="value"
                   isAnimationActive={true}
-                  animationBegin={0}
-                  animationDuration={900}
-                  animationEasing="ease-out"
+                  animationDuration={800}
                   startAngle={90}
                   endAngle={-270}
                 >

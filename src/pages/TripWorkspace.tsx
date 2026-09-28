@@ -1,6 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronRight, ArrowUp, ArrowDown, Plus, X } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronRight,
+  ArrowUp,
+  ArrowDown,
+  Plus,
+  X,
+  MapPin,
+} from 'lucide-react';
 import routeIcon from '../assets/route.png';
 import dayByDayIcon from '../assets/day-by-day.png';
 import magnifierIcon from '../assets/magnifier.png';
@@ -15,6 +23,13 @@ import {
   saveTripExtras,
   formatTripDateRange,
 } from '../lib/tripExtras';
+import {
+  searchDestinations,
+  type DestinationPlace,
+  ACCOMMODATION_OPTIONS,
+  ACTIVITIES_OPTIONS,
+  TRANSPORTATION_OPTIONS,
+} from '../lib/tripAutoFill';
 import axios from 'axios';
 
 export interface WorkspaceDestination {
@@ -61,6 +76,34 @@ export default function TripWorkspace() {
   const [collapsedCountries, setCollapsedCountries] = useState<Record<string, boolean>>(
     {},
   );
+  const [customInputActive, setCustomInputActive] = useState<Record<string, boolean>>({});
+  const [userCustomOptions, setUserCustomOptions] = useState<Record<string, string[]>>({
+    accommodation: [],
+    activities: [],
+    transportation: [],
+  });
+
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  const suggestions = useMemo<DestinationPlace[]>(() => {
+    if (!newDestInput.trim() || newDestInput.trim().length < 1) return [];
+    return searchDestinations(newDestInput.trim(), 8);
+  }, [newDestInput]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(e.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (!user || !tripId) return;
@@ -252,9 +295,85 @@ export default function TripWorkspace() {
     }, 100);
   };
 
+  const handleRemoveCountry = (countryToRemove: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+
+    const itemsInCountry = destinations.filter(
+      (d) => (d.country || 'Philippines') === countryToRemove,
+    );
+
+    if (itemsInCountry.length > 0) {
+      const confirmed = window.confirm(
+        `Are you sure you want to remove "${countryToRemove}" and its ${itemsInCountry.length} destination(s)?`,
+      );
+      if (!confirmed) return;
+    }
+
+    // 1. Remove destinations belonging to this country
+    const updatedDests = destinations.filter(
+      (d) => (d.country || 'Philippines') !== countryToRemove,
+    );
+    setDestinations(updatedDests);
+    persistDestinations(updatedDests);
+
+    // 2. Remove from extraCountries
+    const updatedExtra = extraCountries.filter((c) => c !== countryToRemove);
+    setExtraCountries(updatedExtra);
+    if (tripId) {
+      localStorage.setItem(
+        `lakbye_workspace_countries_${tripId}`,
+        JSON.stringify(updatedExtra),
+      );
+    }
+
+    // 3. Remove from trip.countries
+    const updatedTripCountries = (trip?.countries || []).filter(
+      (c) => c !== countryToRemove,
+    );
+    if (trip) {
+      setTrip({ ...trip, countries: updatedTripCountries });
+    }
+
+    // 4. Save to tripExtras
+    const remaining = Array.from(
+      new Set([
+        ...updatedTripCountries,
+        ...updatedExtra,
+        ...updatedDests.map((d) => d.country || '').filter(Boolean),
+      ]),
+    );
+    if (tripId) {
+      saveTripExtras(tripId, { countries: remaining });
+    }
+
+    // 5. Update selectedCountryForNew if it was the removed one
+    if (selectedCountryForNew === countryToRemove) {
+      setSelectedCountryForNew(remaining[0] || 'Philippines');
+    }
+
+    // 6. Clean up collapsed state
+    setCollapsedCountries((prev) => {
+      const next = { ...prev };
+      delete next[countryToRemove];
+      return next;
+    });
+  };
+
+  const handleSelectSuggestion = (place: DestinationPlace) => {
+    setNewDestInput(place.name);
+    setSelectedCountryForNew(place.country);
+    setExtraCountries((prev) => Array.from(new Set([...prev, place.country])));
+    setShowSuggestions(false);
+    setHighlightedIndex(-1);
+    setCollapsedCountries((prev) => ({ ...prev, [place.country]: false }));
+  };
+
   const handleAddDestination = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDestInput.trim()) return;
+
+    setShowSuggestions(false);
+    setHighlightedIndex(-1);
 
     const name = newDestInput.trim();
     const finalCountry = isAddingNewCountry
@@ -344,6 +463,136 @@ export default function TripWorkspace() {
     next[targetIdx] = temp;
     setDestinations(next);
     persistDestinations(next);
+  };
+
+  const renderFieldSelector = (
+    destId: string,
+    field: 'accommodation' | 'activities' | 'transportation',
+    currentValue: string | undefined,
+    baseOptions: string[],
+    placeholder: string,
+  ) => {
+    const isInputActive = customInputActive[`${destId}-${field}`];
+    const extraOptions = userCustomOptions[field] || [];
+    const allOptions = Array.from(new Set([...baseOptions, ...extraOptions]));
+    const isCustomValue = Boolean(currentValue && !allOptions.includes(currentValue));
+
+    if (isInputActive) {
+      return (
+        <div
+          className="flex items-center gap-1 w-full"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <input
+            type="text"
+            value={currentValue || ''}
+            onChange={(e) => handleUpdateDestination(destId, field, e.target.value)}
+            onBlur={() => {
+              if (currentValue && currentValue.trim()) {
+                const val = currentValue.trim();
+                setUserCustomOptions((prev) => ({
+                  ...prev,
+                  [field]: Array.from(new Set([...(prev[field] || []), val])),
+                }));
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                if (currentValue && currentValue.trim()) {
+                  const val = currentValue.trim();
+                  setUserCustomOptions((prev) => ({
+                    ...prev,
+                    [field]: Array.from(new Set([...(prev[field] || []), val])),
+                  }));
+                }
+                setCustomInputActive((prev) => ({
+                  ...prev,
+                  [`${destId}-${field}`]: false,
+                }));
+              } else if (e.key === 'Escape') {
+                setCustomInputActive((prev) => ({
+                  ...prev,
+                  [`${destId}-${field}`]: false,
+                }));
+              }
+            }}
+            placeholder={`Type custom ${field}...`}
+            className="flex-1 min-w-0 px-2 py-1 text-xs text-slate-800 bg-white border border-amber-400 rounded-md focus:outline-none focus:ring-1 focus:ring-amber-500/30 transition-all shadow-xs"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              if (currentValue && currentValue.trim()) {
+                const val = currentValue.trim();
+                setUserCustomOptions((prev) => ({
+                  ...prev,
+                  [field]: Array.from(new Set([...(prev[field] || []), val])),
+                }));
+              }
+              setCustomInputActive((prev) => ({
+                ...prev,
+                [`${destId}-${field}`]: false,
+              }));
+            }}
+            className="shrink-0 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded border border-slate-200 hover:border-slate-300 transition-colors"
+            title="Switch back to dropdown list"
+            aria-label="Switch back to dropdown list"
+          >
+            <ChevronDown size={13} />
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className="flex items-center gap-1 w-full"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <select
+          value={currentValue || ''}
+          onChange={(e) => {
+            const val = e.target.value;
+            if (val === '__CUSTOM__') {
+              setCustomInputActive((prev) => ({
+                ...prev,
+                [`${destId}-${field}`]: true,
+              }));
+            } else {
+              handleUpdateDestination(destId, field, val);
+            }
+          }}
+          className="flex-1 min-w-0 px-2 py-1 text-xs text-slate-800 bg-white hover:bg-slate-50 border border-slate-200/80 hover:border-slate-300 rounded-md focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500/20 transition-all cursor-pointer truncate shadow-xs font-normal"
+          title={currentValue || placeholder}
+        >
+          <option value="">{currentValue ? '-- Clear / None --' : placeholder}</option>
+          {isCustomValue && <option value={currentValue}>{currentValue} (Custom)</option>}
+          {allOptions.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+          <option value="__CUSTOM__" className="text-amber-700 font-semibold">
+            + Enter custom...
+          </option>
+        </select>
+        <button
+          type="button"
+          onClick={() =>
+            setCustomInputActive((prev) => ({
+              ...prev,
+              [`${destId}-${field}`]: true,
+            }))
+          }
+          className="shrink-0 p-1 text-slate-400 hover:text-amber-700 hover:bg-amber-50 rounded border border-slate-200 hover:border-amber-300 transition-colors"
+          title={`Add or type custom ${field}`}
+          aria-label={`Add or type custom ${field}`}
+        >
+          <Plus size={13} />
+        </button>
+      </div>
+    );
   };
 
   const globeMarkers = destinations
@@ -482,16 +731,17 @@ export default function TripWorkspace() {
         <div>
           <h1 className="workspace-trip-title">{trip.name}</h1>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <span className="text-xs font-semibold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full">
+            <span className="text-xs font-semibold text-stone-600">
               {tripDurationDays} Total {tripDurationDays === 1 ? 'Day' : 'Days'}
             </span>
+            <span className="text-xs text-stone-300">•</span>
             <span
-              className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+              className={`text-xs font-semibold ${
                 totalAllocatedDays === tripDurationDays
-                  ? 'bg-emerald-100 text-emerald-800'
+                  ? 'text-emerald-700'
                   : totalAllocatedDays < tripDurationDays
-                    ? 'bg-amber-100 text-amber-800'
-                    : 'bg-rose-100 text-rose-800'
+                    ? 'text-amber-800'
+                    : 'text-rose-700'
               }`}
             >
               {totalAllocatedDays} of {tripDurationDays} Days Planned
@@ -499,9 +749,14 @@ export default function TripWorkspace() {
                 ? ` (${tripDurationDays - totalAllocatedDays} remaining)`
                 : ''}
             </span>
-            <span className="text-xs text-slate-500">
-              {availableCountries.join(' • ')}
-            </span>
+            {availableCountries.length > 0 && (
+              <>
+                <span className="text-xs text-stone-300">•</span>
+                <span className="text-xs text-slate-500">
+                  {availableCountries.join(' • ')}
+                </span>
+              </>
+            )}
           </div>
         </div>
         <div className="workspace-header-actions">
@@ -584,7 +839,7 @@ export default function TripWorkspace() {
                       key={group.country}
                       className="border-b border-slate-200/80 last:border-b-0"
                     >
-                      {/* Top-Level Country Row (without Add City button) */}
+                      {/* Top-Level Country Row */}
                       <div className="flex items-center justify-between px-3 py-2.5 bg-amber-50/70 hover:bg-amber-100/50 border-t border-amber-200/50 transition-colors">
                         <div
                           className="flex items-center gap-2 cursor-pointer select-none"
@@ -598,10 +853,21 @@ export default function TripWorkspace() {
                           <span className="font-bold text-amber-950 text-sm md:text-base">
                             {group.country}
                           </span>
-                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-200/90 text-amber-900">
-                            {group.totalDays} {group.totalDays === 1 ? 'Day' : 'Days'}
+                          <span className="text-xs font-medium text-amber-800">
+                            ({group.totalDays} {group.totalDays === 1 ? 'day' : 'days'})
                           </span>
                         </div>
+
+                        <button
+                          type="button"
+                          onClick={(e) => handleRemoveCountry(group.country, e)}
+                          className="text-xs text-stone-500 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded transition-colors flex items-center gap-1 cursor-pointer font-medium border border-transparent hover:border-rose-200"
+                          title={`Remove ${group.country} from trip`}
+                          aria-label={`Remove ${group.country}`}
+                        >
+                          <X size={13} />
+                          <span>Remove Country</span>
+                        </button>
                       </div>
 
                       {/* Nested Cities / Destinations Rows */}
@@ -727,60 +993,42 @@ export default function TripWorkspace() {
                                           parseInt(e.target.value) || 1,
                                         )
                                       }
-                                      className={`${inputClasses} w-16 text-center font-bold text-amber-700 bg-amber-50/50 rounded`}
+                                      className={`${inputClasses} w-16 text-center font-bold text-stone-800 bg-slate-100/70 border border-slate-200 rounded`}
                                       title={`Days (Max ${maxDaysForThisDest} based on trip date picker)`}
                                     />
                                   </div>
 
-                                  {/* Accommodation (clean placeholder) */}
+                                  {/* Accommodation Dropdown with Custom Add Button */}
                                   <div className="workspace-col-accommodation">
-                                    <input
-                                      type="text"
-                                      value={dest.accommodation || ''}
-                                      onChange={(e) =>
-                                        handleUpdateDestination(
-                                          dest.id,
-                                          'accommodation',
-                                          e.target.value,
-                                        )
-                                      }
-                                      placeholder="Add hotel / stay"
-                                      className={inputClasses}
-                                    />
+                                    {renderFieldSelector(
+                                      dest.id,
+                                      'accommodation',
+                                      dest.accommodation,
+                                      ACCOMMODATION_OPTIONS,
+                                      'Select accommodation',
+                                    )}
                                   </div>
 
-                                  {/* Activities (clean placeholder) */}
+                                  {/* Activities Dropdown with Custom Add Button */}
                                   <div className="workspace-col-activities">
-                                    <input
-                                      type="text"
-                                      value={dest.activities || ''}
-                                      onChange={(e) =>
-                                        handleUpdateDestination(
-                                          dest.id,
-                                          'activities',
-                                          e.target.value,
-                                        )
-                                      }
-                                      placeholder="Add activities"
-                                      className={inputClasses}
-                                    />
+                                    {renderFieldSelector(
+                                      dest.id,
+                                      'activities',
+                                      dest.activities,
+                                      ACTIVITIES_OPTIONS,
+                                      'Select activity',
+                                    )}
                                   </div>
 
-                                  {/* Transportation (clean placeholder) */}
+                                  {/* Transportation Dropdown with Custom Add Button */}
                                   <div className="workspace-col-transportation">
-                                    <input
-                                      type="text"
-                                      value={dest.transportation || ''}
-                                      onChange={(e) =>
-                                        handleUpdateDestination(
-                                          dest.id,
-                                          'transportation',
-                                          e.target.value,
-                                        )
-                                      }
-                                      placeholder="Add transportation"
-                                      className={inputClasses}
-                                    />
+                                    {renderFieldSelector(
+                                      dest.id,
+                                      'transportation',
+                                      dest.transportation,
+                                      TRANSPORTATION_OPTIONS,
+                                      'Select transportation',
+                                    )}
                                   </div>
 
                                   {/* Actions */}
@@ -809,9 +1057,9 @@ export default function TripWorkspace() {
               {/* Add Destination / City Form with Country Selector */}
               <form
                 onSubmit={handleAddDestination}
-                className="workspace-add-destination-row mt-3 p-2 bg-slate-50 border border-slate-200 rounded-lg flex flex-wrap items-center gap-2"
+                className="workspace-add-destination-row mt-3 p-2 bg-slate-50 border border-slate-200 rounded-lg flex flex-nowrap items-center gap-3 overflow-visible"
               >
-                <div className="flex items-center gap-1.5 pl-2">
+                <div className="flex items-center gap-1.5 pl-2 shrink-0">
                   <span className="text-xs font-semibold text-slate-500">Country:</span>
                   {!isAddingNewCountry ? (
                     <select
@@ -853,7 +1101,10 @@ export default function TripWorkspace() {
                   )}
                 </div>
 
-                <div className="flex-1 flex items-center gap-2 min-w-[200px] border-l border-slate-200 pl-3">
+                <div
+                  ref={searchContainerRef}
+                  className="flex-1 relative flex items-center gap-2 min-w-40 border-l border-slate-200 pl-3"
+                >
                   <img
                     src={magnifierIcon}
                     alt="Search"
@@ -863,18 +1114,89 @@ export default function TripWorkspace() {
                     id="workspace-dest-input"
                     type="text"
                     value={newDestInput}
-                    onChange={(e) => setNewDestInput(e.target.value)}
+                    onChange={(e) => {
+                      setNewDestInput(e.target.value);
+                      setShowSuggestions(true);
+                      setHighlightedIndex(-1);
+                    }}
+                    onFocus={() => {
+                      if (newDestInput.trim()) setShowSuggestions(true);
+                    }}
+                    onKeyDown={(e) => {
+                      if (!showSuggestions || suggestions.length === 0) return;
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setHighlightedIndex((prev) =>
+                          prev < suggestions.length - 1 ? prev + 1 : 0,
+                        );
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setHighlightedIndex((prev) =>
+                          prev > 0 ? prev - 1 : suggestions.length - 1,
+                        );
+                      } else if (e.key === 'Enter') {
+                        if (highlightedIndex >= 0 && suggestions[highlightedIndex]) {
+                          e.preventDefault();
+                          handleSelectSuggestion(suggestions[highlightedIndex]);
+                        }
+                      } else if (e.key === 'Escape') {
+                        setShowSuggestions(false);
+                      }
+                    }}
                     placeholder="Enter city or destination (e.g. Kyoto, Cebu, Paris)..."
                     className="workspace-add-input flex-1 bg-transparent text-sm text-slate-800 outline-none"
+                    autoComplete="off"
                   />
+
+                  {showSuggestions && suggestions.length > 0 && (
+                    <div
+                      className="workspace-dest-dropdown min-w-95 overflow-x-hidden"
+                      role="listbox"
+                    >
+                      {suggestions.map((place, idx) => (
+                        <div
+                          key={`${place.name}-${place.country}`}
+                          role="option"
+                          tabIndex={0}
+                          aria-selected={idx === highlightedIndex}
+                          className={`workspace-dest-option ${idx === highlightedIndex ? 'highlighted' : ''}`}
+                          onMouseEnter={() => setHighlightedIndex(idx)}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleSelectSuggestion(place);
+                          }}
+                          onClick={() => handleSelectSuggestion(place)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              handleSelectSuggestion(place);
+                            }
+                          }}
+                        >
+                          <div className="workspace-dest-option-main">
+                            <div className="workspace-dest-option-icon">
+                              <MapPin size={15} />
+                            </div>
+                            <span className="workspace-dest-option-name">
+                              {place.name}
+                            </span>
+                            <span className="workspace-dest-option-country">
+                              {place.country}
+                            </span>
+                          </div>
+                          <span className="workspace-dest-option-action">Add +</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5 shrink-0 ml-auto">
                   <span
-                    className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                    className={`text-xs font-medium whitespace-nowrap shrink-0 ${
                       tripDurationDays - totalAllocatedDays > 0
-                        ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                        : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        ? 'text-amber-800'
+                        : 'text-emerald-700'
                     }`}
                   >
                     {tripDurationDays - totalAllocatedDays > 0
@@ -888,7 +1210,7 @@ export default function TripWorkspace() {
                       disabled={
                         totalAllocatedDays >= tripDurationDays && destinations.length > 0
                       }
-                      className="workspace-add-btn text-xs font-semibold bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md shadow-sm transition-colors"
+                      className="workspace-add-btn text-xs font-semibold bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md shadow-sm transition-colors whitespace-nowrap shrink-0"
                       title={
                         totalAllocatedDays >= tripDurationDays && destinations.length > 0
                           ? 'All days from date picker are already allocated. Reduce days on existing destinations first.'
@@ -1016,6 +1338,61 @@ export default function TripWorkspace() {
               Add a new country section to your route planner. You can then add cities and
               destinations under it.
             </p>
+
+            {availableCountries.length > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                <span
+                  style={{
+                    display: 'block',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: '#8A7A70',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    marginBottom: '8px',
+                  }}
+                >
+                  Current Countries in this Trip
+                </span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {availableCountries.map((c) => (
+                    <span
+                      key={c}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: '#FEF3C7',
+                        color: '#92400E',
+                        padding: '4px 10px',
+                        borderRadius: '16px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                      }}
+                    >
+                      <span>{c}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCountry(c)}
+                        style={{
+                          border: 'none',
+                          background: 'transparent',
+                          color: '#B45309',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '0',
+                        }}
+                        title={`Remove ${c}`}
+                        aria-label={`Remove ${c}`}
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <form onSubmit={handleAddCountry}>
               <div style={{ marginBottom: '16px' }}>

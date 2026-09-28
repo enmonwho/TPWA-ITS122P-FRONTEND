@@ -714,7 +714,7 @@ export default function TripPacking() {
 
             {/* Helpful 1-click Preset Option if 0 items */}
             {items.length === 0 && (
-              <div className="mt-4 text-center">
+              <div className="mt-8 pt-1 text-center">
                 <button
                   type="button"
                   onClick={handleAddEssentialsPreset}
