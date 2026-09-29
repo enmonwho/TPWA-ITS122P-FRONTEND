@@ -91,11 +91,8 @@ export function Budget() {
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [isAddBalanceOpen, setIsAddBalanceOpen] = useState(false);
 
-  const [displayCurrency, setDisplayCurrency] = useState<string>(() => {
-    if (tripId) {
-      const savedTripCurrency = localStorage.getItem(`lakbye_display_currency_${tripId}`);
-      if (savedTripCurrency) return savedTripCurrency;
-    }
+  const getPreferredCurrency = () => {
+    if (user?.preferences?.currency) return user.preferences.currency;
     if (user?.id) {
       try {
         const prefsRaw = localStorage.getItem(STORAGE_KEYS.USER_PREFERENCES(user.id));
@@ -108,7 +105,49 @@ export function Budget() {
       }
     }
     return 'PHP';
+  };
+
+  const [displayCurrency, setDisplayCurrency] = useState<string>(() => {
+    // If user temporarily chose a currency for this trip in this session, use it; otherwise default to Settings preferred currency
+    if (tripId) {
+      const sessionCurrency = sessionStorage.getItem(`lakbye_display_currency_${tripId}`);
+      if (sessionCurrency) return sessionCurrency;
+    }
+    return getPreferredCurrency();
   });
+
+  // When user preferences change in settings, update the displayed currency (and clear temporary override)
+  useEffect(() => {
+    const prefCurrency = getPreferredCurrency();
+    setDisplayCurrency(prefCurrency);
+    if (tripId) {
+      sessionStorage.removeItem(`lakbye_display_currency_${tripId}`);
+      localStorage.removeItem(`lakbye_display_currency_${tripId}`);
+    }
+  }, [user?.preferences?.currency, tripId]);
+
+  // Listen to live settings update event
+  useEffect(() => {
+    const handlePreferencesChange = (e: CustomEvent<{ currency?: string }>) => {
+      if (e.detail?.currency) {
+        setDisplayCurrency(e.detail.currency);
+        if (tripId) {
+          sessionStorage.removeItem(`lakbye_display_currency_${tripId}`);
+          localStorage.removeItem(`lakbye_display_currency_${tripId}`);
+        }
+      }
+    };
+    window.addEventListener(
+      'lakbye:preferences-updated',
+      handlePreferencesChange as EventListener,
+    );
+    return () => {
+      window.removeEventListener(
+        'lakbye:preferences-updated',
+        handlePreferencesChange as EventListener,
+      );
+    };
+  }, [tripId]);
 
   const [fxRates, setFxRates] = useState<Record<string, number>>({
     PHP: 1,
@@ -137,9 +176,10 @@ export function Budget() {
   }, []);
 
   const handleCurrencyChange = (newCurrency: string) => {
+    // Temporary override in budget page (session only, does not overwrite global settings)
     setDisplayCurrency(newCurrency);
     if (tripId) {
-      localStorage.setItem(`lakbye_display_currency_${tripId}`, newCurrency);
+      sessionStorage.setItem(`lakbye_display_currency_${tripId}`, newCurrency);
     }
   };
 

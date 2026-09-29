@@ -24,6 +24,9 @@ import {
   formatCurrency,
 } from '../lib/currency';
 
+import { useAuth } from '../context/AuthContext';
+import { STORAGE_KEYS } from '../lib/constants';
+
 interface DestinationDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -262,11 +265,55 @@ export default function DestinationDetailModal({
   place,
   onStartTrip,
 }: DestinationDetailModalProps) {
+  const { user } = useAuth();
+
+  const getPreferredCurrency = () => {
+    if (user?.preferences?.currency) return user.preferences.currency;
+    if (user?.id) {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEYS.USER_PREFERENCES(user.id));
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.currency) return parsed.currency;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    return 'PHP';
+  };
+
   const [profile, setProfile] = useState<CountryProfile | null>(null);
   const [loading, setLoading] = useState(false);
-  const [selectedCurrency, setSelectedCurrency] = useState('PHP');
+  const [selectedCurrency, setSelectedCurrency] = useState(getPreferredCurrency);
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({ PHP: 1 });
   const [isRatesLoading, setIsRatesLoading] = useState(false);
+
+  // Whenever modal opens or user preferences change in settings, reflect the preferred currency
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedCurrency(getPreferredCurrency());
+    }
+  }, [isOpen, user?.preferences?.currency]);
+
+  // Listen to cross-tab or direct settings update events
+  useEffect(() => {
+    const handlePreferencesChange = (e: CustomEvent<{ currency?: string }>) => {
+      if (e.detail?.currency) {
+        setSelectedCurrency(e.detail.currency);
+      }
+    };
+    window.addEventListener(
+      'lakbye:preferences-updated',
+      handlePreferencesChange as EventListener,
+    );
+    return () => {
+      window.removeEventListener(
+        'lakbye:preferences-updated',
+        handlePreferencesChange as EventListener,
+      );
+    };
+  }, []);
 
   // Determine target country key
   const countryName = place?.country || place?.name || 'Philippines';
