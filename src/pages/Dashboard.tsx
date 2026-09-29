@@ -705,7 +705,7 @@ export default function Dashboard() {
                                 {displayStatus === 'upcoming' &&
                                   trip.daysUntil !== undefined && (
                                     <span className="trip-badge trip-badge--countdown">
-                                      {trip.daysUntil} day/s
+                                      {trip.daysUntil} days
                                     </span>
                                   )}
                               </div>

@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>LakBye — Systems Report</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, Arial, sans-serif;
+        background: #efe9e3;
+        color: #25211e;
+      }
+      .shell {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 156px 1fr;
+        background: #4b281f;
+      }
+      .sidebar {
+        padding: 28px 13px;
+        color: #fff;
+        position: relative;
+        min-height: 748px;
+      }
+      .logo {
+        font-size: 23px;
+        font-weight: 900;
+        text-align: center;
+        margin-bottom: 35px;
+      }
+      .profile {
+        padding: 15px 24px;
+        border-top: 1px solid #81584e;
+        border-bottom: 1px solid #81584e;
+      }
+      .profile b {
+        font-size: 12px;
+      }
+      .badge {
+        margin-top: 7px;
+        background: #f5d39c;
+        color: #4b281f;
+        padding: 3px 7px;
+        border-radius: 4px;
+        font-size: 9px;
+        font-weight: 800;
+        display: inline-block;
+      }
+      nav {
+        padding: 29px 20px;
+        display: grid;
+        gap: 28px;
+      }
+      .nav {
+        font-size: 11px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        opacity: 0.72;
+      }
+      .nav.active {
+        opacity: 1;
+        font-weight: 800;
+      }
+      .ico {
+        width: 20px;
+        text-align: center;
+        font-size: 17px;
+      }
+      .logout {
+        position: absolute;
+        bottom: 28px;
+        left: 30px;
+        font-size: 11px;
+      }
+      .main {
+        margin: 8px 8px 8px 0;
+        background: #faf8f5;
+        border-radius: 13px;
+        min-width: 0;
+      }
+      .top {
+        height: 83px;
+        padding: 26px 42px 15px 57px;
+        border-bottom: 1px solid #ddd4ce;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .top h1 {
+        font-size: 28px;
+        margin: 0;
+        color: #4a281f;
+      }
+      .actions {
+        display: flex;
+        gap: 10px;
+      }
+      .btn,
+      .select {
+        height: 32px;
+        border: 1px solid #d5c8c1;
+        border-radius: 7px;
+        background: #fff;
+        padding: 0 13px;
+        font-size: 11px;
+        color: #4a281f;
+      }
+      .btn.primary {
+        background: #4a281f;
+        color: #fff;
+        border-color: #4a281f;
+        font-weight: 700;
+      }
+      .content {
+        padding: 19px 22px 17px 40px;
+        display: grid;
+        grid-template-columns: 264px 1fr;
+        gap: 40px;
+      }
+      .kpis {
+        display: grid;
+        gap: 10px;
+      }
+      .kpi {
+        height: 130px;
+        border-radius: 10px;
+        background: #fff;
+        border: 1px solid #e5ddd8;
+        padding: 17px 16px;
+        box-shadow: 0 2px 8px #3d24120b;
+      }
+      .eyebrow {
+        font-size: 9px;
+        font-weight: 800;
+        color: #9c8276;
+        letter-spacing: 0.08em;
+      }
+      .kpi .label {
+        font-size: 13px;
+        margin-top: 2px;
+        color: #4a281f;
+      }
+      .value {
+        font-size: 36px;
+        font-weight: 800;
+        margin-top: 10px;
+        color: #4a281f;
+      }
+      .sub {
+        font-size: 10px;
+        color: #8b7b74;
+        margin-top: 4px;
+      }
+      .up {
+        color: #3d7a54;
+        font-weight: 700;
+      }
+      .reports {
+        display: grid;
+        grid-template-columns: 1fr 0.96fr;
+        grid-template-rows: 247px 167px 169px;
+        gap: 9px 13px;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid #e5ddd8;
+        border-radius: 10px;
+        padding: 15px 16px;
+        overflow: hidden;
+      }
+      .card h3 {
+        margin: 0 0 3px;
+        font-size: 13px;
+        color: #4a281f;
+      }
+      .hint {
+        font-size: 9px;
+        color: #98877e;
+      }
+      .users {
+        grid-column: 1;
+      }
+      .budget {
+        grid-column: 2;
+      }
+      .bookings {
+        grid-column: 1;
+      }
+      .destinations {
+        grid-column: 2;
+        grid-row: 2/4;
+      }
+      .session {
+        grid-column: 1;
+      }
+      .legend {
+        display: flex;
+        gap: 14px;
+        margin: 11px 0;
+        font-size: 9px;
+        color: #746761;
+      }
+      .dot {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        margin-right: 4px;
+      }
+      .d1 {
+        background: #4a281f;
+      }
+      .d2 {
+        background: #aa806f;
+      }
+      .d3 {
+        background: #dcc9bf;
+      }
+      .chart {
+        height: 145px;
+        display: flex;
+        align-items: end;
+        gap: 14px;
+        padding: 8px 8px 18px;
+        border-bottom: 1px solid #eee4de;
+      }
+      .group {
+        flex: 1;
+        display: flex;
+        gap: 3px;
+        align-items: end;
+        height: 100%;
+      }
+      .bar {
+        flex: 1;
+        border-radius: 3px 3px 0 0;
+        background: #4a281f;
+      }
+      .bar:nth-child(2) {
+        background: #aa806f;
+      }
+      .bar:nth-child(3) {
+        background: #dcc9bf;
+      }
+      .linechart {
+        height: 178px;
+        margin-top: 13px;
+        position: relative;
+        background: repeating-linear-gradient(
+          to bottom,
+          transparent 0,
+          transparent 42px,
+          #eee5df 43px
+        );
+      }
+      svg {
+        width: 100%;
+        height: 100%;
+      }
+      .mini-bars {
+        height: 100px;
+        display: flex;
+        align-items: end;
+        gap: 12px;
+        padding: 8px 5px 0;
+      }
+      .mini-bars div {
+        flex: 1;
+        background: #6f4437;
+        border-radius: 4px 4px 0 0;
+      }
+      .metric {
+        font-size: 25px;
+        font-weight: 800;
+        color: #4a281f;
+        margin: 13px 0 3px;
+      }
+      .progress {
+        height: 7px;
+        background: #eee4df;
+        border-radius: 10px;
+        margin-top: 13px;
+      }
+      .progress span {
+        display: block;
+        width: 68%;
+        height: 100%;
+        background: #6f4437;
+        border-radius: 10px;
+      }
+      .dest {
+        margin-top: 12px;
+        display: grid;
+        gap: 11px;
+      }
+      .dest-row {
+        display: grid;
+        grid-template-columns: 22px 1fr 42px;
+        align-items: center;
+        gap: 8px;
+        font-size: 10px;
+      }
+      .rank {
+        width: 21px;
+        height: 21px;
+        background: #f1e7e1;
+        border-radius: 5px;
+        display: grid;
+        place-items: center;
+        font-weight: 800;
+        color: #5a352a;
+      }
+      .track {
+        height: 6px;
+        background: #f0e7e2;
+        border-radius: 5px;
+        margin-top: 4px;
+      }
+      .fill {
+        height: 100%;
+        background: #6f4437;
+        border-radius: 5px;
+      }
+      .num {
+        text-align: right;
+        font-weight: 700;
+        color: #604138;
+      }
+      @media (max-width: 950px) {
+        .shell {
+          grid-template-columns: 1fr;
+        }
+        .sidebar {
+          display: none;
+        }
+        .main {
+          margin: 0;
+          border-radius: 0;
+        }
+        .content {
+          grid-template-columns: 1fr;
+        }
+        .kpis {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .reports {
+          grid-template-columns: 1fr;
+          grid-template-rows: auto;
+        }
+        .users,
+        .budget,
+        .bookings,
+        .destinations,
+        .session {
+          grid-column: 1;
+          grid-row: auto;
+        }
+        .card {
+          min-height: 190px;
+        }
+      }
+    </style>
+    <style>
+      /* Exact visual tokens retrieved from Figma node 605:971 */
+      :root {
+        --figma-bg: #f6f6f6;
+        --figma-surface: #ffffff;
+        --figma-brown: #401c02;
+        --figma-brown-border: #482a13;
+        --figma-text: #454545;
+        --figma-black: #000000;
+        --figma-yellow: #ffc245;
+        --figma-orange: #e9724c;
+        --figma-blue: #255f85;
+        --figma-red: #c5283d;
+        --figma-gray: #7b7b7b;
+        --figma-deep: #2f1b0c;
+      }
+      body {
+        background: var(--figma-bg);
+        color: var(--figma-black);
+        font-family: Poppins, Arial, sans-serif;
+      }
+      .shell {
+        background: var(--figma-bg);
+      }
+      .sidebar {
+        background: var(--figma-bg);
+        color: var(--figma-text);
+      }
+      .logo {
+        color: var(--figma-brown);
+      }
+      .profile {
+        border-color: rgba(64, 28, 2, 0.25);
+        color: var(--figma-black);
+      }
+      .badge {
+        background: linear-gradient(
+          90deg,
+          var(--figma-blue) 0%,
+          var(--figma-orange) 50%,
+          var(--figma-red) 75%,
+          var(--figma-yellow) 100%
+        );
+        color: #fff;
+      }
+      .nav,
+      .logout {
+        font-family: 'SF Pro Rounded', Arial, sans-serif;
+        color: var(--figma-text);
+      }
+      .nav.active {
+        color: var(--figma-yellow);
+      }
+      .main {
+        background: var(--figma-bg);
+        border: 1px solid rgba(47, 27, 12, 0.25);
+      }
+      .top {
+        border-color: rgba(64, 28, 2, 0.25);
+      }
+      .top h1,
+      .card h3,
+      .kpi .label,
+      .value,
+      .metric {
+        color: var(--figma-black);
+      }
+      .btn,
+      .select {
+        border-color: rgba(72, 42, 19, 0.2);
+        color: var(--figma-text);
+        background: #fff;
+      }
+      .btn.primary {
+        background: var(--figma-brown);
+        border-color: var(--figma-brown);
+        color: #fff;
+      }
+      .card {
+        background: #fff;
+        border-color: rgba(72, 42, 19, 0.2);
+      }
+      .kpi {
+        color: #fff;
+        border: 0.5px solid rgba(0, 0, 0, 0.21);
+        box-shadow: none;
+      }
+      .kpi:nth-child(1),
+      .kpi:nth-child(4) {
+        background: linear-gradient(
+          180deg,
+          var(--figma-yellow) 0%,
+          var(--figma-orange) 100%
+        );
+      }
+      .kpi:nth-child(2) {
+        background: var(--figma-orange);
+      }
+      .kpi:nth-child(3) {
+        background: linear-gradient(
+          180deg,
+          var(--figma-orange) 0%,
+          var(--figma-yellow) 100%
+        );
+      }
+      .kpi .eyebrow,
+      .kpi .label,
+      .kpi .value,
+      .kpi .sub,
+      .kpi .up {
+        color: #fff;
+      }
+      .kpi .eyebrow {
+        font-weight: 800;
+      }
+      .kpi .label {
+        font-weight: 600;
+      }
+      .kpi .value {
+        font-weight: 600;
+      }
+      .d1,
+      .bar,
+      .mini-bars div,
+      .progress span,
+      .fill {
+        background: var(--figma-yellow);
+      }
+      .d2,
+      .bar:nth-child(2) {
+        background: var(--figma-orange);
+      }
+      .d3,
+      .bar:nth-child(3) {
+        background: var(--figma-brown);
+      }
+      .linechart polyline {
+        stroke: var(--figma-orange);
+      }
+      .linechart circle {
+        fill: var(--figma-orange);
+      }
+      .rank {
+        background: var(--figma-bg);
+        color: var(--figma-brown);
+      }
+      .track,
+      .progress {
+        background: #d9d9d9;
+      }
+      .num {
+        color: var(--figma-text);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="logo">LakBye</div>
+        <div class="profile">
+          <b>John Mark Dionisio</b><br /><span class="badge">LakBye Admin</span>
+        </div>
+        <nav>
+          <div class="nav active"><span class="ico">▥</span>Systems Report</div>
+          <div class="nav"><span class="ico">♟</span>User Management</div>
+          <div class="nav"><span class="ico">▦</span>Categories & Activities</div>
+          <div class="nav"><span class="ico">▰</span>Master Records</div>
+        </nav>
+        <div class="logout">↪ &nbsp; Log out</div>
+      </aside>
+      <main class="main">
+        <header class="top">
+          <h1>LakBye Systems Report</h1>
+          <div class="actions">
+            <select class="select">
+              <option>Last 30 days</option>
+              <option>Last 3 months</option>
+              <option>This year</option></select
+            ><button class="btn primary" onclick="exportCSV()">
+              ⇩ &nbsp; Export Report
+            </button>
+          </div>
+        </header>
+        <section class="content">
+          <div class="kpis">
+            <div class="kpi">
+              <div class="eyebrow">TOTAL</div>
+              <div class="label">Monthly Bookings</div>
+              <div class="value">1.2K</div>
+              <div class="sub"><span class="up">↑ 8.4%</span> from last month</div>
+            </div>
+            <div class="kpi">
+              <div class="eyebrow">MOST</div>
+              <div class="label">Requested Destination</div>
+              <div class="value" style="font-size: 22px">Disneyland,<br />Hong Kong</div>
+              <div class="sub">184 trip requests this period</div>
+            </div>
+            <div class="kpi">
+              <div class="eyebrow">TOTAL</div>
+              <div class="label">Planned Budgets</div>
+              <div class="value">₱143.3K</div>
+              <div class="sub">Across active trip plans</div>
+            </div>
+            <div class="kpi">
+              <div class="eyebrow">TOTAL</div>
+              <div class="label">Active Users</div>
+              <div class="value">1.1K</div>
+              <div class="sub"><span class="up">↑ 5.1%</span> from last month</div>
+            </div>
+          </div>
+          <div class="reports">
+            <div class="card users">
+              <h3>Users (New, Active, Inactive)</h3>
+              <div class="hint">Monthly user status overview</div>
+              <div class="legend">
+                <span><i class="dot d1"></i>Active</span
+                ><span><i class="dot d2"></i>New</span
+                ><span><i class="dot d3"></i>Inactive</span>
+              </div>
+              <div class="chart">
+                <div class="group">
+                  <i class="bar" style="height: 55%"></i
+                  ><i class="bar" style="height: 25%"></i
+                  ><i class="bar" style="height: 15%"></i>
+                </div>
+                <div class="group">
+                  <i class="bar" style="height: 66%"></i
+                  ><i class="bar" style="height: 31%"></i
+                  ><i class="bar" style="height: 18%"></i>
+                </div>
+                <div class="group">
+                  <i class="bar" style="height: 72%"></i
+                  ><i class="bar" style="height: 34%"></i
+                  ><i class="bar" style="height: 17%"></i>
+                </div>
+                <div class="group">
+                  <i class="bar" style="height: 78%"></i
+                  ><i class="bar" style="height: 38%"></i
+                  ><i class="bar" style="height: 21%"></i>
+                </div>
+                <div class="group">
+                  <i class="bar" style="height: 86%"></i
+                  ><i class="bar" style="height: 42%"></i
+                  ><i class="bar" style="height: 19%"></i>
+                </div>
+              </div>
+            </div>
+            <div class="card budget">
+              <h3>Monthly Planned Budget</h3>
+              <div class="hint">Total planned trip budget by month</div>
+              <div class="linechart">
+                <svg viewBox="0 0 390 170" preserveAspectRatio="none">
+                  <polyline
+                    fill="none"
+                    stroke="#6f4437"
+                    stroke-width="3"
+                    points="5,140 65,112 125,120 185,74 245,88 305,45 385,26"
+                  />
+                  <g fill="#6f4437">
+                    <circle cx="5" cy="140" r="4" />
+                    <circle cx="65" cy="112" r="4" />
+                    <circle cx="125" cy="120" r="4" />
+                    <circle cx="185" cy="74" r="4" />
+                    <circle cx="245" cy="88" r="4" />
+                    <circle cx="305" cy="45" r="4" />
+                    <circle cx="385" cy="26" r="4" />
+                  </g>
+                </svg>
+              </div>
+            </div>
+            <div class="card bookings">
+              <h3>Monthly Bookings</h3>
+              <div class="hint">Bookings created during the selected period</div>
+              <div class="mini-bars">
+                <div style="height: 38%"></div>
+                <div style="height: 52%"></div>
+                <div style="height: 47%"></div>
+                <div style="height: 68%"></div>
+                <div style="height: 83%"></div>
+                <div style="height: 74%"></div>
+                <div style="height: 92%"></div>
+              </div>
+            </div>
+            <div class="card destinations">
+              <h3>Top 5 Most Requested Destinations</h3>
+              <div class="hint">Based on trip requests</div>
+              <div class="dest">
+                <div class="dest-row">
+                  <span class="rank">1</span>
+                  <div>
+                    <b>Disneyland, Hong Kong</b>
+                    <div class="track"><div class="fill" style="width: 100%"></div></div>
+                  </div>
+                  <span class="num">184</span>
+                </div>
+                <div class="dest-row">
+                  <span class="rank">2</span>
+                  <div>
+                    <b>Tokyo, Japan</b>
+                    <div class="track"><div class="fill" style="width: 83%"></div></div>
+                  </div>
+                  <span class="num">153</span>
+                </div>
+                <div class="dest-row">
+                  <span class="rank">3</span>
+                  <div>
+                    <b>Palawan, Philippines</b>
+                    <div class="track"><div class="fill" style="width: 71%"></div></div>
+                  </div>
+                  <span class="num">131</span>
+                </div>
+                <div class="dest-row">
+                  <span class="rank">4</span>
+                  <div>
+                    <b>Seoul, South Korea</b>
+                    <div class="track"><div class="fill" style="width: 60%"></div></div>
+                  </div>
+                  <span class="num">110</span>
+                </div>
+                <div class="dest-row">
+                  <span class="rank">5</span>
+                  <div>
+                    <b>Singapore</b>
+                    <div class="track"><div class="fill" style="width: 49%"></div></div>
+                  </div>
+                  <span class="num">90</span>
+                </div>
+              </div>
+            </div>
+            <div class="card session">
+              <h3>Avg. Session Duration</h3>
+              <div class="hint">Average time users spend in LakBye</div>
+              <div class="metric">08m 42s</div>
+              <div class="sub"><span class="up">↑ 6.2%</span> vs. previous period</div>
+              <div class="progress"><span></span></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script>
+      function exportCSV() {
+        const rows = [
+          ['Metric', 'Value'],
+          ['Monthly Bookings', '1200'],
+          ['Most Requested Destination', 'Disneyland, Hong Kong'],
+          ['Planned Budgets', 'PHP 143300'],
+          ['Active Users', '1100'],
+        ];
+        const csv = rows.map((r) => r.map((x) => `"${x}"`).join(',')).join('\n');
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+        a.download = 'lakbye-system-report.csv';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }
+    </script>
+  </body>
+</html>

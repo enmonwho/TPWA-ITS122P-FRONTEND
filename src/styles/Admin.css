@@ -187,6 +187,445 @@
   margin: 0 -24px 16px -24px;
 }
 
+/* Systems report content */
+/* Period Selector and Trend Indicators */
+.admin-report-select {
+  height: 32px;
+  border: 1px solid rgba(72, 42, 19, 0.2);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0 12px;
+  font-size: 11px;
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-weight: 600;
+  color: #401c02;
+  cursor: pointer;
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+.admin-report-select:hover {
+  border-color: rgba(72, 42, 19, 0.4);
+  background-color: #fbf9f7;
+}
+
+.admin-report-select:focus {
+  border-color: #e9724c;
+  box-shadow: 0 0 0 2px rgba(233, 114, 76, 0.15);
+}
+
+.admin-report-kpi .up {
+  color: #ffffff;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.admin-report-kpi .down {
+  color: #fff1f2;
+  font-weight: 800;
+  background: rgba(197, 40, 61, 0.45);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.report-session-note .up {
+  color: #2e7d32;
+  font-weight: 700;
+}
+
+.report-session-note .down {
+  color: #c5283d;
+  font-weight: 700;
+}
+
+.admin-report-panel {
+  min-height: 0;
+}
+.admin-report-header {
+  flex-shrink: 0;
+}
+.admin-report-header h1 {
+  font-family: 'Poppins', var(--font-sans);
+  color: #401c02;
+}
+.admin-report-export {
+  border-radius: 8px;
+  color: #401c02;
+}
+.admin-report-rule {
+  flex-shrink: 0;
+}
+.admin-report-content {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(205px, 0.78fr) minmax(0, 2.2fr);
+  gap: 20px;
+}
+.admin-report-kpis {
+  display: grid;
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.admin-report-kpi {
+  min-height: 0;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  padding: 14px 16px;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: inset 0 4px 4px rgba(0, 0, 0, 0.25);
+  background: linear-gradient(180deg, #ffc245 0%, #e9724c 100%);
+}
+.admin-report-kpi:nth-child(2) {
+  background: #e9724c;
+}
+.admin-report-kpi:nth-child(3) {
+  background: linear-gradient(180deg, #e9724c 0%, #ffc245 100%);
+}
+.admin-report-kpi:nth-child(4) {
+  background: linear-gradient(180deg, #ffc245 0%, #e9724c 100%);
+}
+.report-eyebrow {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  font-weight: 800;
+  opacity: 0.9;
+}
+.report-kpi-label {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+.admin-report-kpi strong {
+  font-family: 'Poppins', var(--font-sans);
+  font-size: clamp(26px, 2.3vw, 38px);
+  line-height: 1.15;
+  margin-top: 7px;
+}
+.report-kpi-note {
+  font-size: 10px;
+  opacity: 0.9;
+  margin-top: 3px;
+}
+/* Most Requested Destination Card with Background Image */
+.admin-report-kpi-dest {
+  position: relative;
+  overflow: hidden;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  background-blend-mode: multiply;
+  transition: all var(--transition-normal);
+}
+
+.admin-report-charts {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 0.96fr;
+  grid-template-rows: 1.25fr 0.85fr 0.85fr;
+  gap: 10px;
+}
+.report-chart-card {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 13px 15px;
+  border: 1px solid rgba(72, 42, 19, 0.2);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: inset 0 4px 4px rgba(0, 0, 0, 0.12);
+}
+.report-chart-card h2 {
+  margin: 0;
+  font-family: 'Poppins', var(--font-sans);
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 700;
+  color: #401c02;
+}
+.report-chart-card p {
+  margin: 2px 0 0;
+  color: #8a7a70;
+  font-size: 10px;
+}
+.report-users-chart {
+  grid-column: 1;
+  grid-row: 1;
+}
+.report-budget-chart {
+  grid-column: 2;
+  grid-row: 1;
+}
+.report-bookings-chart {
+  grid-column: 1;
+  grid-row: 2;
+}
+.report-destinations-chart {
+  grid-column: 2;
+  grid-row: 2 / 4;
+}
+.report-session-chart {
+  grid-column: 1;
+  grid-row: 3;
+}
+.report-legend {
+  display: flex;
+  gap: 12px;
+  margin: 9px 0 2px;
+  font-size: 9px;
+  color: #71655e;
+}
+.report-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.report-legend i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffc245;
+}
+.report-legend .legend-new {
+  background: #e9724c;
+}
+.report-legend .legend-inactive {
+  background: #401c02;
+}
+.report-grouped-bars {
+  height: calc(100% - 72px);
+  min-height: 80px;
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  padding: 8px 4px 16px;
+  border-bottom: 1px solid #eee7e2;
+}
+.report-grouped-bars:before,
+.report-line-chart:before {
+  content: '';
+  position: absolute;
+  inset: 0 0 16px;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 31%,
+    #f0ebe7 32%,
+    transparent 33%
+  );
+}
+.report-bar-group {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+}
+.report-bar-group i {
+  width: 19%;
+  border-radius: 3px 3px 0 0;
+  background: #ffc245;
+}
+.report-bar-group i:nth-child(2) {
+  background: #e9724c;
+}
+.report-bar-group i:nth-child(3) {
+  background: #401c02;
+}
+.report-axis-labels {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: space-around;
+  font-size: 8px;
+  color: #92857d;
+}
+.report-line-chart {
+  position: relative;
+  height: calc(100% - 51px);
+  min-height: 90px;
+  margin-top: 8px;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 32%,
+    #f0ebe7 33%,
+    transparent 34%
+  );
+}
+.report-line-chart svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.report-line-chart polyline {
+  fill: none;
+  stroke: #e9724c;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+.report-line-chart circle {
+  fill: #e9724c;
+}
+.report-months {
+  display: flex;
+  justify-content: space-between;
+  color: #92857d;
+  font-size: 8px;
+  margin-top: 2px;
+}
+.report-booking-bars {
+  height: calc(100% - 59px);
+  min-height: 40px;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 9px 6px 0;
+  border-bottom: 1px solid #eee7e2;
+}
+.report-booking-bars i {
+  flex: 1;
+  background: #6f4437;
+  border-radius: 4px 4px 0 0;
+  box-shadow: inset 0 3px 4px rgba(0, 0, 0, 0.2);
+}
+.report-destinations-list {
+  display: grid;
+  gap: clamp(8px, 1.5vh, 14px);
+  margin-top: 15px;
+}
+.report-destination-row {
+  display: grid;
+  grid-template-columns: 23px minmax(0, 1fr) 34px;
+  gap: 8px;
+  align-items: center;
+  font-size: 10px;
+}
+.report-rank {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: #f6f1ed;
+  color: #401c02;
+  font-weight: 800;
+}
+.report-destination-name {
+  min-width: 0;
+}
+.report-destination-name b {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #4b3529;
+  font-size: 10px;
+}
+.report-destination-name > span {
+  display: block;
+  height: 6px;
+  margin-top: 5px;
+  border-radius: 8px;
+  background: #eee8e3;
+  overflow: hidden;
+}
+.report-destination-name > span i {
+  display: block;
+  height: 100%;
+  border-radius: 8px;
+  background: #6f4437;
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.2);
+}
+.report-destination-row > strong {
+  text-align: right;
+  color: #604138;
+}
+.report-session-value {
+  display: block;
+  margin-top: 10px;
+  color: #401c02;
+  font-family: 'Poppins', var(--font-sans);
+  font-size: clamp(23px, 2vw, 31px);
+  line-height: 1.1;
+}
+.report-session-note {
+  display: block;
+  color: #82766f;
+  font-size: 9px;
+  margin-top: 3px;
+}
+.report-progress {
+  height: 7px;
+  margin-top: 12px;
+  border-radius: 8px;
+  background: #eee8e3;
+  overflow: hidden;
+}
+.report-progress i {
+  display: block;
+  width: 68%;
+  height: 100%;
+  border-radius: 8px;
+  background: #6f4437;
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.2);
+}
+@media (max-width: 1100px) {
+  .admin-report-content {
+    grid-template-columns: minmax(190px, 0.7fr) minmax(0, 2fr);
+    gap: 12px;
+  }
+  .admin-report-kpi {
+    padding: 10px 12px;
+  }
+  .admin-report-charts {
+    gap: 8px;
+  }
+}
+@media (max-width: 850px) {
+  .admin-layout-root {
+    overflow: auto;
+    height: auto;
+    min-height: 100vh;
+  }
+  .admin-main-canvas {
+    min-height: calc(100vh - 16px);
+    height: auto;
+    overflow: visible;
+  }
+  .admin-report-content {
+    grid-template-columns: 1fr;
+  }
+  .admin-report-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: none;
+  }
+  .admin-report-kpi {
+    min-height: 120px;
+  }
+  .admin-report-charts {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(5, minmax(190px, auto));
+  }
+  .report-users-chart,
+  .report-budget-chart,
+  .report-bookings-chart,
+  .report-destinations-chart,
+  .report-session-chart {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
 /* Button Pill with Gradient Border */
 .btn-admin-pill-gradient {
   background-color: #ffffff;

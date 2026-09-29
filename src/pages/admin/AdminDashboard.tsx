@@ -24,6 +24,7 @@ import type {
   AdminCategory,
   AdminActivity,
   SystemAuditLog,
+  AdminSystemReportData,
 } from '../../services/api';
 import type { Trip } from '../../types/trip';
 import axios from 'axios';
@@ -130,45 +131,101 @@ export default function AdminDashboard() {
 
 // Tab 1: Systems Report
 function SystemsReportTab() {
-  const [metrics, setMetrics] = useState<{
-    totalUsers: number;
-    totalTrips: number;
-    totalBookings: number;
-    activeTrips: number;
-  } | null>(null);
-
+  const [selectedPeriod, setSelectedPeriod] = useState<'30d' | '90d' | '1y'>('30d');
+  const [reportData, setReportData] = useState<AdminSystemReportData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
     async function loadMetrics() {
-      const data = await adminApi.getReports();
-      setMetrics(data);
-      setLoading(false);
+      setLoading(true);
+      const data = await adminApi.getReports(selectedPeriod);
+      if (isMounted) {
+        setReportData(data);
+        setLoading(false);
+      }
     }
     loadMetrics();
-  }, []);
-
-  const formatK = (num: number | undefined | null) => {
-    const val = Number(num) || 0;
-    if (val >= 1_000_000) return (val / 1_000_000).toFixed(1) + 'M';
-    if (val >= 1_000) return (val / 1_000).toFixed(1) + 'K';
-    return val.toLocaleString();
-  };
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedPeriod]);
 
   const handleExportReport = () => {
-    if (!metrics) return;
+    if (!reportData) return;
     const dateStr = new Date().toISOString().split('T')[0];
     const timestamp = new Date().toLocaleString();
 
-    const rows = [
+    const periodLabel =
+      selectedPeriod === '30d'
+        ? 'Last 30 days'
+        : selectedPeriod === '90d'
+          ? 'Last 3 months'
+          : 'This year';
+
+    const rows: (string | number)[][] = [
       ['LakBye Travel Planner - Systems Analytics Report'],
       [`Generated at: ${timestamp}`],
+      [`Time Period: ${periodLabel}`],
       [],
-      ['Metric', 'Value'],
-      ['Total Registered Users', metrics.totalUsers],
-      ['Total Trips Planned', metrics.totalTrips],
-      ['Total Bookings Made', metrics.totalBookings],
-      ['Total Active Ongoing Trips', metrics.activeTrips],
+      ['=== CORE KPI SUMMARY ==='],
+      ['KPI', 'Value', 'Delta Trend'],
+      [
+        'Monthly Bookings',
+        reportData.kpis.monthlyBookings.formatted,
+        `${reportData.kpis.monthlyBookings.isPositive ? '+' : '-'}${reportData.kpis.monthlyBookings.changePct}%`,
+      ],
+      [
+        'Most Requested Destination',
+        reportData.kpis.mostRequestedDestination.name,
+        `${reportData.kpis.mostRequestedDestination.requestsCount} requests`,
+      ],
+      [
+        'Planned Budgets',
+        reportData.kpis.plannedBudgets.formatted,
+        'Across active plans',
+      ],
+      [
+        'Active Users',
+        reportData.kpis.activeUsers.formatted,
+        `${reportData.kpis.activeUsers.isPositive ? '+' : '-'}${reportData.kpis.activeUsers.changePct}%`,
+      ],
+      [],
+      ['=== TOP 5 MOST REQUESTED DESTINATIONS ==='],
+      ['Rank', 'Destination', 'Trip Requests', 'Share of Top (%)'],
+      ...reportData.topDestinations.map((d) => [
+        d.rank,
+        d.name,
+        d.count,
+        `${d.percentage}%`,
+      ]),
+      [],
+      ['=== USER STATUS OVERVIEW (BY MONTH) ==='],
+      ['Month', 'Active Users', 'New Users', 'Inactive Users'],
+      ...reportData.userStatusBreakdown.months.map((month, i) => [
+        month,
+        reportData.userStatusBreakdown.active[i] ?? 0,
+        reportData.userStatusBreakdown.newUsers[i] ?? 0,
+        reportData.userStatusBreakdown.inactive[i] ?? 0,
+      ]),
+      [],
+      ['=== MONTHLY PLANNED BUDGET TREND ==='],
+      ['Month', 'Total Planned Budget (PHP)'],
+      ...reportData.monthlyBudgetTrend.months.map((month, i) => [
+        month,
+        reportData.monthlyBudgetTrend.values[i] ?? 0,
+      ]),
+      [],
+      ['=== MONTHLY BOOKINGS TREND ==='],
+      ['Month', 'Bookings Count'],
+      ...reportData.monthlyBookingsTrend.months.map((month, i) => [
+        month,
+        reportData.monthlyBookingsTrend.values[i] ?? 0,
+      ]),
+      [],
+      ['=== SESSION METRICS ==='],
+      ['Average Session Duration', reportData.sessionMetrics.avgDurationFormatted],
+      ['Period-over-Period Trend', `${reportData.sessionMetrics.changePct}%`],
     ];
 
     const csvContent =
@@ -180,116 +237,321 @@ function SystemsReportTab() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `lakbye-system-report-${dateStr}.csv`);
+    link.setAttribute(
+      'download',
+      `lakbye-system-report-${selectedPeriod}-${dateStr}.csv`,
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
+  // SVG Line Chart Coordinate Generator for Monthly Budget
+  const budgetChart = useMemo(() => {
+    if (!reportData?.monthlyBudgetTrend) return null;
+    const { values, months } = reportData.monthlyBudgetTrend;
+    if (!values.length) return null;
+
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const diff = max - min || 1;
+    const n = values.length;
+    const xStep = n > 1 ? (385 - 5) / (n - 1) : 0;
+
+    const points = values.map((val, idx) => {
+      const x = Math.round(5 + idx * xStep);
+      const y = Math.round(140 - ((val - min) / diff) * 115);
+      return { x, y, val, month: months[idx] };
+    });
+
+    const polylinePoints = points.map((p) => `${p.x},${p.y}`).join(' ');
+    return { points, polylinePoints, months };
+  }, [reportData?.monthlyBudgetTrend]);
+
+  // Max value for scaling user status grouped bars
+  const maxUserVal = useMemo(() => {
+    if (!reportData?.userStatusBreakdown) return 100;
+    const { active, newUsers, inactive } = reportData.userStatusBreakdown;
+    return Math.max(...active, ...newUsers, ...inactive, 1);
+  }, [reportData?.userStatusBreakdown]);
+
+  // Max value for scaling booking mini bars
+  const maxBookingVal = useMemo(() => {
+    if (!reportData?.monthlyBookingsTrend) return 100;
+    return Math.max(...reportData.monthlyBookingsTrend.values, 1);
+  }, [reportData?.monthlyBookingsTrend]);
+
   return (
-    <div className="admin-card-panel flex-1 flex flex-col">
+    <div className="admin-card-panel flex-1 flex flex-col admin-report-panel">
       {/* Header */}
-      <div className="admin-panel-header items-center pb-4">
+      <div className="admin-panel-header items-center pb-4 admin-report-header">
         <h1 className="text-2xl font-bold text-black font-sans">LakBye Systems Report</h1>
-        <button
-          type="button"
-          onClick={handleExportReport}
-          className="flex items-center gap-2 px-4 py-2 border border-stone-200 rounded-full text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors cursor-pointer"
-        >
-          <Download size={14} /> Export Report (CSV)
-        </button>
+        <div className="flex items-center gap-3">
+          <select
+            value={selectedPeriod}
+            onChange={(e) => setSelectedPeriod(e.target.value as '30d' | '90d' | '1y')}
+            className="admin-report-select"
+            aria-label="Filter report time period"
+          >
+            <option value="30d">Last 30 days</option>
+            <option value="90d">Last 3 months</option>
+            <option value="1y">This year</option>
+          </select>
+
+          <button
+            type="button"
+            onClick={handleExportReport}
+            disabled={!reportData}
+            className="flex items-center gap-2 px-4 py-2 border border-stone-200 rounded-full text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors cursor-pointer admin-report-export disabled:opacity-50"
+          >
+            <Download size={14} /> Export Report (CSV)
+          </button>
+        </div>
       </div>
 
-      <div className="admin-header-rule mb-6" />
+      <div className="admin-header-rule mb-6 admin-report-rule" />
 
-      {loading ? (
+      {loading && !reportData ? (
         <div className="flex-1 flex items-center justify-center text-stone-500">
           Compiling system analytics...
         </div>
-      ) : metrics ? (
-        <div className="flex flex-col md:flex-row gap-6 flex-1 min-h-[500px]">
-          {/* LEFT COLUMN: Stat Cards */}
-          <div className="flex flex-col gap-4 w-full md:w-[280px] shrink-0 border-r border-stone-100 pr-6">
-            {/* Card 1: Total Registered Users */}
-            <div
-              className="rounded-xl p-5 text-white shadow-md flex flex-col justify-center flex-1"
-              style={{ background: 'linear-gradient(135deg, #FDBA74 0%, #EA580C 100%)' }}
-            >
-              <span className="text-[10px] font-bold uppercase tracking-wider opacity-90 leading-tight mb-1">
-                Total
-                <br />
-                Registered Users
+      ) : reportData ? (
+        <div className="admin-report-content">
+          {/* Top 4 KPI Cards Matching Figma Design */}
+          <div className="admin-report-kpis">
+            {/* KPI 1: Monthly Bookings */}
+            <article className="admin-report-kpi">
+              <span className="report-eyebrow">TOTAL</span>
+              <span className="report-kpi-label">Monthly Bookings</span>
+              <strong>{reportData.kpis.monthlyBookings.formatted}</strong>
+              <span className="report-kpi-note">
+                <span
+                  className={reportData.kpis.monthlyBookings.isPositive ? 'up' : 'down'}
+                >
+                  {reportData.kpis.monthlyBookings.isPositive ? '↑' : '↓'}{' '}
+                  {reportData.kpis.monthlyBookings.changePct}%
+                </span>{' '}
+                from last month
               </span>
-              <span className="text-5xl font-bold tracking-tight">
-                {formatK(metrics?.totalUsers)}
-              </span>
-            </div>
+            </article>
 
-            {/* Card 2: Total Trips Planned */}
-            <div
-              className="rounded-xl p-5 text-white shadow-md flex flex-col justify-center flex-1"
-              style={{ background: 'linear-gradient(135deg, #FDBA74 0%, #EA580C 100%)' }}
+            {/* KPI 2: Most Requested Destination */}
+            <article
+              className="admin-report-kpi admin-report-kpi-dest"
+              style={
+                reportData.kpis.mostRequestedDestination.imageUrl
+                  ? {
+                      backgroundImage: `linear-gradient(180deg, rgba(233, 114, 76, 0.82) 0%, rgba(197, 40, 61, 0.90) 100%), url("${reportData.kpis.mostRequestedDestination.imageUrl}")`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                    }
+                  : undefined
+              }
             >
-              <span className="text-[10px] font-bold uppercase tracking-wider opacity-90 leading-tight mb-1">
-                Total
-                <br />
-                Trips Planned
+              <span className="report-eyebrow">MOST</span>
+              <span className="report-kpi-label">Requested Destination</span>
+              <strong style={{ fontSize: 'clamp(18px, 1.6vw, 24px)', lineHeight: 1.2 }}>
+                {reportData.kpis.mostRequestedDestination.name}
+              </strong>
+              <span className="report-kpi-note">
+                {reportData.kpis.mostRequestedDestination.requestsCount} trip requests
+                this period
               </span>
-              <span className="text-5xl font-bold tracking-tight">
-                {formatK(metrics?.totalTrips)}
-              </span>
-            </div>
+            </article>
 
-            {/* Card 3: Total Bookings Made */}
-            <div
-              className="rounded-xl p-5 text-white shadow-md flex flex-col justify-center flex-1"
-              style={{ background: 'linear-gradient(135deg, #FDBA74 0%, #EA580C 100%)' }}
-            >
-              <span className="text-[10px] font-bold uppercase tracking-wider opacity-90 leading-tight mb-1">
-                Total
-                <br />
-                Bookings Made
-              </span>
-              <span className="text-5xl font-bold tracking-tight">
-                {formatK(metrics?.totalBookings)}
-              </span>
-            </div>
+            {/* KPI 3: Planned Budgets */}
+            <article className="admin-report-kpi">
+              <span className="report-eyebrow">TOTAL</span>
+              <span className="report-kpi-label">Planned Budgets</span>
+              <strong>{reportData.kpis.plannedBudgets.formatted}</strong>
+              <span className="report-kpi-note">Across active trip plans</span>
+            </article>
 
-            {/* Card 4: Active Ongoing Trips */}
-            <div
-              className="rounded-xl p-5 text-white shadow-md flex flex-col justify-center flex-1"
-              style={{ background: 'linear-gradient(135deg, #FDBA74 0%, #EA580C 100%)' }}
-            >
-              <span className="text-[10px] font-bold uppercase tracking-wider opacity-90 leading-tight mb-1">
-                Total
-                <br />
-                Active Trips
+            {/* KPI 4: Active Users */}
+            <article className="admin-report-kpi">
+              <span className="report-eyebrow">TOTAL</span>
+              <span className="report-kpi-label">Active Users</span>
+              <strong>{reportData.kpis.activeUsers.formatted}</strong>
+              <span className="report-kpi-note">
+                <span className={reportData.kpis.activeUsers.isPositive ? 'up' : 'down'}>
+                  {reportData.kpis.activeUsers.isPositive ? '↑' : '↓'}{' '}
+                  {reportData.kpis.activeUsers.changePct}%
+                </span>{' '}
+                from last month
               </span>
-              <span className="text-5xl font-bold tracking-tight">
-                {formatK(metrics?.activeTrips)}
-              </span>
-            </div>
+            </article>
           </div>
 
-          {/* RIGHT COLUMN: Figma Chart Grid Placeholders */}
-          <div className="flex-1 grid grid-cols-2 grid-rows-3 gap-4">
-            <div className="bg-[#D1D5DB] rounded-xl flex items-center justify-center text-white text-lg font-medium shadow-inner">
-              Users (New, Active, Inactive)
-            </div>
-            <div className="bg-[#D1D5DB] rounded-xl flex items-center justify-center text-white text-lg font-medium shadow-inner">
-              Monthly Planned Budget
-            </div>
+          {/* 5 Analytical Report Cards */}
+          <div className="admin-report-charts">
+            {/* Card 1: Users (New, Active, Inactive) */}
+            <article className="report-chart-card report-users-chart">
+              <h2>Users (New, Active, Inactive)</h2>
+              <p>Monthly user status overview</p>
+              <div className="report-legend">
+                <span>
+                  <i className="legend-active" />
+                  Active
+                </span>
+                <span>
+                  <i className="legend-new" />
+                  New
+                </span>
+                <span>
+                  <i className="legend-inactive" />
+                  Inactive
+                </span>
+              </div>
+              <div className="report-grouped-bars" aria-label="Monthly user status chart">
+                {reportData.userStatusBreakdown.months.map((month, idx) => {
+                  const act = reportData.userStatusBreakdown.active[idx] ?? 0;
+                  const nw = reportData.userStatusBreakdown.newUsers[idx] ?? 0;
+                  const inact = reportData.userStatusBreakdown.inactive[idx] ?? 0;
 
-            <div className="bg-[#D1D5DB] rounded-xl flex items-center justify-center text-white text-lg font-medium shadow-inner">
-              Monthly Bookings
-            </div>
-            <div className="bg-[#D1D5DB] rounded-xl flex items-center justify-center text-white text-lg font-medium shadow-inner row-span-2">
-              Top 5 Most Requested Destinations
-            </div>
+                  const actH =
+                    act > 0 && maxUserVal > 0
+                      ? Math.max(6, Math.round((act / maxUserVal) * 100))
+                      : 0;
+                  const nwH =
+                    nw > 0 && maxUserVal > 0
+                      ? Math.max(5, Math.round((nw / maxUserVal) * 100))
+                      : 0;
+                  const inactH =
+                    inact > 0 && maxUserVal > 0
+                      ? Math.max(4, Math.round((inact / maxUserVal) * 100))
+                      : 0;
 
-            <div className="bg-[#D1D5DB] rounded-xl flex items-center justify-center text-white text-lg font-medium shadow-inner">
-              Avg. Session Duration
-            </div>
+                  return (
+                    <div
+                      key={month}
+                      className="report-bar-group"
+                      title={`${month} — Active: ${act}, New: ${nw}, Inactive: ${inact}`}
+                    >
+                      <i style={{ height: `${actH}%` }} />
+                      <i style={{ height: `${nwH}%` }} />
+                      <i style={{ height: `${inactH}%` }} />
+                    </div>
+                  );
+                })}
+                <div className="report-axis-labels">
+                  {reportData.userStatusBreakdown.months.map((m) => (
+                    <span key={m}>{m}</span>
+                  ))}
+                </div>
+              </div>
+            </article>
+
+            {/* Card 2: Monthly Planned Budget */}
+            <article className="report-chart-card report-budget-chart">
+              <h2>Monthly Planned Budget</h2>
+              <p>Total planned trip budget by month</p>
+              <div className="report-line-chart">
+                {budgetChart && (
+                  <svg
+                    viewBox="0 0 390 170"
+                    preserveAspectRatio="none"
+                    role="img"
+                    aria-label="Monthly planned budget trend"
+                  >
+                    <polyline points={budgetChart.polylinePoints} />
+                    <g>
+                      {budgetChart.points.map((pt) => (
+                        <circle key={`${pt.x}-${pt.y}`} cx={pt.x} cy={pt.y} r={4}>
+                          <title>{`${pt.month}: ₱${pt.val.toLocaleString()}`}</title>
+                        </circle>
+                      ))}
+                    </g>
+                  </svg>
+                )}
+              </div>
+              <div className="report-months">
+                {reportData.monthlyBudgetTrend.months.map((m) => (
+                  <span key={m}>{m}</span>
+                ))}
+              </div>
+            </article>
+
+            {/* Card 3: Monthly Bookings */}
+            <article className="report-chart-card report-bookings-chart">
+              <h2>Monthly Bookings</h2>
+              <p>Bookings created during the selected period</p>
+              <div className="report-booking-bars" aria-label="Monthly bookings chart">
+                {reportData.monthlyBookingsTrend.values.map((count, index) => {
+                  const height =
+                    count > 0 && maxBookingVal > 0
+                      ? Math.max(6, Math.round((count / maxBookingVal) * 100))
+                      : 0;
+                  const monthName = reportData.monthlyBookingsTrend.months[index] || '';
+                  return (
+                    <i
+                      key={index}
+                      style={{ height: `${height}%` }}
+                      title={`${monthName}: ${count} bookings`}
+                    />
+                  );
+                })}
+              </div>
+              <div className="report-months">
+                {reportData.monthlyBookingsTrend.months.map((m) => (
+                  <span key={m}>{m}</span>
+                ))}
+              </div>
+            </article>
+
+            {/* Card 4: Top 5 Most Requested Destinations */}
+            <article className="report-chart-card report-destinations-chart">
+              <h2>Top 5 Most Requested Destinations</h2>
+              <p>Based on trip requests</p>
+              <div className="report-destinations-list">
+                {reportData.topDestinations && reportData.topDestinations.length > 0 ? (
+                  reportData.topDestinations.map((destination) => (
+                    <div
+                      className="report-destination-row"
+                      key={`${destination.rank}-${destination.name}`}
+                    >
+                      <span className="report-rank">{destination.rank}</span>
+                      <div className="report-destination-name">
+                        <b>{destination.name}</b>
+                        <span>
+                          <i style={{ width: `${destination.percentage}%` }} />
+                        </span>
+                      </div>
+                      <strong>{destination.count}</strong>
+                    </div>
+                  ))
+                ) : (
+                  <div
+                    style={{
+                      textAlign: 'center',
+                      padding: '36px 12px',
+                      fontSize: '11px',
+                      color: '#8a7a70',
+                    }}
+                  >
+                    No destination requests recorded in database yet
+                  </div>
+                )}
+              </div>
+            </article>
+
+            {/* Card 5: Avg. Session Duration */}
+            <article className="report-chart-card report-session-chart">
+              <h2>Avg. Session Duration</h2>
+              <p>Average time users spend in LakBye</p>
+              <strong className="report-session-value">
+                {reportData.sessionMetrics.avgDurationFormatted}
+              </strong>
+              <span className="report-session-note">
+                <span className={reportData.sessionMetrics.isPositive ? 'up' : 'down'}>
+                  {reportData.sessionMetrics.isPositive ? '↑' : '↓'}{' '}
+                  {reportData.sessionMetrics.changePct}%
+                </span>{' '}
+                vs. previous period
+              </span>
+              <div className="report-progress">
+                <i style={{ width: `${reportData.sessionMetrics.fillPercentage}%` }} />
+              </div>
+            </article>
           </div>
         </div>
       ) : (
