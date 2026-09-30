@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useOutletContext } from 'react-router-dom';
+import axios from 'axios';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { Trash2, X, CirclePlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -47,18 +48,22 @@ interface CategoryConfig {
 }
 
 const BUDGET_CATEGORIES: CategoryConfig[] = [
-  { name: 'Accomodation', color: '#C5283D', icon: bedIcon },
+  { name: 'Accommodation', color: '#C5283D', icon: bedIcon },
   { name: 'Transport', color: '#E9724C', icon: busIcon },
   { name: 'Activities', color: '#FFC857', icon: activityIcon },
   { name: 'Eat & Drink', color: '#255F85', icon: diningIcon },
   { name: 'Other', color: '#8E8E93', icon: otherIcon },
 ];
 
+function isCategoryMatch(catA: string, catB: string): boolean {
+  if (!catA || !catB) return false;
+  const normA = catA.toLowerCase().replace(/accom+odation/, 'accommodation');
+  const normB = catB.toLowerCase().replace(/accom+odation/, 'accommodation');
+  return normA === normB;
+}
+
 function getCategoryConfig(catName: string): CategoryConfig {
-  const norm = catName.toLowerCase().replace(/m+/, 'm');
-  const found = BUDGET_CATEGORIES.find(
-    (c) => c.name.toLowerCase().replace(/m+/, 'm') === norm,
-  );
+  const found = BUDGET_CATEGORIES.find((c) => isCategoryMatch(c.name, catName));
   return found || BUDGET_CATEGORIES[4];
 }
 
@@ -90,6 +95,10 @@ export function Budget() {
 
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [isAddBalanceOpen, setIsAddBalanceOpen] = useState(false);
+  const [isAddingBalance, setIsAddingBalance] = useState(false);
+  const [addBalanceError, setAddBalanceError] = useState('');
+  const [isSubmittingExpense, setIsSubmittingExpense] = useState(false);
+  const [deleteExpenseError, setDeleteExpenseError] = useState('');
 
   const getPreferredCurrency = () => {
     if (user?.preferences?.currency) return user.preferences.currency;
@@ -319,6 +328,7 @@ export function Budget() {
 
   const handleAddBalanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAddBalanceError('');
     const enteredAmount = parseFloat(balanceInput);
     if (isNaN(enteredAmount) || enteredAmount <= 0) return;
 
@@ -328,28 +338,44 @@ export function Budget() {
         : convert(enteredAmount, displayCurrency, 'PHP', fxRates);
     const roundedPhp = Math.round(amountInPhp * 100) / 100;
 
-    const optimisticBalance = Math.round((budget.balance + roundedPhp) * 100) / 100;
-    saveBudget({
-      ...budget,
-      balance: optimisticBalance,
-    });
-
-    setBalanceInput('');
-    setIsAddBalanceOpen(false);
+    setIsAddingBalance(true);
 
     if (tripId) {
       try {
         const res = await budgetApi.addBalance(tripId, roundedPhp);
-        if (res && typeof res.balance === 'number') {
-          setBudget((prev) => {
-            const reconciled = { ...prev, balance: res.balance };
-            localStorage.setItem(budgetKey, JSON.stringify(reconciled));
-            return reconciled;
-          });
-        }
-      } catch {
-        /* ignore error */
+        const newBalance =
+          res && typeof res.balance === 'number'
+            ? res.balance
+            : Math.round((budget.balance + roundedPhp) * 100) / 100;
+
+        saveBudget({
+          ...budget,
+          balance: newBalance,
+        });
+
+        setBalanceInput('');
+        setIsAddBalanceOpen(false);
+      } catch (err: unknown) {
+        console.error('Failed to add balance:', err);
+        const errData = axios.isAxiosError(err)
+          ? (err.response?.data as { message?: string } | undefined)
+          : undefined;
+        const msg =
+          errData?.message ||
+          'Failed to add funds on server. Please check your connection and try again.';
+        setAddBalanceError(msg);
+        // Do NOT mutate local balance or close modal on failure
+      } finally {
+        setIsAddingBalance(false);
       }
+    } else {
+      saveBudget({
+        ...budget,
+        balance: Math.round((budget.balance + roundedPhp) * 100) / 100,
+      });
+      setBalanceInput('');
+      setIsAddBalanceOpen(false);
+      setIsAddingBalance(false);
     }
   };
 
@@ -385,123 +411,153 @@ export function Budget() {
       (d) => d.name === expenseDestination,
     );
 
-    const tempId = `temp-${Date.now()}`;
-    const newExpense: Expense = {
-      id: tempId,
-      name: expenseName.trim(),
-      items: totalItems,
-      category: expenseCategory,
-      cost: roundedCostPhp,
-      date: new Date().toISOString().split('T')[0],
-      destination_id: selectedDestObj ? selectedDestObj.id : null,
-      country_name: selectedDestObj
-        ? selectedDestObj.country || selectedDestObj.name
-        : null,
-    };
-
-    saveBudget({
-      ...budget,
-      balance: Math.round((budget.balance - roundedCostPhp) * 100) / 100,
-      expenses: [...budget.expenses, newExpense],
-    });
-
-    setExpenseName('');
-    setExpenseItemRows([
-      { name: '', quantity: '1' },
-      { name: '', quantity: '1' },
-    ]);
-    setExpenseCategory(BUDGET_CATEGORIES[0].name);
-    setExpenseCost('');
-    setExpenseDestination('Entire Trip');
-    setExpenseError('');
-    setIsAddExpenseOpen(false);
+    setIsSubmittingExpense(true);
 
     if (tripId) {
       try {
         const res = await budgetApi.addExpense(tripId, {
-          name: newExpense.name,
-          items: newExpense.items,
-          category: newExpense.category,
-          cost: newExpense.cost,
-          date: newExpense.date,
-          destination_id: newExpense.destination_id,
-          country_name: newExpense.country_name,
+          name: expenseName.trim(),
+          items: totalItems,
+          category: expenseCategory,
+          cost: roundedCostPhp,
+          date: new Date().toISOString().split('T')[0],
+          destination_id: selectedDestObj ? selectedDestObj.id : null,
+          country_name: selectedDestObj
+            ? selectedDestObj.country || selectedDestObj.name
+            : null,
         });
-        if (res && res.expense) {
-          setBudget((prev) => {
-            const reconciled: BudgetData = {
-              balance: typeof res.balance === 'number' ? res.balance : prev.balance,
-              expenses: prev.expenses.map((item) =>
-                item.id === tempId
-                  ? {
-                      id: String(res.expense.id),
-                      name: res.expense.name,
-                      items: Number(res.expense.items) || 1,
-                      category: res.expense.category,
-                      cost: Number(res.expense.cost) || 0,
-                      date: res.expense.date,
-                      destination_id: res.expense.destination_id,
-                      country_name: res.expense.country_name,
-                    }
-                  : item,
-              ),
-            };
-            localStorage.setItem(budgetKey, JSON.stringify(reconciled));
-            return reconciled;
-          });
-        }
-      } catch (err: any) {
+
+        const createdExpense: Expense = {
+          id: String(res.expense?.id || Date.now()),
+          name: res.expense?.name || expenseName.trim(),
+          items: Number(res.expense?.items) || totalItems,
+          category: res.expense?.category || expenseCategory,
+          cost: Number(res.expense?.cost) || roundedCostPhp,
+          date: res.expense?.date || new Date().toISOString().split('T')[0],
+          destination_id:
+            res.expense?.destination_id ?? (selectedDestObj ? selectedDestObj.id : null),
+          country_name:
+            res.expense?.country_name ??
+            (selectedDestObj ? selectedDestObj.country || selectedDestObj.name : null),
+        };
+
+        const newBalance =
+          typeof res.balance === 'number'
+            ? res.balance
+            : Math.round((budget.balance - roundedCostPhp) * 100) / 100;
+
+        saveBudget({
+          balance: newBalance,
+          expenses: [...budget.expenses, createdExpense],
+        });
+
+        // Reset form and close modal only upon confirmed success
+        setExpenseName('');
+        setExpenseItemRows([
+          { name: '', quantity: '1' },
+          { name: '', quantity: '1' },
+        ]);
+        setExpenseCategory(BUDGET_CATEGORIES[0].name);
+        setExpenseCost('');
+        setExpenseDestination('Entire Trip');
+        setExpenseError('');
+        setIsAddExpenseOpen(false);
+      } catch (err: unknown) {
+        console.error('Failed to add expense:', err);
+        const errData = axios.isAxiosError(err)
+          ? (err.response?.data as { message?: string } | undefined)
+          : undefined;
         const msg =
-          err?.response?.data?.message ||
-          'This expense exceeds your remaining trip budget.';
-        console.warn('Expense addition rejected by server:', msg);
-        // Revert optimistic addition if server rejected
-        setBudget((prev) => {
-          const reverted: BudgetData = {
-            balance: Math.round((prev.balance + roundedCostPhp) * 100) / 100,
-            expenses: prev.expenses.filter((e) => e.id !== tempId),
-          };
-          localStorage.setItem(budgetKey, JSON.stringify(reverted));
-          return reverted;
-        });
+          errData?.message ||
+          'Failed to record expense on server. Please check your connection or remaining budget.';
+        setExpenseError(msg);
+        // Modal stays open with all inputs preserved so user can retry!
+      } finally {
+        setIsSubmittingExpense(false);
       }
+    } else {
+      const newExpense: Expense = {
+        id: `temp-${Date.now()}`,
+        name: expenseName.trim(),
+        items: totalItems,
+        category: expenseCategory,
+        cost: roundedCostPhp,
+        date: new Date().toISOString().split('T')[0],
+        destination_id: selectedDestObj ? selectedDestObj.id : null,
+        country_name: selectedDestObj
+          ? selectedDestObj.country || selectedDestObj.name
+          : null,
+      };
+
+      saveBudget({
+        balance: Math.round((budget.balance - roundedCostPhp) * 100) / 100,
+        expenses: [...budget.expenses, newExpense],
+      });
+
+      setExpenseName('');
+      setExpenseItemRows([
+        { name: '', quantity: '1' },
+        { name: '', quantity: '1' },
+      ]);
+      setExpenseCategory(BUDGET_CATEGORIES[0].name);
+      setExpenseCost('');
+      setExpenseDestination('Entire Trip');
+      setExpenseError('');
+      setIsAddExpenseOpen(false);
+      setIsSubmittingExpense(false);
     }
   };
 
   const deleteExpense = async (id: string) => {
-    const expenseToDelete = budget.expenses.find((e) => e.id === id);
-    const refundCost = expenseToDelete ? expenseToDelete.cost : 0;
-
-    saveBudget({
-      ...budget,
-      balance: Math.round((budget.balance + refundCost) * 100) / 100,
-      expenses: budget.expenses.filter((e) => e.id !== id),
-    });
+    setDeleteExpenseError('');
 
     if (tripId && !id.startsWith('temp-')) {
       try {
         const res = await budgetApi.deleteExpense(tripId, id);
-        if (res && typeof res.balance === 'number') {
-          setBudget((prev) => {
-            const reconciled = { ...prev, balance: res.balance };
-            localStorage.setItem(budgetKey, JSON.stringify(reconciled));
-            return reconciled;
-          });
-        }
-      } catch {
-        /* ignore error */
+        // Update local state ONLY upon confirmed server deletion
+        setBudget((prev) => {
+          const expenseToDelete = prev.expenses.find((e) => e.id === id);
+          const refundCost = expenseToDelete ? expenseToDelete.cost : 0;
+          const newBalance =
+            res && typeof res.balance === 'number'
+              ? res.balance
+              : Math.round((prev.balance + refundCost) * 100) / 100;
+          const updated: BudgetData = {
+            balance: newBalance,
+            expenses: prev.expenses.filter((e) => e.id !== id),
+          };
+          localStorage.setItem(budgetKey, JSON.stringify(updated));
+          return updated;
+        });
+      } catch (err: unknown) {
+        console.error('Failed to delete expense from server:', err);
+        const errData = axios.isAxiosError(err)
+          ? (err.response?.data as { message?: string } | undefined)
+          : undefined;
+        const msg =
+          errData?.message ||
+          'Failed to delete expense on server. Please check your connection and try again.';
+        setDeleteExpenseError(msg);
+        // Retain expense and balance in state on failure
       }
+    } else {
+      setBudget((prev) => {
+        const expenseToDelete = prev.expenses.find((e) => e.id === id);
+        const refundCost = expenseToDelete ? expenseToDelete.cost : 0;
+        const updated: BudgetData = {
+          balance: Math.round((prev.balance + refundCost) * 100) / 100,
+          expenses: prev.expenses.filter((e) => e.id !== id),
+        };
+        localStorage.setItem(budgetKey, JSON.stringify(updated));
+        return updated;
+      });
     }
   };
 
   const categoryTotals = useMemo(() => {
     return BUDGET_CATEGORIES.map((cat) => {
       const val = budget.expenses
-        .filter((e) => {
-          const normExp = e.category.toLowerCase().replace(/m+/, 'm');
-          const normCat = cat.name.toLowerCase().replace(/m+/, 'm');
-          return normExp === normCat;
-        })
+        .filter((e) => isCategoryMatch(e.category, cat.name))
         .reduce((sum, e) => sum + Number(e.cost), 0);
 
       return {
@@ -717,6 +773,39 @@ export function Budget() {
               </button>
             </div>
           </div>
+
+          {deleteExpenseError && (
+            <div
+              style={{
+                marginBottom: '16px',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                backgroundColor: '#fef2f2',
+                border: '1px solid #fecaca',
+                color: '#b91c1c',
+                fontSize: '14px',
+                fontWeight: 600,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <span>⚠️ {deleteExpenseError}</span>
+              <button
+                type="button"
+                onClick={() => setDeleteExpenseError(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#b91c1c',
+                  fontWeight: 'bold',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
 
           <div className="budget-table">
             <div className="budget-table-header">
@@ -976,15 +1065,15 @@ export function Budget() {
                   <div className="budget-modal-cat-row">
                     <button
                       type="button"
-                      className={`budget-modal-cat-pill cat-accomodation ${expenseCategory === 'Accomodation' ? 'active' : ''}`}
+                      className={`budget-modal-cat-pill cat-accommodation cat-accomodation ${isCategoryMatch(expenseCategory, 'Accommodation') ? 'active' : ''}`}
                       style={
-                        expenseCategory === 'Accomodation'
+                        isCategoryMatch(expenseCategory, 'Accommodation')
                           ? { backgroundColor: '#C5283D' }
                           : undefined
                       }
-                      onClick={() => setExpenseCategory('Accomodation')}
+                      onClick={() => setExpenseCategory('Accommodation')}
                     >
-                      Accomodation
+                      Accommodation
                     </button>
                     <button
                       type="button"
@@ -1056,8 +1145,13 @@ export function Budget() {
                 </div>
               )}
 
-              <button type="submit" className="budget-modal-primary-btn">
-                Add Expense
+              <button
+                type="submit"
+                className="budget-modal-primary-btn"
+                disabled={isSubmittingExpense}
+                style={{ opacity: isSubmittingExpense ? 0.7 : 1 }}
+              >
+                {isSubmittingExpense ? 'Adding Expense...' : 'Add Expense'}
               </button>
             </form>
           </div>
@@ -1135,12 +1229,30 @@ export function Budget() {
                 </span>
               </div>
 
+              {addBalanceError && (
+                <div
+                  style={{
+                    marginTop: '8px',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    backgroundColor: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    color: '#b91c1c',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                  }}
+                >
+                  ⚠️ {addBalanceError}
+                </div>
+              )}
+
               <button
                 type="submit"
                 className="budget-modal-primary-btn"
-                style={{ marginTop: '20px' }}
+                style={{ marginTop: '20px', opacity: isAddingBalance ? 0.7 : 1 }}
+                disabled={isAddingBalance}
               >
-                Add Balance
+                {isAddingBalance ? 'Adding Balance...' : 'Add Balance'}
               </button>
             </form>
           </div>

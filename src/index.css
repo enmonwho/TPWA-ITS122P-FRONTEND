@@ -7596,7 +7596,8 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
 }
 
-.budget-modal-cat-pill.cat-accomodation {
+.budget-modal-cat-pill.cat-accomodation,
+.budget-modal-cat-pill.cat-accommodation {
   width: 127px;
 }
 
