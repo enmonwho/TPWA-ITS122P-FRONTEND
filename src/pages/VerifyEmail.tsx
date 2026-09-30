@@ -242,7 +242,7 @@ export default function VerifyEmail() {
         <p className="auth-subtitle">Enter the 6-digit code sent to</p>
         <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200/80 rounded-full mt-2 text-stone-800 text-xs font-semibold">
           <Mail size={13} className="text-[#f05a28]" />
-          <span className="truncate max-w-[220px]">{email}</span>
+          <span className="truncate max-w-55">{email}</span>
         </div>
       </div>
 

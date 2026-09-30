@@ -209,29 +209,6 @@ body {
   background: var(--color-brand-warm-cream);
 }
 
-/* ==========================================================================
-   High-Resolution Display Scaling
-   Ensures the website looks identical at 2880x1800 (and 2560x1440, 3840x2160)
-   as it does at 1920x1080, preventing elements from feeling cramped or tiny.
-   ========================================================================== */
-@media (min-width: 2400px) and (max-width: 2650px) {
-  :root {
-    zoom: 1.3333;
-  }
-}
-
-@media (min-width: 2651px) and (max-width: 3400px) {
-  :root {
-    zoom: 1.5;
-  }
-}
-
-@media (min-width: 3401px) {
-  :root {
-    zoom: 2;
-  }
-}
-
 /* Layout */
 
 .app-layout {
@@ -3637,8 +3614,9 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 }
 
 .dashboard-trips-section {
-  width: 910px;
-  flex: 1;
+  flex: 1 1 0%;
+  min-width: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -3768,7 +3746,10 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 
 /* StatCard */
 .dash-stat-card {
-  width: 342.7px;
+  flex: 1 1 0%;
+  min-width: 0;
+  max-width: 343px;
+  width: 100%;
   height: clamp(140px, 16.5vh, 172px);
   border-radius: 20px;
   position: relative;
@@ -4265,6 +4246,112 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   justify-content: center;
   color: var(--color-dash-sidebar-text);
   padding-right: 15px;
+}
+
+/* Laptop & High-DPI Displays (≤1600px, e.g. 1440x900 on 14" Asus ZenBook at default 100% zoom) */
+@media (max-width: 1600px) {
+  .dashboard-page {
+    padding: clamp(12px, 1.8vh, 18px) clamp(16px, 2.2vw, 32px);
+  }
+
+  .dashboard-greeting {
+    font-size: clamp(22px, 2.4vw, 28px);
+    margin-bottom: 12px;
+  }
+
+  .dashboard-stats-row {
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .dash-stat-card {
+    height: 138px;
+    border-radius: 16px;
+  }
+
+  .dash-stat-card-content {
+    padding: 12px 14px;
+  }
+
+  .dash-stat-card-value {
+    font-size: clamp(22px, 2vw, 30px);
+  }
+
+  .dash-stat-card-title {
+    font-size: clamp(12px, 1.1vw, 15px);
+  }
+
+  .dash-stat-card-subtitle {
+    font-size: 11px;
+  }
+
+  .dash-stat-icon-countries,
+  .dash-stat-icon-bookings,
+  .dash-stat-icon-countdown,
+  .dash-stat-icon-spent {
+    transform: scale(0.85);
+    transform-origin: top right;
+  }
+
+  .dashboard-bottom-row {
+    gap: 16px;
+  }
+
+  .dashboard-profile-column {
+    max-width: 360px;
+    gap: 10px;
+  }
+
+  .dashboard-profile-section {
+    padding: 16px 18px;
+    min-height: 170px;
+  }
+
+  .dashboard-profile-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 22px;
+  }
+
+  .dashboard-profile-name {
+    font-size: 18px;
+  }
+
+  .dashboard-profile-location {
+    font-size: 13px;
+  }
+
+  .dashboard-profile-stat-value {
+    font-size: 30px;
+  }
+
+  .dashboard-profile-stat-label {
+    font-size: 12px;
+  }
+
+  .dashboard-trips-card {
+    padding: 16px 20px;
+  }
+
+  .dashboard-trips-title {
+    font-size: 18px;
+  }
+
+  .dashboard-filter-btn {
+    height: 34px;
+    padding: 6px 14px;
+    font-size: 13px;
+  }
+
+  .dashboard-trips-table-header {
+    font-size: 13.5px;
+    padding: 0 12px;
+  }
+
+  .dashboard-trips-table-row {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
 }
 
 /* Responsive constraints */
@@ -5813,6 +5900,86 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 
 .workspace-add-btn:hover {
   transform: scale(1.05);
+}
+
+/* --- Trip Workspace & Packing Laptop Responsiveness (≤1600px, e.g. 1440x900 on 14" Asus ZenBook) --- */
+@media (max-width: 1600px) {
+  .workspace-page {
+    padding: 10px 10px 10px 12px;
+    gap: 14px;
+  }
+
+  .workspace-header-card {
+    padding: 10px 20px;
+    min-height: 58px;
+    gap: 12px;
+  }
+
+  .workspace-trip-title {
+    font-size: 15px;
+  }
+
+  .workspace-pill-members {
+    width: 130px;
+    height: 36px;
+    padding: 0 16px;
+    font-size: 9px;
+  }
+
+  .workspace-pill-date {
+    min-width: 170px;
+    height: 36px;
+    padding: 0 14px;
+    font-size: 11px;
+  }
+
+  .workspace-share-btn {
+    width: 100px;
+    height: 36px;
+    font-size: 13px;
+  }
+
+  .workspace-itinerary-zone {
+    max-width: 850px;
+  }
+
+  .workspace-map-zone {
+    flex: 1 1 360px;
+    min-width: 300px;
+    padding: 10px 12px 14px 12px;
+  }
+
+  .packing-workspace-page {
+    gap: 12px;
+  }
+
+  .packing-left-zone {
+    flex: 0 0 380px;
+    max-width: 400px;
+    padding: 16px 20px;
+  }
+
+  .packing-categories-grid {
+    gap: 8px;
+  }
+
+  .packing-category-card {
+    padding: 12px 6px;
+  }
+
+  .packing-cat-icon-wrap {
+    width: 34px;
+    height: 34px;
+    margin-bottom: 6px;
+  }
+
+  .packing-cat-title {
+    font-size: 11.5px;
+  }
+
+  .packing-right-zone {
+    padding: 16px 22px;
+  }
 }
 
 /* ========================================= */
@@ -8299,15 +8466,132 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   }
 }
 
-@media (max-width: 1366px) {
+/* --- Laptops & High-DPI Displays (≤1600px, e.g. 1440x900 on 14" Asus ZenBook) --- */
+@media (max-width: 1600px) {
+  .explore-page-wrapper {
+    padding: 10px 14px;
+  }
+
   .explore-container-card {
-    gap: 18px;
-    padding: 16px 20px;
+    gap: 16px;
+    padding: 16px 18px;
   }
 
   .explore-map-sticky-panel {
-    width: 40%;
-    min-width: 340px;
+    width: 36%;
+    min-width: 310px;
+  }
+
+  .explore-scroll-pane {
+    gap: 24px;
+    padding-right: 12px;
+  }
+
+  .stippl-section {
+    margin-bottom: 26px;
+  }
+
+  .stippl-featured-grid {
+    grid-template-columns: 1.35fr 1fr;
+    gap: 12px;
+  }
+
+  .stippl-hero-card {
+    height: 205px;
+    padding: 16px 18px;
+  }
+
+  .stippl-hero-title {
+    font-size: 18px;
+  }
+
+  .stippl-hero-desc {
+    font-size: 11.5px;
+  }
+
+  .stippl-stacked-col {
+    gap: 10px;
+  }
+
+  .stippl-stacked-card {
+    height: 97px;
+    padding: 10px 14px;
+  }
+
+  .stippl-stacked-title {
+    font-size: 13.5px;
+  }
+
+  .stippl-stacked-desc {
+    font-size: 11px;
+  }
+
+  .stippl-travel-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  .stippl-travel-card {
+    height: 132px;
+    padding: 10px;
+  }
+
+  .stippl-travel-name {
+    font-size: 13px;
+  }
+
+  .carousel-card {
+    width: 136px;
+    gap: 8px;
+  }
+
+  .carousel-thumb {
+    height: 96px;
+    border-radius: 12px;
+  }
+
+  .carousel-label {
+    font-size: 12px;
+  }
+
+  .stippl-vibe-pill {
+    padding: 6px 12px;
+    font-size: 12px;
+    gap: 6px;
+  }
+
+  .explore-search-input-box {
+    padding: 8px 16px;
+  }
+
+  .explore-search-input {
+    font-size: 13.5px;
+  }
+}
+
+@media (max-width: 1366px) {
+  .explore-container-card {
+    gap: 14px;
+    padding: 14px 16px;
+  }
+
+  .explore-map-sticky-panel {
+    width: 35%;
+    min-width: 290px;
+  }
+
+  .stippl-featured-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stippl-stacked-col {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .stippl-travel-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -8458,13 +8742,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   width: 100%;
 }
 
-@media (max-width: 1366px) {
-  .explore-results-grid {
-    gap: 16px;
-  }
-}
-
-@media (max-width: 1200px) {
+@media (max-width: 1600px) {
   .explore-results-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 16px;
@@ -9678,6 +9956,67 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   font-family: 'SF Pro Rounded', sans-serif;
   font-size: 13px;
   max-width: 320px;
+}
+
+/* --- Bookings Laptop Responsiveness (≤1600px, e.g. 1440x900 on 14" Asus ZenBook) --- */
+@media (max-width: 1600px) {
+  .bookings-page-wrapper {
+    padding: 10px 16px;
+  }
+
+  .bookings-container-card {
+    padding: 14px 18px;
+    border-radius: 14px;
+  }
+
+  .bookings-header-title {
+    font-size: 24px;
+    margin-bottom: 14px;
+  }
+
+  .bookings-content-grid {
+    gap: 16px;
+    min-height: 480px;
+  }
+
+  .bookings-trip-selector-card {
+    width: 290px;
+    min-width: 260px;
+  }
+
+  .bookings-search-container {
+    padding: 14px 14px 10px 14px;
+  }
+
+  .bookings-trip-item {
+    padding: 12px 14px;
+  }
+
+  .bookings-trip-item-title {
+    font-size: 15px;
+  }
+
+  .bookings-ledger-header {
+    padding: 14px 18px 12px 18px;
+  }
+
+  .bookings-ledger-title {
+    font-size: 18px;
+  }
+
+  .bookings-table-wrapper {
+    padding: 0 16px;
+  }
+
+  .bookings-table-header-row {
+    padding: 10px 8px;
+    font-size: 10.5px;
+  }
+
+  .bookings-table-row {
+    padding: 10px 8px;
+    font-size: 12.5px;
+  }
 }
 
 /* Responsive Layout for Bookings & Explore */
