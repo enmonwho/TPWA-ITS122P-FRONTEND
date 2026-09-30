@@ -807,95 +807,97 @@ export function Budget() {
             </div>
           )}
 
-          <div className="budget-table">
-            <div className="budget-table-header">
-              <div>Name</div>
-              <div>Items</div>
-              <div>Category</div>
-              <div>Cost</div>
-            </div>
+          <div className="budget-table-wrap">
+            <div className="budget-table">
+              <div className="budget-table-header">
+                <div>Name</div>
+                <div>Items</div>
+                <div>Category</div>
+                <div>Cost</div>
+              </div>
 
-            <div className="budget-table-divider" />
+              <div className="budget-table-divider" />
 
-            <div className="budget-table-rows">
-              {budget.expenses.length === 0 ? (
-                <div className="budget-table-empty">
-                  No expenses recorded yet. Click <strong>Add Expense</strong> to start
-                  tracking!
-                </div>
-              ) : (
-                budget.expenses.map((expense) => {
-                  const catConfig = getCategoryConfig(expense.category);
-                  return (
-                    <div key={expense.id} className="budget-table-row">
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{expense.name}</div>
-                        {(expense.country_name || (expense as any).destination) && (
-                          <div
-                            style={{
-                              fontSize: '11.5px',
-                              color: 'rgba(0, 0, 0, 0.55)',
-                              marginTop: '2px',
-                            }}
-                          >
-                            📍 {expense.country_name || (expense as any).destination}
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ color: 'rgba(0, 0, 0, 0.7)' }}>
-                        {expense.items || 1}
-                      </div>
-                      <div>
-                        <span
-                          className="budget-row-category-badge"
-                          style={{ backgroundColor: catConfig.color }}
-                        >
-                          <img
-                            src={catConfig.icon}
-                            alt=""
-                            style={{
-                              width: '13px',
-                              height: '13px',
-                              objectFit: 'contain',
-                            }}
-                          />
-                          <span>{catConfig.name}</span>
-                        </span>
-                      </div>
-                      <div style={{ fontWeight: 600 }}>
-                        {formatCurrency(
-                          convert(expense.cost, 'PHP', displayCurrency, fxRates),
-                          displayCurrency,
-                        )}
-                        {displayCurrency !== 'PHP' && (
+              <div className="budget-table-rows">
+                {budget.expenses.length === 0 ? (
+                  <div className="budget-table-empty">
+                    No expenses recorded yet. Click <strong>Add Expense</strong> to start
+                    tracking!
+                  </div>
+                ) : (
+                  budget.expenses.map((expense) => {
+                    const catConfig = getCategoryConfig(expense.category);
+                    return (
+                      <div key={expense.id} className="budget-table-row">
+                        <div>
+                          <div style={{ fontWeight: 600 }}>{expense.name}</div>
+                          {(expense.country_name || (expense as any).destination) && (
+                            <div
+                              style={{
+                                fontSize: '11.5px',
+                                color: 'rgba(0, 0, 0, 0.55)',
+                                marginTop: '2px',
+                              }}
+                            >
+                              📍 {expense.country_name || (expense as any).destination}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ color: 'rgba(0, 0, 0, 0.7)' }}>
+                          {expense.items || 1}
+                        </div>
+                        <div>
                           <span
-                            style={{
-                              display: 'block',
-                              fontSize: '10.5px',
-                              fontWeight: 400,
-                              color: 'rgba(0, 0, 0, 0.45)',
-                            }}
+                            className="budget-row-category-badge"
+                            style={{ backgroundColor: catConfig.color }}
                           >
-                            ≈ ₱
-                            {expense.cost.toLocaleString('en-US', {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}
+                            <img
+                              src={catConfig.icon}
+                              alt=""
+                              style={{
+                                width: '13px',
+                                height: '13px',
+                                objectFit: 'contain',
+                              }}
+                            />
+                            <span>{catConfig.name}</span>
                           </span>
-                        )}
+                        </div>
+                        <div style={{ fontWeight: 600 }}>
+                          {formatCurrency(
+                            convert(expense.cost, 'PHP', displayCurrency, fxRates),
+                            displayCurrency,
+                          )}
+                          {displayCurrency !== 'PHP' && (
+                            <span
+                              style={{
+                                display: 'block',
+                                fontSize: '10.5px',
+                                fontWeight: 400,
+                                color: 'rgba(0, 0, 0, 0.45)',
+                              }}
+                            >
+                              ≈ ₱
+                              {expense.cost.toLocaleString('en-US', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          className="budget-row-delete-btn"
+                          title="Delete Expense"
+                          onClick={() => deleteExpense(expense.id)}
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        className="budget-row-delete-btn"
-                        title="Delete Expense"
-                        onClick={() => deleteExpense(expense.id)}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  );
-                })
-              )}
+                    );
+                  })
+                )}
+              </div>
             </div>
           </div>
         </div>

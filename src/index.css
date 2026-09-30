@@ -5536,6 +5536,16 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   display: none;
 }
 
+.workspace-mobile-toggle-bar {
+  display: none;
+}
+
+.workspace-itinerary-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* ============================== */
 /*    Trip Workspace Responsive   */
 /* ============================== */
@@ -5688,6 +5698,53 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   .workspace-table-header-row {
     display: none;
     /* Hide grid headers on mobile */
+  }
+
+  .workspace-mobile-toggle-bar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 14px;
+    background-color: #f7f3ee;
+    border-bottom: 1px solid var(--color-dash-divider);
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .workspace-mobile-toggle-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 80px;
+    font-family: 'SF Pro Rounded', var(--font-sans);
+    font-weight: 600;
+    font-size: 13px;
+    border: 1px solid rgba(72, 42, 19, 0.2);
+    background: #ffffff;
+    color: var(--color-dash-muted);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .workspace-mobile-toggle-btn.active {
+    background: var(--color-dash-card);
+    border-color: #f59e0b;
+    color: #92400e;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  .workspace-itinerary-zone.hidden-on-mobile {
+    display: none !important;
+  }
+
+  .workspace-map-zone.show-on-mobile {
+    display: flex !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    min-height: 480px !important;
+    height: 520px !important;
+  }
+
+  .workspace-itinerary-table {
+    min-width: 680px;
   }
 
   /* Map toggle on mobile */
@@ -7140,11 +7197,19 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 }
 
 /* Expense Table — Clean 4-column equal grid */
+.budget-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 56px;
+}
+
 .budget-table {
   width: 100%;
+  min-width: 480px;
   display: flex;
   flex-direction: column;
-  margin-top: 56px;
+  margin-top: 0;
 }
 
 .budget-table-header {
@@ -7656,6 +7721,45 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 
 .budget-modal-primary-btn:active {
   transform: scale(0.98);
+}
+
+@media (max-width: 768px), (hover: none) {
+  .budget-row-delete-btn {
+    opacity: 0.85;
+  }
+}
+
+@media (max-width: 640px) {
+  .budget-action-buttons {
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
+  .budget-btn-add-expense,
+  .budget-btn-add-balance {
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .budget-modal-card {
+    padding: 24px 18px 20px 18px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .budget-modal-cat-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .budget-modal-cat-pill {
+    flex: 1 1 calc(50% - 8px);
+    min-width: 110px;
+    max-width: none !important;
+    width: auto !important;
+    font-size: 13px;
+  }
 }
 
 .budget-balance-current-display {
