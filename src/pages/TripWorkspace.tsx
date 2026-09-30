@@ -17,7 +17,7 @@ import { getCoordinatesForName } from '../constants/coordinates';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../lib/constants';
 import type { Trip } from '../types/trip';
-import { tripsApi } from '../services/api';
+import { tripsApi, destinationsApi } from '../services/api';
 import {
   mergeTripWithExtras,
   saveTripExtras,
@@ -172,6 +172,50 @@ export default function TripWorkspace() {
           } catch {
             initialDests = [];
           }
+        }
+
+        // Fetch server destinations from canonical backend store to reconcile with MapView
+        let serverDests: any[] = [];
+        try {
+          const allDests = await destinationsApi.getAll();
+          serverDests = allDests.filter((d: any) => String(d.trip_id) === String(tripId));
+        } catch (destErr) {
+          console.warn('Could not fetch server destinations:', destErr);
+        }
+
+        // Reconcile server destinations with workspace custom metadata
+        if (serverDests.length > 0) {
+          const mergedList: WorkspaceDestination[] = [...initialDests];
+          for (const sDest of serverDests) {
+            const existingIdx = mergedList.findIndex(
+              (d) =>
+                d.id === String(sDest.id) ||
+                d.name.toLowerCase() === sDest.location_name.toLowerCase(),
+            );
+            if (existingIdx >= 0) {
+              mergedList[existingIdx] = {
+                ...mergedList[existingIdx],
+                id: String(sDest.id),
+                name: sDest.location_name || mergedList[existingIdx].name,
+                country: sDest.country || mergedList[existingIdx].country,
+                latitude: sDest.latitude || mergedList[existingIdx].latitude,
+                longitude: sDest.longitude || mergedList[existingIdx].longitude,
+              };
+            } else {
+              mergedList.push({
+                id: String(sDest.id),
+                name: sDest.location_name,
+                country: sDest.country || 'Philippines',
+                days: 1,
+                accommodation: '',
+                activities: '',
+                transportation: '',
+                latitude: sDest.latitude,
+                longitude: sDest.longitude,
+              });
+            }
+          }
+          initialDests = mergedList;
         }
 
         // Set loaded destinations (starts empty if none added yet)
@@ -368,7 +412,7 @@ export default function TripWorkspace() {
     setCollapsedCountries((prev) => ({ ...prev, [place.country]: false }));
   };
 
-  const handleAddDestination = (e: React.FormEvent) => {
+  const handleAddDestination = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDestInput.trim()) return;
 
@@ -394,8 +438,26 @@ export default function TripWorkspace() {
     const remainingDays = Math.max(1, tripDurationDays - totalAllocatedDays);
     const initialDays = Math.min(1, remainingDays);
 
+    let assignedId = `dest-custom-${Date.now()}`;
+    if (tripId) {
+      try {
+        const createdServer = await destinationsApi.create({
+          trip_id: Number(tripId),
+          location_name: name,
+          country: finalCountry,
+          latitude: coords ? coords[1] : 0,
+          longitude: coords ? coords[0] : 0,
+        });
+        if (createdServer && createdServer.id) {
+          assignedId = String(createdServer.id);
+        }
+      } catch (destErr) {
+        console.warn('Failed to persist destination to server:', destErr);
+      }
+    }
+
     const newDest: WorkspaceDestination = {
-      id: `dest-custom-${Date.now()}`,
+      id: assignedId,
       name,
       country: finalCountry,
       days: initialDays,
@@ -442,8 +504,15 @@ export default function TripWorkspace() {
     });
   };
 
-  const handleDeleteDestination = (id: string, e: React.MouseEvent) => {
+  const handleDeleteDestination = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (/^\d+$/.test(id)) {
+      try {
+        await destinationsApi.delete(Number(id));
+      } catch (delErr) {
+        console.warn('Failed to delete destination from server:', delErr);
+      }
+    }
     const updated = destinations.filter((d) => d.id !== id);
     setDestinations(updated);
     persistDestinations(updated);

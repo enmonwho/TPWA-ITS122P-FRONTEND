@@ -27,7 +27,10 @@ import {
   Flower2,
   PawPrint,
 } from 'lucide-react';
+import axios from 'axios';
 import { tripsApi, destinationsApi, activitiesApi } from '../services/api';
+import { saveTripExtras } from '../lib/tripExtras';
+import { isRangeValid } from '../lib/dateUtils';
 import {
   fetchExploreCountries,
   TOP_ISLANDS,
@@ -95,6 +98,10 @@ export default function Explore() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [travelType, setTravelType] = useState('Solo');
+  const [selectedPlaceForTrip, setSelectedPlaceForTrip] = useState<ExplorePlace | null>(
+    null,
+  );
+  const [planningError, setPlanningError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const countryScrollRef = useRef<HTMLDivElement>(null);
@@ -324,10 +331,18 @@ export default function Explore() {
   };
 
   const handleStartTripFromCountry = (targetName: string) => {
+    const place =
+      allDestinations.find(
+        (p) =>
+          p.name.toLowerCase() === targetName.toLowerCase() ||
+          (p.country && p.country.toLowerCase() === targetName.toLowerCase()),
+      ) || null;
+    setSelectedPlaceForTrip(place);
     setSelectedLocation(targetName);
     setTripName(`${targetName} Adventure`);
     setStartDate('');
     setEndDate('');
+    setPlanningError(null);
     setIsStartTripOpen(true);
   };
 
@@ -335,11 +350,13 @@ export default function Explore() {
     setActiveMarkerId(place.id);
     setFocusCoords([place.longitude, place.latitude]);
     setSelectedLocation(place.name);
+    setSelectedPlaceForTrip(place);
 
     if (openPlanModal) {
       setTripName(`${place.name} Adventure`);
       setStartDate('');
       setEndDate('');
+      setPlanningError(null);
       setIsStartTripOpen(true);
     }
   };
@@ -348,8 +365,10 @@ export default function Explore() {
     setIsStartTripOpen(false);
     setTripName('');
     setSelectedLocation('');
+    setSelectedPlaceForTrip(null);
     setStartDate('');
     setEndDate('');
+    setPlanningError(null);
   };
 
   const handleSelectSuggestion = (place: ExplorePlace) => {
@@ -388,24 +407,84 @@ export default function Explore() {
 
   const handleStartPlanning = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tripName.trim() || !startDate || !endDate) return;
-    if (endDate <= startDate) return;
+    setPlanningError(null);
+
+    const trimmedTitle = tripName.trim();
+    if (!trimmedTitle || !startDate || !endDate) {
+      setPlanningError('Please enter a trip name and both travel dates.');
+      return;
+    }
+
+    if (!isRangeValid(startDate, endDate)) {
+      setPlanningError('Return date must be on or after departure date.');
+      return;
+    }
 
     setSubmitting(true);
     try {
       const newTrip = await tripsApi.createTrip({
-        title: tripName,
+        title: trimmedTitle,
         start_date: startDate,
         end_date: endDate,
         total_budget: 15000,
         status: 'planning',
       });
+
+      const locName = selectedLocation.trim() || trimmedTitle;
+      const countryName = selectedPlaceForTrip?.country || locName;
+      const lat = selectedPlaceForTrip?.latitude || 0;
+      const lng = selectedPlaceForTrip?.longitude || 0;
+
+      // Persist destination record to server
+      try {
+        await destinationsApi.create({
+          trip_id: newTrip.id,
+          location_name: locName,
+          country: countryName,
+          latitude: lat,
+          longitude: lng,
+        });
+      } catch (destErr) {
+        console.warn('Failed to persist destination record to server:', destErr);
+      }
+
+      // Save trip extras for destination, country, travelType
+      saveTripExtras(newTrip.id, {
+        destination: locName,
+        country: countryName,
+        travelType,
+        countries: [countryName],
+      });
+
+      // Seed workspace destination cache so Trip Workspace immediately reflects the destination
+      const initialWorkspaceDest = {
+        id: `dest-${Date.now()}`,
+        name: locName,
+        country: countryName,
+        days: 1,
+        accommodation: '',
+        activities: '',
+        transportation: '',
+        latitude: lat,
+        longitude: lng,
+      };
+      localStorage.setItem(
+        `lakbye_workspace_dests_${newTrip.id}`,
+        JSON.stringify([initialWorkspaceDest]),
+      );
+
       handleCloseModal();
       navigate(`/trip/${newTrip.id}`);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to create trip:', err);
-      handleCloseModal();
-      navigate('/dashboard');
+      const errData = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string } | undefined)
+        : undefined;
+      setPlanningError(
+        errData?.message ||
+          'Failed to create trip. Please check your network connection and try again.',
+      );
+      // Retain modal open and form inputs intact on failure
     } finally {
       setSubmitting(false);
     }
@@ -1719,6 +1798,22 @@ export default function Explore() {
                   ))}
                 </div>
               </div>
+
+              {planningError && (
+                <div
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    backgroundColor: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    color: '#b91c1c',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                  }}
+                >
+                  ⚠️ {planningError}
+                </div>
+              )}
 
               <div className="flex justify-center mt-4">
                 <button

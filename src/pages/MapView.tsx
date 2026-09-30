@@ -254,6 +254,31 @@ export default function MapView() {
         ),
       );
 
+      // Sync to workspace destination cache so Trip Workspace instantly sees the new destination
+      try {
+        const destKey = `lakbye_workspace_dests_${activeTrip.id}`;
+        const existing = JSON.parse(localStorage.getItem(destKey) || '[]');
+        if (
+          Array.isArray(existing) &&
+          !existing.some((d: any) => String(d.id) === String(newDest.id))
+        ) {
+          existing.push({
+            id: String(newDest.id),
+            name: newDest.location_name,
+            country: newDest.country || 'Philippines',
+            days: 1,
+            accommodation: '',
+            activities: '',
+            transportation: '',
+            latitude: lat,
+            longitude: lng,
+          });
+          localStorage.setItem(destKey, JSON.stringify(existing));
+        }
+      } catch {
+        // ignore
+      }
+
       // Focus map to newly added pin
       setFocusView([lng, lat]);
       setActiveMarkerId(String(newDest.id));
@@ -316,6 +341,31 @@ export default function MapView() {
         ),
       );
 
+      // Sync to workspace destination cache so Trip Workspace instantly sees the new destination
+      try {
+        const destKey = `lakbye_workspace_dests_${activeTrip.id}`;
+        const existing = JSON.parse(localStorage.getItem(destKey) || '[]');
+        if (
+          Array.isArray(existing) &&
+          !existing.some((d: any) => String(d.id) === String(newDest.id))
+        ) {
+          existing.push({
+            id: String(newDest.id),
+            name: newDest.location_name,
+            country: newDest.country || placeCountry || 'Philippines',
+            days: 1,
+            accommodation: '',
+            activities: '',
+            transportation: '',
+            latitude: coords.lat,
+            longitude: coords.lng,
+          });
+          localStorage.setItem(destKey, JSON.stringify(existing));
+        }
+      } catch {
+        // ignore
+      }
+
       // Focus map to newly added pin
       setFocusView([coords.lng, coords.lat]);
       setActiveMarkerId(String(newDest.id));
@@ -358,6 +408,18 @@ export default function MapView() {
             : t,
         ),
       );
+
+      // Sync deletion to workspace destination cache
+      try {
+        const destKey = `lakbye_workspace_dests_${activeTrip.id}`;
+        const existing = JSON.parse(localStorage.getItem(destKey) || '[]');
+        if (Array.isArray(existing)) {
+          const filtered = existing.filter((d: any) => String(d.id) !== String(destId));
+          localStorage.setItem(destKey, JSON.stringify(filtered));
+        }
+      } catch {
+        // ignore
+      }
     } catch (err: unknown) {
       console.error('Failed to delete destination from backend:', err);
       const errData = axios.isAxiosError(err)

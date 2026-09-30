@@ -5,9 +5,17 @@ export interface TripExtras {
   countries: string[];
   travelType: string;
   coverPhoto?: string;
+  destination?: string;
+  country?: string;
 }
 
-const DEFAULT_EXTRAS: TripExtras = { countries: [], travelType: '', coverPhoto: '' };
+const DEFAULT_EXTRAS: TripExtras = {
+  countries: [],
+  travelType: '',
+  coverPhoto: '',
+  destination: '',
+  country: '',
+};
 
 /**
  * Compresses an image file to a web-optimized JPEG data URL using HTML5 canvas.
