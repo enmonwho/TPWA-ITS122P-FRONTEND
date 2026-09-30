@@ -22,7 +22,6 @@ export interface Booking {
   custom_type?: string;
   custom_location?: string;
   notes?: string;
-  vendor_name?: string;
   customer_name?: string;
   customer_email?: string;
 }
@@ -34,7 +33,6 @@ export interface Activity {
   id: number;
   destination_id?: number;
   category_id?: number;
-  vendor_id?: number;
   title: string;
   start_time?: string;
   end_time?: string;

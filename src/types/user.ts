@@ -2,7 +2,7 @@
  * User roles for the Travel Planner application.
  * Used for role-based access control throughout the UI.
  */
-export type UserRole = 'admin' | 'staff' | 'customer' | 'vendor' | string;
+export type UserRole = 'admin' | 'staff' | 'customer' | string;
 
 export interface UserPreferences {
   username?: string;

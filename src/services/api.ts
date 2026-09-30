@@ -368,7 +368,6 @@ export const activitiesApi = {
   getAll: async (params?: {
     destination_id?: number | string;
     category_id?: number | string;
-    vendor_id?: number | string;
   }): Promise<Activity[]> => {
     try {
       const response = await api.get<{ activities?: Activity[] } | Activity[]>(
@@ -491,7 +490,7 @@ export interface AdminUser {
   full_name?: string;
   name?: string;
   email: string;
-  role: 'admin' | 'staff' | 'customer' | 'vendor' | string;
+  role: 'admin' | 'staff' | 'customer' | string;
   is_active: boolean;
   created_at?: string;
 }
@@ -1084,7 +1083,6 @@ export const adminApi = {
     cost: number;
     start_time?: string;
     end_time?: string;
-    vendor_id?: number;
   }) => {
     const res = await api.post<{ message: string; activity: AdminActivity }>(
       '/activities',

@@ -798,17 +798,17 @@ export function Budget() {
             >
               <div>
                 <label
-                  htmlFor="modal-expense-vendor"
+                  htmlFor="modal-expense-merchant"
                   className="budget-modal-section-title"
                 >
                   Where did you spend?
                 </label>
                 <input
-                  id="modal-expense-vendor"
+                  id="modal-expense-merchant"
                   type="text"
                   required
                   placeholder="Name of shop, restaurant..."
-                  className="budget-modal-gradient-input budget-modal-vendor-input"
+                  className="budget-modal-gradient-input budget-modal-merchant-input"
                   value={expenseName}
                   onChange={(e) => setExpenseName(e.target.value)}
                 />

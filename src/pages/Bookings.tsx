@@ -379,8 +379,6 @@ export default function Bookings() {
         let accomLabel = 'Confirmed Stay / Boutique Hotel';
         if (isHotel) {
           accomLabel = b.custom_title || 'Boutique Hotel / Stay';
-        } else if (b.vendor_name) {
-          accomLabel = b.vendor_name;
         } else if (matchedAccom) {
           accomLabel = `${matchedAccom.name} (₱${Number(matchedAccom.cost).toLocaleString()})`;
         }
@@ -1029,7 +1027,7 @@ export default function Bookings() {
             <p className="text-xs text-stone-600 mb-6">
               Reserve an experience for{' '}
               <span className="font-semibold text-stone-900">{selectedTrip.name}</span>{' '}
-              directly through verified LakBye vendors.
+              directly for your travel itinerary.
             </p>
 
             {bookingSuccessMsg ? (
