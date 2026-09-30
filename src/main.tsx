@@ -2,7 +2,11 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ErrorBoundary } from './components';
 import App from './App';
+import { initSessionTracker } from './lib/sessionTracker';
 import './index.css';
+
+// Initialize real user session duration tracking
+initSessionTracker();
 
 /* ------------------------------------------------------------------ */
 /*  One-time cleanup of mock-auth localStorage artifacts               */

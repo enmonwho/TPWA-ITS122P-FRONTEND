@@ -33,7 +33,7 @@ import {
   TOP_ISLANDS,
   getEditorsPicks,
   getBestTimeToTravel,
-  getPlacesByVibe,
+  getPlacesByVibes,
   VIBES_LIST,
   MONTHS_SHORT,
   type ExplorePlace,
@@ -76,7 +76,7 @@ export default function Explore() {
 
   const [activeRegion, setActiveRegion] = useState('All');
   const [activeMonth, setActiveMonth] = useState<number>(() => new Date().getMonth());
-  const [activeVibe, setActiveVibe] = useState<string | null>(null);
+  const [activeVibes, setActiveVibes] = useState<string[]>([]);
 
   const [activeMarkerId, setActiveMarkerId] = useState<string | null>(null);
   const [focusCoords, setFocusCoords] = useState<[number, number] | null>(null);
@@ -242,20 +242,21 @@ export default function Explore() {
     }
 
     // Filter by Vibe if selected
-    if (activeVibe) {
-      list = getPlacesByVibe(list, activeVibe);
+    if (activeVibes.length > 0) {
+      list = getPlacesByVibes(list, activeVibes);
     }
 
     return list;
-  }, [countries, activeRegion, activeVibe]);
+  }, [countries, activeRegion, activeVibes]);
 
   // Markers for interactive 3D Globe
   const globeMarkers = useMemo(() => {
-    const list = activeVibe
-      ? getPlacesByVibe(allDestinations, activeVibe)
-      : filteredCountries.length > 0
-        ? filteredCountries
-        : allDestinations;
+    const list =
+      activeVibes.length > 0
+        ? getPlacesByVibes(allDestinations, activeVibes)
+        : filteredCountries.length > 0
+          ? filteredCountries
+          : allDestinations;
 
     return list.slice(0, 35).map((p) => ({
       id: p.id,
@@ -265,7 +266,7 @@ export default function Explore() {
       lng: p.longitude,
       flag: p.flag,
     }));
-  }, [allDestinations, filteredCountries, activeVibe]);
+  }, [allDestinations, filteredCountries, activeVibes]);
 
   // Search Results
   const isSearchMode = Boolean(debouncedQuery.trim());
@@ -1066,13 +1067,13 @@ export default function Explore() {
                   <span className="stippl-overline">Vibe</span>
                   <div className="stippl-header-row">
                     <h2 className="stippl-title">Browse by feel</h2>
-                    {activeVibe && (
+                    {activeVibes.length > 0 && (
                       <button
                         type="button"
-                        onClick={() => setActiveVibe(null)}
+                        onClick={() => setActiveVibes([])}
                         className="text-xs font-semibold text-amber-700 hover:underline cursor-pointer"
                       >
-                        Clear filter ✕
+                        Clear filter{activeVibes.length > 1 ? 's' : ''} ✕
                       </button>
                     )}
                   </div>
@@ -1084,12 +1085,14 @@ export default function Explore() {
                         key={vibe.id}
                         type="button"
                         onClick={() => {
-                          setActiveVibe((prev) =>
-                            prev === vibe.name ? null : vibe.name,
+                          setActiveVibes((prev) =>
+                            prev.includes(vibe.name)
+                              ? prev.filter((v) => v !== vibe.name)
+                              : [...prev, vibe.name],
                           );
                         }}
                         className={`stippl-vibe-pill ${
-                          activeVibe === vibe.name ? 'active' : ''
+                          activeVibes.includes(vibe.name) ? 'active' : ''
                         }`}
                       >
                         {renderVibeIcon(vibe.iconName)}
@@ -1163,7 +1166,9 @@ export default function Explore() {
                       ) : filteredCountries.length === 0 ? (
                         <div className="py-8 text-center text-xs text-stone-500 w-full">
                           No destinations match{' '}
-                          {activeVibe ? `vibe "${activeVibe}" in ` : ''}
+                          {activeVibes.length > 0
+                            ? `vibe${activeVibes.length > 1 ? 's' : ''} "${activeVibes.join(', ')}" in `
+                            : ''}
                           {activeRegion}.
                         </div>
                       ) : (

@@ -403,6 +403,24 @@ export const SEED_POPULAR_COUNTRIES: ExplorePlace[] = [
     bestMonths: [0, 1, 2, 10, 11],
   },
   {
+    id: 'VN',
+    name: 'Vietnam',
+    country: 'Vietnam',
+    region: 'Asia',
+    category: 'country',
+    latitude: 14.0583,
+    longitude: 108.2772,
+    flag: 'https://flagcdn.com/w320/vn.png',
+    population: 98000000,
+    imageUrl:
+      'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=85',
+    description:
+      'Emerald waters of Ha Long Bay, lantern-lit streets of Hoi An, vibrant night markets, and dramatic mountain peaks.',
+    tag: 'Karst Bays & Culture',
+    vibes: ['Scenic', 'Arts & Culture', 'Food & Drink', 'Adventure'],
+    bestMonths: [1, 2, 3, 9, 10, 11],
+  },
+  {
     id: 'CH',
     name: 'Switzerland',
     country: 'Switzerland',
@@ -676,19 +694,32 @@ export function getBestTimeToTravel(
 }
 
 /**
+ * Filters places matching any of the selected vibe tags (multi-select).
+ */
+export function getPlacesByVibes(
+  places: ExplorePlace[],
+  vibeNames: string[],
+): ExplorePlace[] {
+  if (!vibeNames || vibeNames.length === 0) return places;
+  const norms = vibeNames.map((v) => v.toLowerCase());
+  return places.filter((p) => {
+    return norms.some((norm) => {
+      if (p.vibes && p.vibes.some((v) => v.toLowerCase() === norm)) return true;
+      if (p.tag && p.tag.toLowerCase().includes(norm)) return true;
+      if (p.description && p.description.toLowerCase().includes(norm)) return true;
+      return false;
+    });
+  });
+}
+
+/**
  * Filters places matching a selected vibe tag.
  */
 export function getPlacesByVibe(
   places: ExplorePlace[],
   vibeName: string,
 ): ExplorePlace[] {
-  const norm = vibeName.toLowerCase();
-  return places.filter((p) => {
-    if (p.vibes && p.vibes.some((v) => v.toLowerCase() === norm)) return true;
-    if (p.tag && p.tag.toLowerCase().includes(norm)) return true;
-    if (p.description && p.description.toLowerCase().includes(norm)) return true;
-    return false;
-  });
+  return getPlacesByVibes(places, [vibeName]);
 }
 
 /**
@@ -701,4 +732,93 @@ export function getMostPopularDestination(allCountries: ExplorePlace[]): Explore
     SEED_POPULAR_COUNTRIES[0];
 
   return featured;
+}
+
+/**
+ * Resolves the destination image used on the Explore page for a given place or country name.
+ * Searches curated seed countries, top islands, cached Explore countries, or region defaults.
+ */
+export function getExploreDestinationImage(destName?: string): string {
+  if (!destName || destName === 'No destinations yet') {
+    return 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80';
+  }
+
+  const norm = destName.toLowerCase().trim();
+
+  // 1. Check curated SEED_POPULAR_COUNTRIES (e.g. Vietnam, Japan, France, Philippines, etc.)
+  const seedMatch = SEED_POPULAR_COUNTRIES.find((s) => {
+    const sName = s.name.toLowerCase();
+    const sCountry = (s.country || '').toLowerCase();
+    return (
+      norm === sName ||
+      norm === sCountry ||
+      norm.includes(sName) ||
+      (sCountry && norm.includes(sCountry)) ||
+      sName.includes(norm)
+    );
+  });
+  if (seedMatch?.imageUrl) {
+    return seedMatch.imageUrl;
+  }
+
+  // 2. Check curated TOP_ISLANDS (e.g. Boracay, Siargao, El Nido, Bali, Santorini, Maldives)
+  const islandMatch = TOP_ISLANDS.find((i) => {
+    const iName = i.name.toLowerCase();
+    const iCountry = (i.country || '').toLowerCase();
+    return (
+      norm === iName ||
+      norm.includes(iName) ||
+      iName.includes(norm) ||
+      (iCountry && (norm === iCountry || norm.includes(iCountry)))
+    );
+  });
+  if (islandMatch?.imageUrl) {
+    return islandMatch.imageUrl;
+  }
+
+  // 3. Check cached Explore countries from localStorage
+  try {
+    const cached = localStorage.getItem(STORAGE_KEY_COUNTRIES);
+    if (cached) {
+      const places = JSON.parse(cached) as ExplorePlace[];
+      const match = places.find((p) => {
+        const pName = p.name.toLowerCase();
+        const pCountry = (p.country || '').toLowerCase();
+        return (
+          norm === pName ||
+          norm.includes(pName) ||
+          pName.includes(norm) ||
+          (pCountry && (norm === pCountry || norm.includes(pCountry)))
+        );
+      });
+      if (match?.imageUrl) {
+        return match.imageUrl;
+      }
+    }
+  } catch {
+    // Ignore storage parse error
+  }
+
+  // 4. Region-based fallback matching
+  if (
+    norm.includes('asia') ||
+    norm.includes('korea') ||
+    norm.includes('seoul') ||
+    norm.includes('hong kong') ||
+    norm.includes('singapore') ||
+    norm.includes('taiwan')
+  ) {
+    return REGION_DEFAULT_IMAGES.Asia;
+  }
+  if (
+    norm.includes('europe') ||
+    norm.includes('greece') ||
+    norm.includes('germany') ||
+    norm.includes('uk') ||
+    norm.includes('london')
+  ) {
+    return REGION_DEFAULT_IMAGES.Europe;
+  }
+
+  return 'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=80';
 }

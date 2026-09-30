@@ -254,6 +254,29 @@ const CURATED_COUNTRY_PROFILES: Record<string, Partial<CountryProfile>> = {
     image_url:
       'https://images.unsplash.com/photo-1543783207-ec64e4d95325?auto=format&fit=crop&w=1200&q=80',
   },
+  Vietnam: {
+    country_name: 'Vietnam',
+    continent: 'Asia',
+    capital: 'Hanoi',
+    language: 'Vietnamese',
+    currency: 'VND',
+    population: 98000000,
+    description:
+      'A land of astonishing natural beauty, from the emerald limestone karsts of Ha Long Bay and imperial citadel of Hue to lantern-lit Hoi An and bustling street food markets.',
+    best_destinations: [
+      'Ha Long Bay & Cat Ba',
+      'Hoi An Ancient Town',
+      'Da Nang & Ba Na Hills',
+      'Hanoi Old Quarter',
+      'Ho Chi Minh City & Mekong Delta',
+      'Sa Pa Rice Terraces',
+    ],
+    budget_daily_cost: 1500,
+    midrange_daily_cost: 3800,
+    luxury_daily_cost: 12000,
+    image_url:
+      'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=85',
+  },
 };
 
 export default function DestinationDetailModal({

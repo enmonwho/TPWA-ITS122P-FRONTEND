@@ -20,6 +20,10 @@ import type {
 } from '../types/booking';
 import { STORAGE_KEYS } from '../lib/constants';
 import { mockAuthApi } from './mockAuthApi';
+import { COUNTRIES } from '../constants/countries';
+import { getTripExtras } from '../lib/tripExtras';
+import { getExploreDestinationImage } from './exploreService';
+import { computeSessionMetrics } from '../lib/sessionTracker';
 
 /**
  * Resolves the base URL for API requests.
@@ -613,28 +617,39 @@ export const adminApi = {
       }
 
       // 2. Fetch live database records in parallel to calculate 100% genuine data reflection
-      const [usersList, tripsList, bookingsRes, activitiesList] = await Promise.all([
-        adminApi.getUsers().catch(() => [] as AdminUser[]),
-        tripsApi.getTrips().catch(() => [] as Trip[]),
-        api
-          .get<
-            | {
-                bookings?: Array<{
+      const [usersList, tripsList, bookingsRes, activitiesList, destinationsList] =
+        await Promise.all([
+          adminApi.getUsers().catch(() => [] as AdminUser[]),
+          tripsApi.getTrips().catch(() => [] as Trip[]),
+          api
+            .get<
+              | {
+                  bookings?: Array<{
+                    id: number;
+                    activity_title?: string;
+                    status?: string;
+                    submitted_at?: string;
+                    created_at?: string;
+                  }>;
+                }
+              | Array<{
                   id: number;
                   activity_title?: string;
                   status?: string;
                   submitted_at?: string;
                   created_at?: string;
-                }>;
-              }
-            | any[]
-          >('/bookings')
-          .catch(() => null),
-        adminApi.getActivities().catch(() => [] as AdminActivity[]),
-      ]);
+                }>
+            >('/bookings')
+            .catch(() => null),
+          adminApi.getActivities().catch(() => [] as AdminActivity[]),
+          destinationsApi.getAll().catch(() => [] as Destination[]),
+        ]);
 
       const rawUsers: AdminUser[] = Array.isArray(usersList) ? usersList : [];
       const rawTrips: Trip[] = Array.isArray(tripsList) ? tripsList : [];
+      const rawDestinations: Destination[] = Array.isArray(destinationsList)
+        ? destinationsList
+        : [];
 
       let rawBookings: Array<{
         id: number;
@@ -725,22 +740,87 @@ export const adminApi = {
               ).toFixed(1),
             );
 
-      // D. Real Top Destinations Ranking from Real Trips & Activities in Database
+      // D. Real Top Destinations Ranking from Real Trips, Destinations & Activities in Database
       const destinationCountMap: Record<string, number> = {};
-      rawTrips.forEach((t) => {
-        const rawName = (t.name || '').trim();
-        if (rawName) {
-          const cleanName = rawName.replace(
-            /^(trip to|travel to|visit to|vacation in|tour of)\s+/i,
-            '',
-          );
-          destinationCountMap[cleanName] = (destinationCountMap[cleanName] || 0) + 1;
+
+      const addDestinationCount = (destName: string) => {
+        const trimmed = destName.trim();
+        if (!trimmed) return;
+        destinationCountMap[trimmed] = (destinationCountMap[trimmed] || 0) + 1;
+      };
+
+      // 1. Group database destinations by trip_id
+      const destsByTripId = new Map<string | number, Destination[]>();
+      rawDestinations.forEach((d) => {
+        if (d.trip_id != null) {
+          const existing = destsByTripId.get(d.trip_id) || [];
+          existing.push(d);
+          destsByTripId.set(d.trip_id, existing);
         }
       });
+
+      // 2. Count real places & countries from the database destinations table
+      rawDestinations.forEach((d) => {
+        const place = (d.location_name || '').trim();
+        const country = (d.country || '').trim();
+        if (place && country && place.toLowerCase() !== country.toLowerCase()) {
+          addDestinationCount(`${place}, ${country}`);
+        } else if (place) {
+          addDestinationCount(place);
+        } else if (country) {
+          addDestinationCount(country);
+        }
+      });
+
+      // 3. For trips without explicit destinations in the database table, extract destination/country
+      rawTrips.forEach((t) => {
+        const tripDests = destsByTripId.get(t.id) || [];
+        if (tripDests.length > 0) {
+          // Already accounted for via database destinations table
+          return;
+        }
+
+        // Check user-selected trip countries from trip extras
+        const extras = getTripExtras(t.id);
+        if (extras.countries && extras.countries.length > 0) {
+          extras.countries.forEach((c) => addDestinationCount(c));
+          return;
+        }
+
+        // Fallback: Extract country or place from trip name instead of using raw trip name (e.g. "Vietnam 2027" -> "Vietnam")
+        const rawName = (t.name || '').trim();
+        if (!rawName) return;
+
+        // Check if trip name matches a known country in COUNTRIES
+        const matchedCountry = COUNTRIES.find((c) =>
+          new RegExp(`\\b${c}\\b`, 'i').test(rawName),
+        );
+        if (matchedCountry) {
+          addDestinationCount(matchedCountry);
+          return;
+        }
+
+        // Strip dates, years (e.g. 2027), seasons, and trip descriptors
+        const cleaned = rawName
+          .replace(/^(trip to|travel to|visit to|vacation in|tour of)\s+/i, '')
+          .replace(/\b(19|20)\d\d\b/g, '')
+          .replace(
+            /\b(trip|tour|vacation|getaway|holiday|adventure|journey|expedition|travel)\b/gi,
+            '',
+          )
+          .replace(/\b(summer|winter|spring|autumn|fall)\b/gi, '')
+          .trim();
+
+        if (cleaned.length >= 2) {
+          addDestinationCount(cleaned);
+        }
+      });
+
+      // 4. Count activity destinations
       rawActivities.forEach((a) => {
         const dest = (a.destination || '').trim();
         if (dest) {
-          destinationCountMap[dest] = (destinationCountMap[dest] || 0) + 1;
+          addDestinationCount(dest);
         }
       });
 
@@ -759,59 +839,14 @@ export const adminApi = {
       );
 
       const topDestName =
-        topDestinations[0]?.name || (rawTrips[0]?.name ?? 'No destinations yet');
+        topDestinations[0]?.name ||
+        (rawTrips[0]?.name
+          ? rawTrips[0].name.replace(/\b(19|20)\d\d\b/g, '').trim()
+          : 'No destinations yet');
       const topDestRequests = topDestinations[0]?.count || (rawTrips.length > 0 ? 1 : 0);
 
-      // Resolve destination image from trip cover photos, country profiles, or curated travel imagery
-      const matchingTrip = rawTrips.find(
-        (t) =>
-          t.cover_photo &&
-          (t.name.toLowerCase().includes(topDestName.toLowerCase()) ||
-            topDestName.toLowerCase().includes(t.name.toLowerCase())),
-      );
-
-      let topDestImage =
-        matchingTrip?.cover_photo || rawTrips.find((t) => t.cover_photo)?.cover_photo;
-
-      if (!topDestImage && topDestName && topDestName !== 'No destinations yet') {
-        const lowerName = topDestName.toLowerCase();
-        if (
-          lowerName.includes('japan') ||
-          lowerName.includes('tokyo') ||
-          lowerName.includes('kyoto') ||
-          lowerName.includes('osaka')
-        ) {
-          topDestImage =
-            'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=1200&q=80';
-        } else if (
-          lowerName.includes('palawan') ||
-          lowerName.includes('philippines') ||
-          lowerName.includes('boracay') ||
-          lowerName.includes('cebu') ||
-          lowerName.includes('el nido') ||
-          lowerName.includes('siargao') ||
-          lowerName.includes('manila') ||
-          lowerName.includes('getaway')
-        ) {
-          topDestImage =
-            'https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?auto=format&fit=crop&w=1200&q=80';
-        } else if (lowerName.includes('hong kong') || lowerName.includes('disney')) {
-          topDestImage =
-            'https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?auto=format&fit=crop&w=1200&q=80';
-        } else if (lowerName.includes('paris') || lowerName.includes('france')) {
-          topDestImage =
-            'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1200&q=80';
-        } else if (lowerName.includes('korea') || lowerName.includes('seoul')) {
-          topDestImage =
-            'https://images.unsplash.com/photo-1538485399081-7191377e8241?auto=format&fit=crop&w=1200&q=80';
-        } else if (lowerName.includes('singapore')) {
-          topDestImage =
-            'https://images.unsplash.com/photo-1525625293386-3f8f99389edd?auto=format&fit=crop&w=1200&q=80';
-        } else {
-          topDestImage =
-            'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80';
-        }
-      }
+      // Resolve destination image directly from the Explore page imagery based on the most requested destination/country
+      const topDestImage = getExploreDestinationImage(topDestName);
 
       // E. Real Monthly Calendars (Last 5 Months for Users, Last 7 Months for Budgets/Bookings)
       const monthNames = [
@@ -903,14 +938,36 @@ export const adminApi = {
         }),
       };
 
-      // F. Session Metrics
-      const sessionMetrics: SessionMetricsReport = {
-        avgDurationFormatted: totalUsers > 0 ? '08m 42s' : '00m 00s',
-        avgDurationSeconds: totalUsers > 0 ? 522 : 0,
-        changePct: totalUsers > 0 ? 6.2 : 0,
-        isPositive: true,
-        fillPercentage: totalUsers > 0 ? 68 : 0,
-      };
+      // F. Real Dynamic Session Metrics (Strictly Customer-only)
+      const customerUsers = rawUsers.filter(
+        (u) =>
+          u.role?.toLowerCase() === 'customer' ||
+          !['admin', 'staff'].includes(u.role?.toLowerCase() || ''),
+      );
+      const customerUserIds = new Set(customerUsers.map((u) => u.id));
+
+      const customerTrips = rawTrips.filter((t) => {
+        const uId = (t as unknown as { user_id?: number }).user_id;
+        return uId == null || customerUserIds.has(uId);
+      });
+
+      const customerBookings = rawBookings.filter((b) => {
+        const uId = (b as unknown as { user_id?: number }).user_id;
+        return uId == null || customerUserIds.has(uId);
+      });
+
+      const sessionMetrics: SessionMetricsReport = computeSessionMetrics(period, {
+        customerTrips: customerTrips.map((t) => ({
+          created_at: t.createdAt,
+          user_id: (t as unknown as { user_id?: number }).user_id,
+        })),
+        customerBookings: customerBookings.map((b) => ({
+          submitted_at: b.submitted_at || b.created_at,
+          user_id: (b as unknown as { user_id?: number }).user_id,
+        })),
+        customerUserIds,
+        totalCustomersCount: customerUsers.length,
+      });
 
       return {
         period,
@@ -930,7 +987,7 @@ export const adminApi = {
           mostRequestedDestination: {
             name: topDestName,
             requestsCount: topDestRequests,
-            imageUrl: topDestImage,
+            imageUrl: topDestImage || undefined,
           },
           plannedBudgets: {
             value: totalPlannedBudget,

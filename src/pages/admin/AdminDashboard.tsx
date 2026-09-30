@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FileText,
   Users,
@@ -35,7 +35,16 @@ import '../../styles/Admin.css';
 type Tab = 'systems' | 'users' | 'categories' | 'master';
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<Tab>('categories');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawTab = searchParams.get('tab');
+  const activeTab: Tab =
+    rawTab && ['systems', 'users', 'categories', 'master'].includes(rawTab)
+      ? (rawTab as Tab)
+      : 'systems';
+
+  const setActiveTab = (tab: Tab) => {
+    setSearchParams({ tab }, { replace: true });
+  };
   const { user, setUser, isLoading } = useAuth();
   const navigate = useNavigate();
 
@@ -341,7 +350,7 @@ function SystemsReportTab() {
               style={
                 reportData.kpis.mostRequestedDestination.imageUrl
                   ? {
-                      backgroundImage: `linear-gradient(180deg, rgba(233, 114, 76, 0.82) 0%, rgba(197, 40, 61, 0.90) 100%), url("${reportData.kpis.mostRequestedDestination.imageUrl}")`,
+                      backgroundImage: `linear-gradient(180deg, rgba(233, 114, 76, 0.20) 0%, rgba(25, 18, 16, 0.55) 100%), url("${reportData.kpis.mostRequestedDestination.imageUrl}")`,
                       backgroundSize: 'cover',
                       backgroundPosition: 'center',
                     }

@@ -209,6 +209,29 @@ body {
   background: var(--color-brand-warm-cream);
 }
 
+/* ==========================================================================
+   High-Resolution Display Scaling
+   Ensures the website looks identical at 2880x1800 (and 2560x1440, 3840x2160)
+   as it does at 1920x1080, preventing elements from feeling cramped or tiny.
+   ========================================================================== */
+@media (min-width: 2400px) and (max-width: 2650px) {
+  :root {
+    zoom: 1.3333;
+  }
+}
+
+@media (min-width: 2651px) and (max-width: 3400px) {
+  :root {
+    zoom: 1.5;
+  }
+}
+
+@media (min-width: 3401px) {
+  :root {
+    zoom: 2;
+  }
+}
+
 /* Layout */
 
 .app-layout {
@@ -8255,11 +8278,15 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   background: #fffbf7;
 }
 
-.stippl-vibe-pill.active {
-  background: var(--lakbye-gradient);
-  color: #ffffff;
-  border-color: transparent;
-  box-shadow: 0 2px 8px rgba(233, 114, 76, 0.3);
+.stippl-vibe-pill.active,
+.stippl-vibe-pill.active:hover {
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    var(--lakbye-gradient) border-box;
+  color: #000000;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(233, 114, 76, 0.15);
 }
 
 @media (max-width: 900px) {
