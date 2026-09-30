@@ -793,7 +793,7 @@ export function Budget() {
               <span>⚠️ {deleteExpenseError}</span>
               <button
                 type="button"
-                onClick={() => setDeleteExpenseError(null)}
+                onClick={() => setDeleteExpenseError('')}
                 style={{
                   background: 'none',
                   border: 'none',
