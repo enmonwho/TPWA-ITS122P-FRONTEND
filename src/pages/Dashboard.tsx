@@ -742,12 +742,27 @@ export default function Dashboard() {
                                       ? 'ONGOING'
                                       : 'COMPLETED'}
                                 </span>
+                                <span
+                                  className={`trip-mobile-badge trip-mobile-badge--${displayStatus}`}
+                                >
+                                  {displayStatus === 'upcoming'
+                                    ? 'UPCOMING'
+                                    : displayStatus === 'ongoing'
+                                      ? 'ONGOING'
+                                      : 'COMPLETED'}
+                                </span>
                                 {displayStatus === 'upcoming' &&
                                   trip.daysUntil !== undefined && (
-                                    <span className="trip-text-countdown">
-                                      ({trip.daysUntil}{' '}
-                                      {trip.daysUntil === 1 ? 'day' : 'days'})
-                                    </span>
+                                    <>
+                                      <span className="trip-text-countdown">
+                                        ({trip.daysUntil}{' '}
+                                        {trip.daysUntil === 1 ? 'day' : 'days'})
+                                      </span>
+                                      <span className="trip-mobile-badge trip-mobile-badge--countdown">
+                                        In {trip.daysUntil}{' '}
+                                        {trip.daysUntil === 1 ? 'Day' : 'Days'}
+                                      </span>
+                                    </>
                                   )}
                               </div>
                             </div>
@@ -760,10 +775,20 @@ export default function Dashboard() {
                                   userDateFormat,
                                 )}
                               </span>
+                              <span className="trip-mobile-badge trip-mobile-badge--date">
+                                {formatTripDateRange(
+                                  trip.startDate,
+                                  trip.endDate,
+                                  userDateFormat,
+                                )}
+                              </span>
                             </div>
 
                             <div className="trip-cell-duration">
                               <span className="trip-text-duration">
+                                {trip.nights} {trip.nights === 1 ? 'Night' : 'Nights'}
+                              </span>
+                              <span className="trip-mobile-badge trip-mobile-badge--nights">
                                 {trip.nights} {trip.nights === 1 ? 'Night' : 'Nights'}
                               </span>
                             </div>

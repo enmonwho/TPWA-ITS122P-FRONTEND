@@ -4197,6 +4197,10 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   justify-content: center;
 }
 
+.trip-mobile-badge {
+  display: none;
+}
+
 /* Clean typography replacing pills on Dashboard Trips */
 .trip-text-status {
   font-family: 'SF Pro Rounded', var(--font-sans);
@@ -4839,11 +4843,13 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   .dashboard-trips-table-row {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    align-items: stretch;
+    gap: 12px;
     background: #ffffff;
-    border: 1px solid var(--color-dash-border);
+    border: 1px solid #eae6df;
     border-radius: 16px;
-    padding: 14px;
+    padding: 13px;
+    padding-bottom: 14px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     position: relative;
     box-sizing: border-box;
@@ -4865,7 +4871,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   .trip-cell-name {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 2px;
     padding-left: 0;
     padding-right: 32px;
   }
@@ -4873,11 +4879,11 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   .trip-cell-name .trip-row-name {
     font-family: 'Poppins', var(--font-sans);
     font-weight: 700;
-    font-size: 15px;
-    color: #1a1a1a;
+    font-size: 16px;
+    color: #1e1e1e;
     padding-left: 0;
     white-space: normal;
-    line-height: 1.25;
+    line-height: 19px;
   }
 
   .trip-row-location {
@@ -4886,7 +4892,8 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
     gap: 4px;
     font-family: 'SF Pro Rounded', var(--font-sans);
     font-size: 12px;
-    color: #71717a;
+    color: #6e6d6a;
+    line-height: 15px;
   }
 
   .trip-row-location-icon {
@@ -4894,15 +4901,22 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
     color: #a1a1aa;
   }
 
-  .trip-cell-actions {
+  .dashboard-trips-table-row > .trip-cell-actions.trip-row-options-container {
     position: absolute;
-    top: 12px;
-    right: 12px;
+    top: 13px;
+    right: 13px;
   }
 
   .trip-row-options {
-    padding: 4px;
+    width: 28px;
+    height: 28px;
+    padding: 6px;
     border-radius: 6px;
+  }
+
+  .trip-row-options svg {
+    width: 16px;
+    height: 16px;
   }
 
   /* Badges row */
@@ -4974,6 +4988,69 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 
   .trip-badge-spacer {
     display: none;
+  }
+
+  .trip-cell-dates::before,
+  .trip-cell-duration::before {
+    content: none;
+    margin: 0;
+  }
+
+  .trip-text-status,
+  .trip-text-countdown,
+  .trip-text-date,
+  .trip-text-duration {
+    display: none;
+  }
+
+  .trip-mobile-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 20px;
+    padding: 4px 8px;
+    border: none;
+    border-radius: 6px;
+    font-family: 'Poppins', var(--font-sans);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 12px;
+    white-space: nowrap;
+  }
+
+  .trip-mobile-badge--upcoming {
+    background: #fef3c7;
+    color: #b45309;
+    font-weight: 700;
+  }
+
+  .trip-mobile-badge--ongoing {
+    background: #e0f2fe;
+    color: #0369a1;
+    font-weight: 700;
+  }
+
+  .trip-mobile-badge--completed,
+  .trip-mobile-badge--past {
+    background: #f1f5f9;
+    color: #475569;
+    font-weight: 700;
+  }
+
+  .trip-mobile-badge--countdown {
+    background: #fee2e2;
+    color: #991b1b;
+    font-weight: 700;
+  }
+
+  .trip-mobile-badge--date {
+    background: #edf4f9;
+    color: #1d4ed8;
+  }
+
+  .trip-mobile-badge--nights {
+    background: #fff3e0;
+    color: #e65100;
   }
 }
 
