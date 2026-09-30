@@ -78,6 +78,39 @@ export function deleteTripExtras(tripId: string | number): void {
   localStorage.removeItem(STORAGE_KEYS.TRIP_EXTRAS(tripId));
 }
 
+/**
+ * Centrally cleans up all local storage keys associated with a trip
+ * after confirmed server-side deletion.
+ */
+export function cleanupTripLocalData(
+  tripId: string | number,
+  userId?: string | number,
+): void {
+  deleteTripExtras(tripId);
+  try {
+    localStorage.removeItem(`lakbye_workspace_dests_${tripId}`);
+    localStorage.removeItem(`lakbye_workspace_countries_${tripId}`);
+    localStorage.removeItem(`lakbye_budget_${tripId}`);
+    localStorage.removeItem(`lakbye_trip_budget_${tripId}`);
+    localStorage.removeItem(`lakbye_display_currency_${tripId}`);
+    localStorage.removeItem(`lakbye_packing_${tripId}`);
+    localStorage.removeItem(`lakbye_cached_trip_${tripId}`);
+    if (userId) {
+      const tripKey = `lakbye_local_trips_${userId}`;
+      const raw = localStorage.getItem(tripKey);
+      if (raw) {
+        const list: Trip[] = JSON.parse(raw);
+        localStorage.setItem(
+          tripKey,
+          JSON.stringify(list.filter((t) => String(t.id) !== String(tripId))),
+        );
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to clean up local storage for trip:', err);
+  }
+}
+
 export function formatDateOnly(dateStr?: string | null): string {
   if (!dateStr) return '';
   return dateStr.split(/[T ]/)[0];

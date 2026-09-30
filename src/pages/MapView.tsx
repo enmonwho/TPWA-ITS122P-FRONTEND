@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 import GlobeMap, { type MarkerData } from '../components/GlobeMap';
 import CreateTripModal from '../components/CreateTripModal';
 import magnifierIcon from '../assets/magnifier.png';
@@ -37,6 +38,7 @@ export default function MapView() {
   const [activeTripId, setActiveTripId] = useState<number | string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [mapActionError, setMapActionError] = useState<string>('');
 
   // View modes: 'my-trips' (per-trip inspection) or 'world-tracker' (Stippl-style aggregate view)
   const [activeViewMode, setActiveViewMode] = useState<'my-trips' | 'world-tracker'>(
@@ -234,32 +236,16 @@ export default function MapView() {
 
     try {
       const [lng, lat] = selectedFeature.center;
-      let newDest: Destination;
 
-      try {
-        newDest = await destinationsApi.create({
-          trip_id: activeTrip.id,
-          location_name: selectedFeature.text || selectedFeature.place_name,
-          latitude: lat,
-          longitude: lng,
-          order_sequence: (activeTrip.destinations?.length || 0) + 1,
-        });
-      } catch (backendErr) {
-        console.warn(
-          'Backend destinationsApi.create error, using optimistic place with real coordinates:',
-          backendErr,
-        );
-        newDest = {
-          id: Date.now(),
-          trip_id: Number(activeTrip.id),
-          location_name: selectedFeature.text || selectedFeature.place_name,
-          latitude: lat,
-          longitude: lng,
-          order_sequence: (activeTrip.destinations?.length || 0) + 1,
-        };
-      }
+      const newDest = await destinationsApi.create({
+        trip_id: activeTrip.id,
+        location_name: selectedFeature.text || selectedFeature.place_name,
+        latitude: lat,
+        longitude: lng,
+        order_sequence: (activeTrip.destinations?.length || 0) + 1,
+      });
 
-      // Update state in place
+      // Update state ONLY on confirmed server creation
       setTrips((prev) =>
         prev.map((t) =>
           String(t.id) === String(activeTrip.id)
@@ -277,9 +263,15 @@ export default function MapView() {
       setSelectedFeature(null);
       setPlaceSuggestions([]);
       setIsAddPlaceView(false);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to add destination:', err);
-      setGeocodeError('Failed to resolve or save place. Please try again.');
+      const errData = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string } | undefined)
+        : undefined;
+      const msg =
+        errData?.message || 'Failed to save destination to server. Please try again.';
+      setGeocodeError(msg);
+      // Retain search input and selection so user can retry
     } finally {
       setIsGeocoding(false);
     }
@@ -307,31 +299,15 @@ export default function MapView() {
         return;
       }
 
-      let newDest: Destination;
-      try {
-        newDest = await destinationsApi.create({
-          trip_id: activeTrip.id,
-          location_name: placeName.trim(),
-          latitude: coords.lat,
-          longitude: coords.lng,
-          order_sequence: (activeTrip.destinations?.length || 0) + 1,
-        });
-      } catch (backendErr) {
-        console.warn(
-          'Backend destinationsApi.create error, using optimistic place with real coordinates:',
-          backendErr,
-        );
-        newDest = {
-          id: Date.now(),
-          trip_id: Number(activeTrip.id),
-          location_name: placeName.trim(),
-          latitude: coords.lat,
-          longitude: coords.lng,
-          order_sequence: (activeTrip.destinations?.length || 0) + 1,
-        };
-      }
+      const newDest = await destinationsApi.create({
+        trip_id: activeTrip.id,
+        location_name: placeName.trim(),
+        latitude: coords.lat,
+        longitude: coords.lng,
+        order_sequence: (activeTrip.destinations?.length || 0) + 1,
+      });
 
-      // Update state in place
+      // Update state ONLY on confirmed server response
       setTrips((prev) =>
         prev.map((t) =>
           String(t.id) === String(activeTrip.id)
@@ -350,28 +326,47 @@ export default function MapView() {
       setPlaceCity('');
       setPlaceCountry('');
       setIsAddPlaceView(false);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to create destination:', err);
-      setGeocodeError('Failed to save destination. Please try again.');
+      const errData = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string } | undefined)
+        : undefined;
+      const msg =
+        errData?.message || 'Failed to save destination to server. Please try again.';
+      setGeocodeError(msg);
+      // Form inputs are preserved so user can retry
     } finally {
       setIsGeocoding(false);
     }
   };
 
-  const handleDeleteDestination = async (destId: number) => {
+  const handleDeleteDestination = async (destId: number | string) => {
     if (!activeTrip) return;
+    setMapActionError('');
     try {
       await destinationsApi.delete(destId);
-    } catch (err) {
+      // Only remove from UI if server deletion succeeded
+      setTrips((prev) =>
+        prev.map((t) =>
+          String(t.id) === String(activeTrip.id)
+            ? {
+                ...t,
+                destinations: t.destinations.filter(
+                  (d) => String(d.id) !== String(destId),
+                ),
+              }
+            : t,
+        ),
+      );
+    } catch (err: unknown) {
       console.error('Failed to delete destination from backend:', err);
+      const errData = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string } | undefined)
+        : undefined;
+      const msg =
+        errData?.message || 'Failed to delete destination from server. Please try again.';
+      setMapActionError(msg);
     }
-    setTrips((prev) =>
-      prev.map((t) =>
-        String(t.id) === String(activeTrip.id)
-          ? { ...t, destinations: t.destinations.filter((d) => d.id !== destId) }
-          : t,
-      ),
-    );
   };
 
   // =========================================================================
@@ -1118,6 +1113,22 @@ export default function MapView() {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3">
+                    {mapActionError && (
+                      <div
+                        className="p-2.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg flex items-center justify-between"
+                        role="alert"
+                      >
+                        <span>{mapActionError}</span>
+                        <button
+                          type="button"
+                          onClick={() => setMapActionError('')}
+                          className="text-red-500 hover:text-red-700 font-bold ml-2 cursor-pointer"
+                          aria-label="Dismiss error"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
                     {activeTrip.destinations.map((dest) => {
                       const isActive = activeMarkerId === String(dest.id);
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Trip } from '../types/trip';
+import axios from 'axios';
+import type { Trip, TripStatus } from '../types/trip';
 import {
   Globe,
   Ticket,
@@ -24,11 +25,12 @@ import createTripBtnIcon from '../assets/create-trip-button.svg';
 import browseDestIcon from '../assets/browse-destination.svg';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES, STORAGE_KEYS } from '../lib/constants';
-import { tripsApi, journalsApi, preferencesApi } from '../services/api';
+import { tripsApi, journalsApi, preferencesApi, bookingsApi } from '../services/api';
 import {
   mergeTripsWithExtras,
   mergeTripWithExtras,
   formatTripDateRange,
+  cleanupTripLocalData,
 } from '../lib/tripExtras';
 import { formatUserCurrency } from '../lib/formatters';
 
@@ -40,6 +42,9 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [isCreateTripModalOpen, setIsCreateTripModalOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [statusError, setStatusError] = useState('');
+  const [totalBookingsCount, setTotalBookingsCount] = useState<number | null>(null);
   const [journalCount, setJournalCount] = useState<number>(() => {
     if (!user?.id) return 0;
     try {
@@ -104,6 +109,26 @@ export default function Dashboard() {
       isMounted = false;
     };
   }, [user?.id]);
+
+  // Fetch real booking count from API
+  useEffect(() => {
+    if (!user) return;
+    let isMounted = true;
+    bookingsApi
+      .getAll()
+      .then((items) => {
+        if (isMounted) {
+          setTotalBookingsCount(Array.isArray(items) ? items.length : 0);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not fetch real booking count:', err);
+        if (isMounted) setTotalBookingsCount(0);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -224,7 +249,7 @@ export default function Dashboard() {
     new Set(trips.flatMap((t) => t.countries || [])),
   ).length;
 
-  const totalBookings = trips.length;
+  const totalBookings = totalBookingsCount !== null ? totalBookingsCount : 0;
 
   const nextTrip = trips
     .filter((t) => getDisplayStatus(t) === 'upcoming')
@@ -371,48 +396,42 @@ export default function Dashboard() {
 
   const handleOpenDelete = (trip: Trip) => {
     setDeletingTrip(trip);
+    setDeleteError('');
     setOpenMenuTripId(null);
   };
 
   const handleConfirmDelete = async () => {
     if (!deletingTrip) return;
     setIsDeleting(true);
+    setDeleteError('');
 
     try {
       await tripsApi.deleteTrip(deletingTrip.id);
-    } catch (err) {
-      console.warn('API deleteTrip warning (will still clean up locally):', err);
+
+      // Clean up local state ONLY on confirmed server deletion
+      setTrips((prev) => prev.filter((t) => t.id !== deletingTrip.id));
+      cleanupTripLocalData(deletingTrip.id, user?.id);
+
+      setIsDeleting(false);
+      setDeletingTrip(null);
+    } catch (err: unknown) {
+      console.error('API deleteTrip error:', err);
+      const errData = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string } | undefined)
+        : undefined;
+      const msg =
+        errData?.message ||
+        'Failed to delete trip from server. Please check your connection and try again.';
+      setDeleteError(msg);
+      setIsDeleting(false);
+      // Retain trip in state so user can retry or cancel
     }
-
-    // Clean up local state
-    setTrips((prev) => prev.filter((t) => t.id !== deletingTrip.id));
-
-    // Clean up any local storage associated with this trip
-    try {
-      localStorage.removeItem(`lakbye_workspace_dests_${deletingTrip.id}`);
-      localStorage.removeItem(`lakbye_trip_budget_${deletingTrip.id}`);
-      if (user?.id) {
-        const tripKey = `lakbye_local_trips_${user.id}`;
-        const raw = localStorage.getItem(tripKey);
-        if (raw) {
-          const list: Trip[] = JSON.parse(raw);
-          localStorage.setItem(
-            tripKey,
-            JSON.stringify(list.filter((t) => t.id !== deletingTrip.id)),
-          );
-        }
-      }
-    } catch {
-      // ignore
-    }
-
-    setIsDeleting(false);
-    setDeletingTrip(null);
   };
 
   const handleToggleStatus = async (trip: Trip) => {
     const isPast = getDisplayStatus(trip) === 'past' || trip.status === 'completed';
-    const newStatus = isPast ? 'planning' : 'completed';
+    const newStatus: TripStatus = isPast ? 'planning' : 'completed';
+    setStatusError('');
 
     try {
       await tripsApi.updateTrip(trip.id, {
@@ -422,14 +441,21 @@ export default function Dashboard() {
         total_budget: trip.totalBudget,
         status: newStatus,
       });
-    } catch (err) {
-      console.warn('Status update API warning:', err);
-    }
 
-    setTrips((prev) =>
-      prev.map((t) => (t.id === trip.id ? { ...t, status: newStatus } : t)),
-    );
-    setOpenMenuTripId(null);
+      // Update UI only upon confirmed server response
+      setTrips((prev) =>
+        prev.map((t) => (t.id === trip.id ? { ...t, status: newStatus } : t)),
+      );
+    } catch (err: unknown) {
+      console.error('Status update API error:', err);
+      const errData = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string } | undefined)
+        : undefined;
+      const msg = errData?.message || 'Failed to update trip status. Please try again.';
+      setStatusError(msg);
+    } finally {
+      setOpenMenuTripId(null);
+    }
   };
 
   const handleDuplicateTrip = async (trip: Trip) => {
@@ -452,6 +478,22 @@ export default function Dashboard() {
   return (
     <div className="dashboard-page">
       <div className="dashboard-container">
+        {statusError && (
+          <div
+            className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center justify-between animate-fade-in-up"
+            role="alert"
+          >
+            <span>{statusError}</span>
+            <button
+              type="button"
+              onClick={() => setStatusError('')}
+              className="text-red-500 hover:text-red-700 font-bold ml-2 cursor-pointer"
+              aria-label="Dismiss error"
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <div className="dashboard-greeting-wrapper">
           <div className="dashboard-greeting">
             <span>Greetings,</span>
@@ -987,6 +1029,15 @@ export default function Dashboard() {
               &rdquo;? All associated itineraries, budget expenses, and packing checklists
               will be permanently removed.
             </p>
+
+            {deleteError && (
+              <p
+                className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-2.5 mb-4 text-center font-medium w-full"
+                role="alert"
+              >
+                {deleteError}
+              </p>
+            )}
 
             <div className="flex items-center gap-3 w-full justify-center">
               <button
