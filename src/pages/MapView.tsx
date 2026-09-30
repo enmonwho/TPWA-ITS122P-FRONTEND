@@ -1017,16 +1017,18 @@ export default function MapView() {
                             <span>{trip.name}</span>
                             <span className="text-stone-400 text-sm font-normal">›</span>
                           </div>
-                          <div className="flex items-center gap-2 mt-1.5">
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
                             <span className="map-list-date-badge">{dateRange}</span>
-                            <span className="text-[11px] font-semibold text-stone-500 bg-stone-100 px-2 py-0.5 rounded-full border border-stone-200">
+                            <span className="text-stone-300 text-xs font-normal">•</span>
+                            <span className="text-xs font-semibold text-[#255f85]">
                               {placeCount} {placeCount === 1 ? 'place' : 'places'}
                             </span>
+                            <span className="text-stone-300 text-xs font-normal">•</span>
                             <span
-                              className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                              className={`text-[11px] font-bold uppercase tracking-wider ${
                                 trip.status === 'completed'
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                  : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                  ? 'text-emerald-600'
+                                  : 'text-[#e9724c]'
                               }`}
                             >
                               {trip.status || 'planning'}
@@ -1058,13 +1060,32 @@ export default function MapView() {
                       <h2 className="text-xl font-bold text-stone-900">
                         {activeTrip.name}
                       </h2>
-                      <span className="map-list-date-badge mt-0.5">
-                        {activeTrip.startDate && activeTrip.endDate
-                          ? `${formatDateOnly(activeTrip.startDate)} - ${formatDateOnly(
-                              activeTrip.endDate,
-                            )}`
-                          : 'No dates set'}
-                      </span>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="map-list-date-badge">
+                          {activeTrip.startDate && activeTrip.endDate
+                            ? `${formatDateOnly(activeTrip.startDate)} - ${formatDateOnly(
+                                activeTrip.endDate,
+                              )}`
+                            : 'No dates set'}
+                        </span>
+                        <span className="text-stone-300 text-xs font-normal">•</span>
+                        <span className="text-xs font-semibold text-[#255f85]">
+                          {activeTrip.destinations?.length || 0}{' '}
+                          {(activeTrip.destinations?.length || 0) === 1
+                            ? 'place'
+                            : 'places'}
+                        </span>
+                        <span className="text-stone-300 text-xs font-normal">•</span>
+                        <span
+                          className={`text-[11px] font-bold uppercase tracking-wider ${
+                            activeTrip.status === 'completed'
+                              ? 'text-emerald-600'
+                              : 'text-[#e9724c]'
+                          }`}
+                        >
+                          {activeTrip.status || 'planning'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <button

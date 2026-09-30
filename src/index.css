@@ -9052,7 +9052,6 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   font-weight: 600;
   padding: 3px 12px;
   border-radius: 9999px;
-  margin-top: 8px;
   width: fit-content;
 }
 
