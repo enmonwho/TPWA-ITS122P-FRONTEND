@@ -66,3 +66,5 @@ Current branch: `fix/travel-planner-remediation`
 6. `241f2e3` - `docs: update remediation checklist with completed P1 fixes`
 7. `667f889` - `fix: adjust deleteExpenseError reset value to empty string`
 8. `0d9a985` - `fix: repair mobile workspace layout, mobile map access and budget table wrapping`
+9. `928412a` - `docs: check off mobile blockers in remediation progress`
+10. `e9b1636` - `fix: normalize category comparison for accommodation in bookings`
