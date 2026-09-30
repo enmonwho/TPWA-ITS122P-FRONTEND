@@ -26,6 +26,7 @@ import {
   type ExpenseApiResponse,
 } from '../services/api';
 import { mergeTripsWithExtras, formatDateOnly } from '../lib/tripExtras';
+import { normalizeCategory } from '../lib/budgetUtils';
 import type { Trip } from '../types/trip';
 import type { Destination } from '../types/destination';
 import type { Activity, Booking, BookingStatus } from '../types/booking';
@@ -348,7 +349,7 @@ export default function Bookings() {
       });
 
       const accommodationExpenses = tripExpenses.filter(
-        (e) => e.category?.toLowerCase() === 'accommodation',
+        (e) => normalizeCategory(e.category) === 'Accommodation',
       );
 
       return tripBookings.map((b, idx) => {
