@@ -264,6 +264,12 @@ export default function ProfileSettings() {
       setNewPassword('');
       setConfirmPassword('');
 
+      window.dispatchEvent(
+        new CustomEvent('lakbye:preferences-updated', {
+          detail: updatedPreferences,
+        }),
+      );
+
       setSuccessMessage('Your profile and preferences have been updated successfully.');
     } catch (err: unknown) {
       console.error('Failed to update profile:', err);
