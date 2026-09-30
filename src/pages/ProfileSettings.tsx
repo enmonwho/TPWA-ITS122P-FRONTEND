@@ -209,6 +209,7 @@ export default function ProfileSettings() {
         username?: string;
         bio?: string;
         password?: string;
+        current_password?: string;
         avatar_url?: string;
         preferences?: StoredPreferences;
       } = {
@@ -217,7 +218,10 @@ export default function ProfileSettings() {
         username: username.trim(),
         bio: bio.trim(),
         avatar_url: avatarUrl,
-        ...(newPassword && { password: newPassword }),
+        ...(newPassword && {
+          password: newPassword,
+          current_password: currentPassword,
+        }),
       };
 
       const updatedPreferences: StoredPreferences = {
@@ -238,13 +242,18 @@ export default function ProfileSettings() {
       try {
         await userApi.updateProfile(user.id, payload);
       } catch (userApiErr) {
-        if (axios.isAxiosError(userApiErr) && userApiErr.response?.data?.message) {
-          setErrorMessage(userApiErr.response.data.message);
-          setIsSaving(false);
-          setActiveTab('security');
-          return;
-        }
-        console.warn('Backend user profile update note:', userApiErr);
+        const errData = axios.isAxiosError(userApiErr)
+          ? (userApiErr.response?.data as { message?: string } | undefined)
+          : undefined;
+        const msg =
+          errData?.message ||
+          (userApiErr instanceof Error
+            ? userApiErr.message
+            : 'Failed to update profile settings on server.');
+        setErrorMessage(msg);
+        setIsSaving(false);
+        if (newPassword) setActiveTab('security');
+        return;
       }
 
       // 4. Update React AuthContext so headers, greetings, and cards update live

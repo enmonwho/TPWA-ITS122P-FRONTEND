@@ -103,16 +103,22 @@ export function validateUsernameFormat(username: string): UsernameValidationResu
   return { isValid: true };
 }
 
+export interface UsernameAvailabilityResult {
+  available: boolean;
+  status: 'available' | 'taken' | 'unknown';
+  error?: string;
+}
+
 /**
  * Checks if a username is available across known accounts and storage.
  */
 export async function checkUsernameAvailability(
   username: string,
   currentUserId?: number | string,
-): Promise<{ available: boolean; error?: string }> {
+): Promise<UsernameAvailabilityResult> {
   const formatCheck = validateUsernameFormat(username);
   if (!formatCheck.isValid) {
-    return { available: false, error: formatCheck.error };
+    return { available: false, status: 'taken', error: formatCheck.error };
   }
 
   const cleanUsername = username.trim().toLowerCase();
@@ -129,7 +135,11 @@ export async function checkUsernameAvailability(
             u.username?.toLowerCase() === cleanUsername,
         );
         if (match) {
-          return { available: false, error: 'This username is already taken.' };
+          return {
+            available: false,
+            status: 'taken',
+            error: 'This username is already taken.',
+          };
         }
       }
     }
@@ -154,7 +164,11 @@ export async function checkUsernameAvailability(
         if (dataStr) {
           const parsed = JSON.parse(dataStr);
           if (parsed.username && parsed.username.toLowerCase() === cleanUsername) {
-            return { available: false, error: 'This username is already taken.' };
+            return {
+              available: false,
+              status: 'taken',
+              error: 'This username is already taken.',
+            };
           }
         }
       }
@@ -164,9 +178,11 @@ export async function checkUsernameAvailability(
   }
 
   // 3. Query backend users list if accessible
+  let backendVerified = false;
   try {
     const users = await adminApi.getUsers();
-    if (Array.isArray(users) && users.length > 0) {
+    if (Array.isArray(users)) {
+      backendVerified = true;
       const match = users.find(
         (u) =>
           u.id?.toString() !== currentUserId?.toString() &&
@@ -175,12 +191,20 @@ export async function checkUsernameAvailability(
               (u as { username?: string }).username?.toLowerCase() === cleanUsername)),
       );
       if (match) {
-        return { available: false, error: 'This username is already taken.' };
+        return {
+          available: false,
+          status: 'taken',
+          error: 'This username is already taken.',
+        };
       }
     }
   } catch {
-    // Gracefully handle backend 403 or network failure; local check suffices
+    // 403 Forbidden or network error: cannot authoritatively verify against server
+    backendVerified = false;
   }
 
-  return { available: true };
+  return {
+    available: true,
+    status: backendVerified ? 'available' : 'unknown',
+  };
 }

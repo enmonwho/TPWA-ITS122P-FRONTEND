@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { ChevronDown, CheckCircle2, AlertCircle, Loader2, Camera } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
@@ -77,6 +78,8 @@ export default function Onboarding() {
   const [avatarUrl, setAvatarUrl] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isSubmittingDone, setIsSubmittingDone] = useState(false);
+  const [doneError, setDoneError] = useState<string | null>(null);
 
   /* Step 3 state */
   const [preferences, setPreferences] = useState({
@@ -154,7 +157,8 @@ export default function Onboarding() {
         setAvailabilityResult({
           usernameChecked: trimmedUsername,
           isChecking: false,
-          available: true,
+          available: false,
+          error: 'Could not verify username. Please check your connection.',
         });
       }
     }, 350);
@@ -219,6 +223,9 @@ export default function Onboarding() {
   };
 
   const handleDone = async () => {
+    setIsSubmittingDone(true);
+    setDoneError(null);
+
     const chosenCurrency = preferences.currency || 'PHP';
     fetchExchangeRates(chosenCurrency).catch(() => {});
     fetchExchangeRates('PHP').catch(() => {});
@@ -241,8 +248,16 @@ export default function Onboarding() {
 
         // 2. Sync Preferences to DB
         await preferencesApi.savePreferences(user.id, userPreferences);
-      } catch (err) {
-        console.warn('Backend profile/preferences save caught:', err);
+      } catch (err: unknown) {
+        console.error('Backend profile/preferences save caught:', err);
+        const errData = axios.isAxiosError(err)
+          ? (err.response?.data as { message?: string } | undefined)
+          : undefined;
+        setDoneError(
+          errData?.message || 'Failed to save profile settings. Please try again.',
+        );
+        setIsSubmittingDone(false);
+        return;
       }
 
       // 3. Update Session Context
@@ -261,7 +276,7 @@ export default function Onboarding() {
     }
 
     triggerTransition(() => {
-      navigate(ROUTES.HOME);
+      navigate(ROUTES.DASHBOARD);
     }, 700);
   };
 
@@ -553,8 +568,30 @@ export default function Onboarding() {
             />
           </div>
 
-          <button className="onboarding-btn-done" onClick={handleDone}>
-            I&apos;m all set!
+          {doneError && (
+            <div
+              style={{
+                marginBottom: '16px',
+                padding: '10px 14px',
+                borderRadius: '10px',
+                backgroundColor: '#fef2f2',
+                border: '1px solid #fecaca',
+                color: '#b91c1c',
+                fontSize: '13px',
+                fontWeight: 600,
+              }}
+            >
+              ⚠️ {doneError}
+            </div>
+          )}
+
+          <button
+            className="onboarding-btn-done"
+            onClick={handleDone}
+            disabled={isSubmittingDone}
+            style={{ opacity: isSubmittingDone ? 0.7 : 1 }}
+          >
+            {isSubmittingDone ? 'Saving...' : "I'm all set!"}
           </button>
         </div>
       )}

@@ -10,8 +10,6 @@ export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [accountFound, setAccountFound] = useState<boolean | null>(null);
-  const [emailSent, setEmailSent] = useState<boolean | null>(null);
   const [devResetUrl, setDevResetUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -28,8 +26,6 @@ export default function ForgotPassword() {
     try {
       const res = await authApi.forgotPassword(email.trim());
       setSuccess(true);
-      setAccountFound(res.accountFound ?? null);
-      setEmailSent(res.emailSent ?? null);
       if (res?.devResetUrl) {
         setDevResetUrl(res.devResetUrl);
       }
@@ -55,44 +51,19 @@ export default function ForgotPassword() {
 
       {success ? (
         <div className="auth-status-container animate-fade-in-up">
-          {accountFound === false ? (
-            <div className="auth-status-card auth-status-card--warning">
-              <div className="auth-status-icon-wrap">
-                <AlertCircle size={28} />
-              </div>
-              <h3 className="auth-status-title">No Account Found</h3>
-              <p className="auth-status-desc">
-                We couldn't find an account matching{' '}
-                <span className="auth-status-target">{email}</span>. Please verify your
-                email or create a new account.
-              </p>
+          <div className="auth-status-card auth-status-card--success">
+            <div className="auth-status-icon-wrap">
+              <CheckCircle2 size={28} />
             </div>
-          ) : (
-            <div className="auth-status-card auth-status-card--success">
-              <div className="auth-status-icon-wrap">
-                <CheckCircle2 size={28} />
-              </div>
-              <h3 className="auth-status-title">
-                {emailSent ? 'Email Dispatched!' : 'Reset Link Generated'}
-              </h3>
-              <p className="auth-status-desc">
-                {emailSent ? (
-                  <>
-                    A password reset link was sent to{' '}
-                    <span className="auth-status-target">{email}</span>. Please check your
-                    inbox and spam folder.
-                  </>
-                ) : (
-                  <>
-                    A password reset link was created for{' '}
-                    <span className="auth-status-target">{email}</span>.
-                  </>
-                )}
-              </p>
-            </div>
-          )}
+            <h3 className="auth-status-title">Reset Instructions Sent</h3>
+            <p className="auth-status-desc">
+              If an account matching <span className="auth-status-target">{email}</span>{' '}
+              exists in our system, password reset instructions have been sent. Please
+              check your inbox and spam folder.
+            </p>
+          </div>
 
-          {devResetUrl && (
+          {import.meta.env.DEV && devResetUrl && (
             <div className="auth-status-dev-box">
               <span className="auth-status-dev-title">🛠️ Development Mode Helper</span>
               <p className="auth-status-dev-text">
