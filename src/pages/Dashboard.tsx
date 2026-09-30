@@ -693,9 +693,7 @@ export default function Dashboard() {
                           <div className="trip-badges-group">
                             <div className="trip-cell-status">
                               <div className="trip-status-badges-wrap">
-                                <span
-                                  className={`trip-badge trip-badge--${displayStatus === 'upcoming' ? 'upcoming' : 'completed'}`}
-                                >
+                                <span className={`trip-text-status ${displayStatus}`}>
                                   {displayStatus === 'upcoming'
                                     ? 'UPCOMING'
                                     : displayStatus === 'ongoing'
@@ -704,15 +702,16 @@ export default function Dashboard() {
                                 </span>
                                 {displayStatus === 'upcoming' &&
                                   trip.daysUntil !== undefined && (
-                                    <span className="trip-badge trip-badge--countdown">
-                                      {trip.daysUntil} days
+                                    <span className="trip-text-countdown">
+                                      ({trip.daysUntil}{' '}
+                                      {trip.daysUntil === 1 ? 'day' : 'days'})
                                     </span>
                                   )}
                               </div>
                             </div>
 
                             <div className="trip-cell-dates">
-                              <span className="trip-badge trip-badge--date">
+                              <span className="trip-text-date">
                                 {formatTripDateRange(
                                   trip.startDate,
                                   trip.endDate,
@@ -722,8 +721,8 @@ export default function Dashboard() {
                             </div>
 
                             <div className="trip-cell-duration">
-                              <span className="trip-badge trip-badge--nights">
-                                {trip.nights} Nights
+                              <span className="trip-text-duration">
+                                {trip.nights} {trip.nights === 1 ? 'Night' : 'Nights'}
                               </span>
                             </div>
                           </div>

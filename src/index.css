@@ -4197,6 +4197,50 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   justify-content: center;
 }
 
+/* Clean typography replacing pills on Dashboard Trips */
+.trip-text-status {
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.trip-text-status.upcoming {
+  color: #e9724c;
+}
+
+.trip-text-status.ongoing {
+  color: #255f85;
+}
+
+.trip-text-status.completed,
+.trip-text-status.past {
+  color: #10b981;
+}
+
+.trip-text-countdown {
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #c5283d;
+  margin-left: 5px;
+}
+
+.trip-text-date {
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-weight: 600;
+  font-size: 13.5px;
+  color: #255f85;
+}
+
+.trip-text-duration {
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-weight: 700;
+  font-size: 13px;
+  color: #e9724c;
+}
+
 .trip-badge {
   border: 1px solid rgba(72, 42, 19, 0.2);
   border-radius: 80px;
@@ -4874,6 +4918,14 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   .trip-cell-duration {
     display: inline-flex;
     align-items: center;
+  }
+
+  .trip-cell-dates::before,
+  .trip-cell-duration::before {
+    content: '•';
+    color: rgba(72, 42, 19, 0.3);
+    margin-right: 6px;
+    font-size: 10px;
   }
 
   .trip-badge-container {
