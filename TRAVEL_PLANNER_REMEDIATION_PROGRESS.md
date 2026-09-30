@@ -14,7 +14,7 @@ Current branch: `fix/travel-planner-remediation`
 - [x] Add trip-date validation (`src/lib/dateUtils.ts` with YYYY-MM-DD parsing & range validation)
 - [x] Fix security-sensitive auth flows (ForgotPassword enumeration, current_password requirement, fail-closed username check, onboarding route)
 - [x] Add regression tests (35 unit tests across dateUtils, budgetUtils, usernameValidation)
-- [ ] Fix mobile blockers (Trip workspace mobile itinerary / map toggle, budget table responsiveness)
+- [x] Fix mobile blockers (Trip workspace mobile itinerary / map toggle, budget table responsiveness)
 - [ ] Remove localStorage authority for core trip data (itinerary & packing migration strategy pending backend)
 - [ ] Canonical trip/destination model (complete full frontend unification)
 
@@ -45,12 +45,16 @@ Current branch: `fix/travel-planner-remediation`
    - `ForgotPassword.tsx`: Replaced distinct account found/not found cards with uniform neutral message to eliminate account enumeration; gated `devResetUrl` behind `import.meta.env.DEV`.
    - `ProfileSettings.tsx`: Included `current_password` in payload when updating password; halted with visible error banner on `userApi.updateProfile` failure instead of swallowing error.
    - `usernameValidation.ts` & `Onboarding.tsx`: Eliminated fail-open behavior on network/403 errors (returning `status: 'unknown'`); routed completed onboarding to `ROUTES.DASHBOARD` instead of `ROUTES.HOME`. Added 10 unit tests in `src/lib/usernameValidation.test.ts`.
+6. **Phase 9 & 10 — Fix Responsive Blockers & Mobile Access**:
+   - `TripWorkspace.tsx`: Added accessible mobile toggle bar (`Itinerary | Map`) allowing mobile users to toggle between the itinerary and interactive 3D GlobeMap; wrapped the route planner table in `.workspace-itinerary-table-wrap` for smooth horizontal scrolling; added accessible button roles, `tabIndex`, and `aria-expanded` to collapsible country headers.
+   - `Budget.tsx`: Wrapped expense table in `.budget-table-wrap` to eliminate small-screen column crushing; centered and vertically stacked action buttons on mobile (`<= 640px`); allowed category pills to flex-wrap gracefully without overflowing the modal; made delete buttons visible on touch/mobile screens (`opacity: 0.85`).
 
 ## Regression Testing Summary
 
 - Test framework: `vitest` v5.0.3 installed and configured (`npm test`).
 - Test results: **3 passed files, 35 passed tests, 0 failures**.
 - TypeScript type checking: `npx tsc --noEmit` **0 errors**.
+- Production build: `npm run build` (`tsc -b && vite build`) **0 errors**, built in 3.42s.
 
 ## Commits on `fix/travel-planner-remediation`
 
@@ -59,3 +63,6 @@ Current branch: `fix/travel-planner-remediation`
 3. `0cf67fb` - `fix: reconcile budget state, mutations and category spellings`
 4. `b998355` - `fix: preserve explore destination and unify workspace map destinations`
 5. `af6e64a` - `fix: harden security flows, password change and username availability`
+6. `241f2e3` - `docs: update remediation checklist with completed P1 fixes`
+7. `667f889` - `fix: adjust deleteExpenseError reset value to empty string`
+8. `0d9a985` - `fix: repair mobile workspace layout, mobile map access and budget table wrapping`
