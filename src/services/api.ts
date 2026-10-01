@@ -1142,6 +1142,7 @@ export interface PublicProfileResponse {
   username: string;
   bio?: string;
   avatar_url?: string;
+  home_country?: string;
   trips?: Trip[];
 }
 

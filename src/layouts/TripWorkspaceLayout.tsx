@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import lakbyeLogo from '../assets/lakbye-white-logo.png';
+import lakbyeLogo from '../assets/lakbye-logo.png';
 import sidebarPlanner from '../assets/sidebar-planner.png';
 import sidebarBudget from '../assets/sidebar-budget.png';
 import sidebarSettings from '../assets/sidebar-settings.png';

@@ -8,12 +8,14 @@ import {
   Search,
   Loader2,
   User,
+  X,
+  MapPin,
 } from 'lucide-react';
 import lakByeImg from '../assets/lakbye-logo.png';
 import { useAuth } from '../context/AuthContext';
 import { usePageLoader } from '../context/PageLoaderContext';
 import { ROUTES } from '../lib/constants';
-import { userApi } from '../services/api';
+import { userApi, type PublicProfileResponse } from '../services/api';
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -34,6 +36,9 @@ export default function Header() {
   >([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
+
+  // Profile Preview Modal State
+  const [previewUser, setPreviewUser] = useState<PublicProfileResponse | null>(null);
 
   const { user, logout, isLoading } = useAuth();
   const { triggerTransition } = usePageLoader();
@@ -62,6 +67,7 @@ export default function Header() {
       if (event.key === 'Escape') {
         setDropdownOpen(false);
         setShowSearchResults(false);
+        setPreviewUser(null);
       }
     };
 
@@ -122,11 +128,22 @@ export default function Header() {
       console.error('Logout failed:', err);
     }
   };
-  const handleUserSelect = (username?: string | null) => {
+  const handleUserSelect = async (username?: string | null) => {
     if (!username) return;
     const cleanUsername = username.replace(/^@+/, '');
-    navigate(`/${cleanUsername}`);
-    handleLinkClick();
+    setShowSearchResults(false);
+    try {
+      const profile = await userApi.getUserByUsername(cleanUsername);
+      if (profile) {
+        setPreviewUser(profile);
+      } else {
+        navigate(`/${cleanUsername}`);
+        handleLinkClick();
+      }
+    } catch {
+      navigate(`/${cleanUsername}`);
+      handleLinkClick();
+    }
   };
 
   const firstName = user?.full_name ? user.full_name.trim().split(/\s+/)[0] : 'Traveler';
@@ -397,6 +414,82 @@ export default function Header() {
           )}
         </div>
       </nav>
+
+      {/* Traveler Profile Preview Modal */}
+      {previewUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
+          <div
+            className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-stone-200 relative animate-scale-up"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="preview-user-name"
+          >
+            <button
+              type="button"
+              onClick={() => setPreviewUser(null)}
+              className="absolute top-4 right-4 text-stone-400 hover:text-stone-700 p-1.5 rounded-full transition-colors"
+              aria-label="Close profile preview"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex flex-col items-center text-center">
+              <div className="w-20 h-20 rounded-full bg-stone-200 overflow-hidden flex items-center justify-center text-stone-600 text-xl font-bold mb-3 shadow-inner">
+                {previewUser.avatar_url ? (
+                  <img
+                    src={previewUser.avatar_url}
+                    alt={previewUser.full_name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User size={36} />
+                )}
+              </div>
+              <h3 id="preview-user-name" className="text-lg font-bold text-stone-900">
+                {previewUser.full_name}
+              </h3>
+              <p className="text-xs text-stone-500 mb-2">
+                @{previewUser.username?.replace(/^@+/, '')}
+              </p>
+
+              {previewUser.home_country && (
+                <div className="inline-flex items-center gap-1 text-xs text-stone-600 bg-stone-100 px-3 py-1 rounded-full mb-3">
+                  <MapPin size={12} className="text-[#E9724C]" />
+                  <span>{previewUser.home_country}</span>
+                </div>
+              )}
+
+              {previewUser.bio && (
+                <p className="text-xs text-stone-600 line-clamp-3 mb-4 italic px-2">
+                  "{previewUser.bio}"
+                </p>
+              )}
+
+              <div className="w-full pt-4 border-t border-stone-100 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const u = previewUser.username?.replace(/^@+/, '');
+                    setPreviewUser(null);
+                    navigate(`/${u}`);
+                    handleLinkClick();
+                  }}
+                  className="flex-1 py-2.5 px-4 bg-[#E9724C] hover:bg-[#d86540] text-white text-xs font-semibold rounded-lg transition-colors text-center"
+                >
+                  View Full Profile
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewUser(null)}
+                  className="py-2.5 px-3 border border-stone-200 text-stone-600 hover:bg-stone-50 text-xs font-medium rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

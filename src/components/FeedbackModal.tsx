@@ -3,6 +3,7 @@ import { X, Star, MapPin, Send, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { feedbackApi, type FeedbackItem } from '../services/api';
 import { COUNTRIES } from '../constants/countries';
+import { normalizeCountry } from '../lib/countryUtils';
 
 interface FeedbackModalProps {
   isOpen: boolean;
@@ -38,7 +39,8 @@ export default function FeedbackModal({
     e.preventDefault();
     setError('');
 
-    if (!countryName) {
+    const targetCountry = normalizeCountry(countryName.trim() || countrySearch.trim());
+    if (!targetCountry) {
       setError('Please select a country you visited.');
       return;
     }
@@ -59,7 +61,7 @@ export default function FeedbackModal({
 
     try {
       const res = await feedbackApi.submit({
-        country_name: countryName,
+        country_name: targetCountry,
         title: title.trim(),
         comment: comment.trim(),
         rating,
@@ -100,7 +102,9 @@ export default function FeedbackModal({
         style={{
           width: '520px',
           maxWidth: '92vw',
-          padding: '28px 32px',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          padding: 'clamp(20px, 4vw, 32px)',
           position: 'relative',
           borderRadius: '24px',
         }}

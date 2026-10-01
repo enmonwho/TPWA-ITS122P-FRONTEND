@@ -495,11 +495,18 @@ export default function TripPacking() {
             <h2 className="budget-title">Packing</h2>
 
             {/* Filter Controls (Status & Scope) */}
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               {/* Status Filter Pill */}
               <div
                 className="budget-currency-pill"
-                style={{ minWidth: '72px', padding: '0 10px' }}
+                style={{
+                  width: '86px',
+                  flexShrink: 0,
+                  padding: '0 8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
                 title="Filter by packing status"
               >
                 <select
@@ -521,7 +528,7 @@ export default function TripPacking() {
                   <option value="Unpacked">To Pack</option>
                   <option value="Packed">Packed</option>
                 </select>
-                <span style={{ pointerEvents: 'none' }}>
+                <span style={{ pointerEvents: 'none' }} className="truncate max-w-[54px]">
                   {statusFilter === 'All'
                     ? 'All'
                     : statusFilter === 'Unpacked'
@@ -540,7 +547,14 @@ export default function TripPacking() {
               {/* Destination / Scope Filter Pill */}
               <div
                 className="budget-currency-pill"
-                style={{ minWidth: '82px', padding: '0 10px' }}
+                style={{
+                  width: '112px',
+                  flexShrink: 0,
+                  padding: '0 8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
                 title="Filter by Country, Place, or Overall Trip"
               >
                 <select
@@ -577,7 +591,7 @@ export default function TripPacking() {
                     </optgroup>
                   )}
                 </select>
-                <span style={{ pointerEvents: 'none' }} className="truncate max-w-[85px]">
+                <span style={{ pointerEvents: 'none' }} className="truncate max-w-[76px]">
                   {scopeFilter === 'All'
                     ? 'Scope: All'
                     : scopeFilter.replace(/^(Country:|Place:)\s*/, '')}
@@ -595,8 +609,8 @@ export default function TripPacking() {
 
           {/* Donut Progress Chart */}
           <div className="budget-donut-container">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
+            <ResponsiveContainer width={210} height={210} minWidth={210} minHeight={210}>
+              <PieChart width={210} height={210} style={{ overflow: 'visible' }}>
                 <Pie
                   data={chartData}
                   cx="50%"
