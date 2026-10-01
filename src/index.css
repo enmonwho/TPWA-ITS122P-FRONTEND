@@ -1021,10 +1021,10 @@ h6 {
 .earth-wrap {
   position: fixed;
   left: 50%;
-  top: clamp(370px, 50vh, 540px);
+  top: clamp(330px, 48vh, 520px);
   bottom: auto;
-  width: clamp(650px, 75vw, 1200px);
-  height: clamp(650px, 75vw, 1200px);
+  width: clamp(480px, min(70vw, 75vh), 1100px);
+  height: clamp(480px, min(70vw, 75vh), 1100px);
   aspect-ratio: 1 / 1;
   transform: translateX(-50%);
   border-radius: 50%;
@@ -1037,6 +1037,31 @@ h6 {
   transition:
     filter 0.05s linear,
     opacity 0.05s linear;
+}
+
+/* Laptops & High-DPI screens (e.g. 14" Asus ZenBook 1440x900 viewport) */
+@media (min-width: 1025px) and (max-width: 1600px) {
+  .earth-wrap {
+    top: clamp(310px, 46vh, 420px);
+    width: clamp(460px, min(64vw, 66vh), 720px);
+    height: clamp(460px, min(64vw, 66vh), 720px);
+  }
+
+  .earth-hero {
+    padding-top: clamp(80px, 11vh, 115px) !important;
+    min-height: 104vh !important;
+  }
+
+  .earth-header-section h1 {
+    font-size: clamp(2rem, 3.8vw, 3rem) !important;
+    margin: 0 0 0.35rem !important;
+  }
+
+  .earth-header-section .subtitle {
+    font-size: 0.95rem !important;
+    max-width: 38rem !important;
+    line-height: 1.45 !important;
+  }
 }
 
 .earth-img {

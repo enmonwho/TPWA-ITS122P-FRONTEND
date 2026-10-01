@@ -216,7 +216,7 @@ export default function Header() {
                       setShowSearchResults(true);
                     }}
                     onFocus={() => setShowSearchResults(true)}
-                    className="pl-9 pr-4 py-2 w-64 bg-stone-100 border border-stone-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:bg-white transition-all"
+                    className="pl-9 pr-4 py-1.5 w-44 lg:w-56 shrink-0 bg-stone-100 border border-stone-200 rounded-full text-xs lg:text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:bg-white transition-all"
                   />
                   {isSearching && (
                     <Loader2 className="absolute right-3 w-4 h-4 text-stone-400 animate-spin" />
