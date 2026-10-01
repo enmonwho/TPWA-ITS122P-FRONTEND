@@ -96,3 +96,4 @@ Current branch: `fix/travel-planner-remediation`
 13. `29a3813` - `fix: decouple and accurately map staff dashboard scheduled, submitted, and processed timestamps`
 14. `2f26ec2` - `fix: enhance signup validation with confirm password, traveler profile modal preview, and stabilize packing filters`
 15. `b1808d6` - `fix: refine dashboard responsive layouts, route planner map proportion, and centered empty states`
+16. `6255174` - `fix: automatically scale layout on high-DPI laptops to match 1080p proportions without manual zoom`
