@@ -3315,7 +3315,9 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 .dashboard-layout-root {
   background-color: var(--color-dash-bg);
   height: 100vh;
+  height: 100dvh;
   max-height: 100vh;
+  max-height: 100dvh;
   display: flex;
   padding: 8px;
   box-sizing: border-box;
@@ -3486,6 +3488,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 
 .dashboard-main-content {
   flex: 1;
+  min-width: 0;
   background-color: var(--color-dash-panel);
   border-radius: 16px;
   box-shadow: 0px 0px 4px 0px rgba(0, 0, 0, 0.25);
@@ -3542,6 +3545,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 .dashboard-bottom-row {
   display: flex;
   justify-content: space-between;
+  align-items: stretch;
   gap: 20px;
   flex: 1;
   min-height: 0;
@@ -3553,6 +3557,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   gap: 14px;
   width: 100%;
   max-width: 448px;
+  min-height: 0;
 }
 
 .dashboard-profile-section {
@@ -3666,6 +3671,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   display: flex;
   flex-direction: column;
   min-height: 0;
+  height: 100%;
 }
 
 .dashboard-trips-card {
@@ -3675,9 +3681,10 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   padding: 20px 24px;
   display: flex;
   flex-direction: column;
-  min-height: clamp(260px, 32vh, 340px);
+  min-height: 0;
   flex: 1;
   box-sizing: border-box;
+  overflow-y: auto;
 }
 
 .dashboard-trips-filters {
@@ -5135,8 +5142,13 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 
 .workspace-layout-root {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
   background-color: var(--color-dash-bg);
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 /* Mobile Header (Hidden on Desktop) */
@@ -5333,10 +5345,13 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 /* Main Content Area */
 .workspace-main-content {
   flex: 1;
+  min-width: 0;
   padding: 8px 8px 8px 0;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .workspace-page {
@@ -5348,7 +5363,10 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   flex-direction: column;
   gap: 20px;
   padding: 13px 10px 13px 14px;
-  min-height: calc(100vh - 16px);
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 /* Header Card */
@@ -5498,10 +5516,12 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 /* Main Workspace Card */
 .workspace-main-card {
   flex: 1;
+  min-height: 0;
   background-color: #ffffff;
   border-radius: 15px;
   box-shadow: 0px 2px 3.8px 0px rgba(0, 0, 0, 0.25);
   display: flex;
+  overflow: hidden;
 }
 
 .workspace-itinerary-zone {
@@ -5510,6 +5530,8 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   padding: 18px 0 0 0;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .workspace-vertical-divider {
@@ -7996,6 +8018,15 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   height: 100%;
   box-sizing: border-box;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.explore-desktop-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .explore-container-card {
@@ -8006,7 +8037,8 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   display: flex;
   gap: 24px;
   padding: 20px 24px;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -9296,6 +9328,8 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   height: 100%;
   box-sizing: border-box;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .map-container-card {
@@ -9306,7 +9340,8 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   display: flex;
   gap: 24px;
   padding: 20px 24px;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -9838,7 +9873,8 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .bookings-container-card {
@@ -9868,7 +9904,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   display: flex;
   gap: 24px;
   flex: 1;
-  min-height: 560px;
+  min-height: 0;
 }
 
 .bookings-trip-selector-card {
