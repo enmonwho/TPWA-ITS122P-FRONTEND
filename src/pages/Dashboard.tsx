@@ -698,7 +698,7 @@ export default function Dashboard() {
                   <div className="dashboard-trips-table-divider" />
 
                   <div className="dashboard-trips-table-rows">
-                    {filteredTrips.map((trip) => {
+                    {filteredTrips.map((trip, idx) => {
                       const displayStatus = getDisplayStatus(trip);
                       const tripLocation =
                         trip.countries && trip.countries.length > 0
@@ -723,13 +723,24 @@ export default function Dashboard() {
                           }}
                         >
                           <div className="trip-cell-name">
-                            <span className="trip-row-name">{trip.name}</span>
-                            {tripLocation && (
-                              <div className="trip-row-location">
-                                <MapPin size={12} className="trip-row-location-icon" />
-                                <span>{tripLocation}</span>
+                            {trip.cover_photo && (
+                              <div className="trip-row-cover-thumb">
+                                <img
+                                  src={trip.cover_photo}
+                                  alt=""
+                                  className="trip-row-cover-img"
+                                />
                               </div>
                             )}
+                            <div className="trip-row-name-group">
+                              <span className="trip-row-name">{trip.name}</span>
+                              {tripLocation && (
+                                <div className="trip-row-location">
+                                  <MapPin size={12} className="trip-row-location-icon" />
+                                  <span>{tripLocation}</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
 
                           <div className="trip-badges-group">
@@ -815,7 +826,12 @@ export default function Dashboard() {
 
                             {openMenuTripId === trip.id && (
                               <div
-                                className="dashboard-trip-options-menu"
+                                className={`dashboard-trip-options-menu ${
+                                  idx >= filteredTrips.length - 2 &&
+                                  filteredTrips.length > 2
+                                    ? 'placement-up'
+                                    : ''
+                                }`}
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <button
