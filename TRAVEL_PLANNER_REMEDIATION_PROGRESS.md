@@ -56,6 +56,11 @@ Current branch: `fix/travel-planner-remediation`
   - Explicit dimensions (`210x210`) on Recharts container in `Budget.tsx` and `TripPacking.tsx` preventing initial render jump.
 - [x] **Packing filter button shift**:
   - Stabilized width (`86px` status, `112px` scope) on packing filter buttons.
+- [x] **Dashboard / Workspace / Bookings / Explore / Map full-height fill**:
+  - Fixed flex height chain so all dashboard sub-pages and the trip workspace fill the full viewport height instead of terminating midway down the page.
+  - Root containers use `100dvh` and `overflow: hidden` to constrain the layout shell.
+  - Content cards use `flex: 1; min-height: 0;` to stretch and scroll internally.
+  - Eliminated the large empty beige/cream gap visible on 1440×900 and similar viewports (e.g. Asus ZenBook 14 at 200% Windows scale).
 - [x] **Consistent centered empty states**:
   - Standardized `.dashboard-empty-state`, `.bookings-table-empty`, `.budget-table-empty`, and `.staff-empty-state`.
 
@@ -77,7 +82,7 @@ Current branch: `fix/travel-planner-remediation`
   - `src/lib/budgetUtils.test.ts` (15 tests passed)
   - `src/lib/dateUtils.test.ts` (14 tests passed)
   - `src/lib/usernameValidation.test.ts` (10 tests passed)
-- TypeScript type checking & production build: `npm run build` (`tsc -b && vite build`) **0 errors**, completed cleanly in 7.04s.
+- TypeScript type checking & production build: `npm run build` (`tsc -b && vite build`) **0 errors**, completed cleanly.
 
 ## Commits on `fix/travel-planner-remediation`
 
@@ -98,3 +103,4 @@ Current branch: `fix/travel-planner-remediation`
 15. `b1808d6` - `fix: refine dashboard responsive layouts, route planner map proportion, and centered empty states`
 16. `03b32a4` - `revert: remove experimental html zoom rule`
 17. `fc5ba00` - `fix: adapt earth hero and search bar for laptop screen heights to eliminate section overlap`
+18. `f4965ff` - `fix: fill dashboard, workspace, bookings, explore, map pages to viewport height`
