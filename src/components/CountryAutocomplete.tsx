@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { ChevronDown, X } from 'lucide-react';
 import { COUNTRIES } from '../constants/countries';
+import { normalizeCountry, isSameCountry } from '../lib/countryUtils';
 
 interface CountryAutocompleteProps {
   value: string[];
@@ -33,7 +34,7 @@ export function CountryAutocomplete({
   // Tolerant fuzzy matching for partial inputs (e.g. 'Philippin' -> 'Philippines')
   const filteredCountries = useMemo(() => {
     const query = search.trim().toLowerCase();
-    const available = COUNTRIES.filter((c) => !value.includes(c));
+    const available = COUNTRIES.filter((c) => !value.some((v) => isSameCountry(v, c)));
     if (!query) return available;
 
     return available.filter((c) => {
@@ -46,8 +47,9 @@ export function CountryAutocomplete({
   }, [search, value]);
 
   const handleSelect = (country: string) => {
-    if (!value.includes(country)) {
-      onChange([...value, country]);
+    const canonical = normalizeCountry(country);
+    if (!value.some((v) => isSameCountry(v, canonical))) {
+      onChange([...value, canonical]);
     }
     setSearch('');
     inputRef.current?.focus();
@@ -55,7 +57,7 @@ export function CountryAutocomplete({
 
   const handleDeselect = (countryToDeselect: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    onChange(value.filter((c) => c !== countryToDeselect));
+    onChange(value.filter((c) => !isSameCountry(c, countryToDeselect)));
   };
 
   return (

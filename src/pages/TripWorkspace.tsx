@@ -22,6 +22,7 @@ import {
   mergeTripWithExtras,
   saveTripExtras,
   formatTripDateRange,
+  getStoredDateFormat,
 } from '../lib/tripExtras';
 import {
   searchDestinations,
@@ -30,12 +31,20 @@ import {
   ACTIVITIES_OPTIONS,
   TRANSPORTATION_OPTIONS,
 } from '../lib/tripAutoFill';
+import {
+  normalizeCountry,
+  isSameCountry,
+  getCountryForCity,
+  deduplicateCountries,
+} from '../lib/countryUtils';
+import { COUNTRIES, POPULAR_COUNTRIES } from '../constants/countries';
 import axios from 'axios';
 
 export interface WorkspaceDestination {
   id: string;
   name: string;
   country?: string;
+  order?: number;
   days?: number;
   nights?: number;
   accommodation?: string;
@@ -292,19 +301,50 @@ export default function TripWorkspace() {
     );
   }, [destinations]);
 
-  // Unique list of countries from trip, extra countries, and destinations
+  // Unique list of countries from trip, extra countries, and destinations, normalized and ordered
   const availableCountries = useMemo(() => {
-    const list = new Set<string>();
+    const list: string[] = [];
+    const addUnique = (raw?: string | null) => {
+      if (!raw) return;
+      const canonical = normalizeCountry(raw);
+      if (canonical && !list.some((c) => isSameCountry(c, canonical))) {
+        list.push(canonical);
+      }
+    };
     if (trip?.countries) {
-      trip.countries.forEach((c) => c && list.add(c.trim()));
+      trip.countries.forEach(addUnique);
     }
-    extraCountries.forEach((c) => c && list.add(c.trim()));
+    extraCountries.forEach(addUnique);
     destinations.forEach((d) => {
-      if (d.country) list.add(d.country.trim());
+      if (d.country) addUnique(d.country);
     });
-    if (list.size === 0) list.add('Philippines');
-    return Array.from(list);
+    if (list.length === 0) list.push('Philippines');
+    return list;
   }, [trip?.countries, extraCountries, destinations]);
+
+  const moveCountry = (country: string, direction: 'up' | 'down') => {
+    const idx = availableCountries.indexOf(country);
+    if (idx === -1) return;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= availableCountries.length) return;
+
+    const newOrder = [...availableCountries];
+    const temp = newOrder[idx];
+    newOrder[idx] = newOrder[targetIdx];
+    newOrder[targetIdx] = temp;
+
+    setExtraCountries(newOrder);
+    if (tripId) {
+      localStorage.setItem(
+        `lakbye_workspace_countries_${tripId}`,
+        JSON.stringify(newOrder),
+      );
+      saveTripExtras(tripId, { countries: newOrder });
+    }
+    if (trip) {
+      setTrip({ ...trip, countries: newOrder });
+    }
+  };
 
   const toggleCountryCollapse = (country: string) => {
     setCollapsedCountries((prev) => ({
@@ -315,25 +355,33 @@ export default function TripWorkspace() {
 
   const handleAddCountry = (e: React.FormEvent) => {
     e.preventDefault();
-    const country = newCountryInput.trim();
+    const raw = newCountryInput.trim();
+    if (!raw) return;
+    const country = normalizeCountry(raw);
     if (!country) return;
 
-    const updatedExtra = Array.from(new Set([...extraCountries, country]));
-    setExtraCountries(updatedExtra);
-    if (tripId) {
-      localStorage.setItem(
-        `lakbye_workspace_countries_${tripId}`,
-        JSON.stringify(updatedExtra),
-      );
-      const allCountries = Array.from(new Set([...availableCountries, country]));
-      saveTripExtras(tripId, { countries: allCountries });
+    const existing = availableCountries.find((c) => isSameCountry(c, country));
+    const targetCountry = existing || country;
+
+    if (!existing) {
+      const updatedExtra = deduplicateCountries([...extraCountries, targetCountry]);
+      setExtraCountries(updatedExtra);
+      if (tripId) {
+        localStorage.setItem(
+          `lakbye_workspace_countries_${tripId}`,
+          JSON.stringify(updatedExtra),
+        );
+        const allCountries = deduplicateCountries([...availableCountries, targetCountry]);
+        saveTripExtras(tripId, { countries: allCountries });
+      }
     }
-    setSelectedCountryForNew(country);
+
+    setSelectedCountryForNew(targetCountry);
     setNewCountryInput('');
     setIsAddCountryModalOpen(false);
 
     // Ensure this country is expanded
-    setCollapsedCountries((prev) => ({ ...prev, [country]: false }));
+    setCollapsedCountries((prev) => ({ ...prev, [targetCountry]: false }));
 
     // Focus destination search bar
     setTimeout(() => {
@@ -408,11 +456,17 @@ export default function TripWorkspace() {
 
   const handleSelectSuggestion = (place: DestinationPlace) => {
     setNewDestInput(place.name);
-    setSelectedCountryForNew(place.country);
-    setExtraCountries((prev) => Array.from(new Set([...prev, place.country])));
+    const placeCountry = normalizeCountry(place.country);
+    const existingCountry = availableCountries.find((c) =>
+      isSameCountry(c, placeCountry),
+    );
+    const targetCountry = existingCountry || placeCountry;
+
+    setSelectedCountryForNew(targetCountry);
+    setExtraCountries((prev) => deduplicateCountries([...prev, targetCountry]));
     setShowSuggestions(false);
     setHighlightedIndex(-1);
-    setCollapsedCountries((prev) => ({ ...prev, [place.country]: false }));
+    setCollapsedCountries((prev) => ({ ...prev, [targetCountry]: false }));
   };
 
   const handleAddDestination = async (e: React.FormEvent) => {
@@ -423,9 +477,21 @@ export default function TripWorkspace() {
     setHighlightedIndex(-1);
 
     const name = newDestInput.trim();
-    const finalCountry = isAddingNewCountry
-      ? customCountryInput.trim() || 'New Destination'
+    const inferredCityCountry = getCountryForCity(name);
+    let targetCountry = isAddingNewCountry
+      ? normalizeCountry(customCountryInput.trim()) || 'New Destination'
       : selectedCountryForNew || availableCountries[0] || 'Philippines';
+
+    if (!isAddingNewCountry && inferredCityCountry) {
+      const matchingExisting = availableCountries.find((c) =>
+        isSameCountry(c, inferredCityCountry),
+      );
+      if (matchingExisting) {
+        targetCountry = matchingExisting;
+      }
+    }
+
+    const finalCountry = normalizeCountry(targetCountry) || targetCountry;
 
     // Prevent adding if all days from date picker are already allocated
     if (totalAllocatedDays >= tripDurationDays && destinations.length > 0) {
@@ -463,6 +529,7 @@ export default function TripWorkspace() {
       id: assignedId,
       name,
       country: finalCountry,
+      order: destinations.length + 1,
       days: initialDays,
       accommodation: '',
       activities: '',
@@ -480,7 +547,7 @@ export default function TripWorkspace() {
       setIsAddingNewCountry(false);
       setCustomCountryInput('');
       setSelectedCountryForNew(finalCountry);
-      setExtraCountries((prev) => Array.from(new Set([...prev, finalCountry])));
+      setExtraCountries((prev) => deduplicateCountries([...prev, finalCountry]));
     }
   };
 
@@ -524,17 +591,19 @@ export default function TripWorkspace() {
   };
 
   const moveDestination = (id: string, direction: 'up' | 'down') => {
-    const idx = destinations.findIndex((d) => d.id === id);
+    const orderedList = groupedByCountry.flatMap((g) => g.items);
+    const idx = orderedList.findIndex((d) => d.id === id);
     if (idx === -1) return;
     const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (targetIdx < 0 || targetIdx >= destinations.length) return;
+    if (targetIdx < 0 || targetIdx >= orderedList.length) return;
 
-    const next = [...destinations];
+    const next = [...orderedList];
     const temp = next[idx];
     next[idx] = next[targetIdx];
     next[targetIdx] = temp;
-    setDestinations(next);
-    persistDestinations(next);
+    const withOrder = next.map((d, i) => ({ ...d, order: i + 1 }));
+    setDestinations(withOrder);
+    persistDestinations(withOrder);
   };
 
   const renderFieldSelector = (
@@ -697,18 +766,23 @@ export default function TripWorkspace() {
     }[] = [];
     const countryMap = new Map<string, WorkspaceDestination[]>();
 
-    // First ensure every available country has an entry
+    // First ensure every available country has an entry in configured order
     availableCountries.forEach((c) => {
       countryMap.set(c, []);
     });
 
-    // Populate destinations into their country
+    // Populate destinations into their matching country
     destinations.forEach((dest) => {
-      const c = dest.country || 'Philippines';
-      if (!countryMap.has(c)) {
-        countryMap.set(c, []);
+      const destCountry = normalizeCountry(dest.country || 'Philippines');
+      const matchedKey =
+        availableCountries.find((c) => isSameCountry(c, destCountry)) || destCountry;
+      if (!countryMap.has(matchedKey)) {
+        countryMap.set(matchedKey, []);
       }
-      countryMap.get(c)!.push(dest);
+      countryMap.get(matchedKey)!.push({
+        ...dest,
+        country: matchedKey,
+      });
     });
 
     countryMap.forEach((items, country) => {
@@ -722,7 +796,7 @@ export default function TripWorkspace() {
     return groups;
   }, [destinations, availableCountries]);
 
-  // Day-by-day itinerary schedule breakdown
+  // Day-by-day itinerary schedule breakdown follows configured multi-country & destination order
   const daySchedule = useMemo(() => {
     const schedule: {
       dayNumber: number;
@@ -731,7 +805,9 @@ export default function TripWorkspace() {
     }[] = [];
     let currentDay = 1;
 
-    destinations.forEach((dest) => {
+    const orderedDestinations = groupedByCountry.flatMap((g) => g.items);
+
+    orderedDestinations.forEach((dest) => {
       const destDays = Math.max(1, Number(dest.days) || Number(dest.nights) || 1);
       for (let d = 1; d <= destDays && currentDay <= tripDurationDays; d++) {
         schedule.push({
@@ -753,7 +829,7 @@ export default function TripWorkspace() {
     }
 
     return schedule;
-  }, [destinations, tripDurationDays]);
+  }, [groupedByCountry, tripDurationDays]);
 
   if (loading) {
     return (
@@ -797,43 +873,65 @@ export default function TripWorkspace() {
   const inputClasses =
     'w-full px-2 py-1 text-slate-700 bg-transparent border border-transparent rounded hover:border-slate-300 focus:border-amber-500 focus:bg-white focus:outline-none transition-colors text-sm';
 
+  const userDateFormat = user?.preferences?.dateFormat || getStoredDateFormat();
+
   return (
     <div className="workspace-page">
-      <header className="workspace-header-card animate-slide-up">
-        <div>
-          <h1 className="workspace-trip-title">{trip.name}</h1>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <span className="text-xs font-semibold text-stone-600">
-              {tripDurationDays} Total {tripDurationDays === 1 ? 'Day' : 'Days'}
-            </span>
-            <span className="text-xs text-stone-300">•</span>
-            <span
-              className={`text-xs font-semibold ${
-                totalAllocatedDays === tripDurationDays
-                  ? 'text-emerald-700'
-                  : totalAllocatedDays < tripDurationDays
-                    ? 'text-amber-800'
-                    : 'text-rose-700'
-              }`}
-            >
-              {totalAllocatedDays} of {tripDurationDays} Days Planned
-              {tripDurationDays - totalAllocatedDays > 0
-                ? ` (${tripDurationDays - totalAllocatedDays} remaining)`
-                : ''}
-            </span>
-            {availableCountries.length > 0 && (
-              <>
-                <span className="text-xs text-stone-300">•</span>
-                <span className="text-xs text-slate-500">
-                  {availableCountries.join(' • ')}
-                </span>
-              </>
-            )}
+      <header
+        className="workspace-header-card animate-slide-up"
+        style={
+          trip.cover_photo
+            ? {
+                backgroundImage: `linear-gradient(to right, rgba(255, 255, 255, 0.95) 45%, rgba(255, 255, 255, 0.88) 75%, rgba(255, 255, 255, 0.65) 100%), url(${trip.cover_photo})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }
+            : undefined
+        }
+      >
+        <div className="flex items-center gap-3.5">
+          {trip.cover_photo && (
+            <img
+              src={trip.cover_photo}
+              alt=""
+              className="w-12 h-12 rounded-xl object-cover border border-amber-200/80 shadow-xs shrink-0 hidden sm:block"
+            />
+          )}
+          <div>
+            <h1 className="workspace-trip-title">{trip.name}</h1>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <span className="text-xs font-semibold text-stone-600">
+                {tripDurationDays} Total {tripDurationDays === 1 ? 'Day' : 'Days'}
+              </span>
+              <span className="text-xs text-stone-300">•</span>
+              <span
+                className={`text-xs font-semibold ${
+                  totalAllocatedDays === tripDurationDays
+                    ? 'text-emerald-700'
+                    : totalAllocatedDays < tripDurationDays
+                      ? 'text-amber-800'
+                      : 'text-rose-700'
+                }`}
+              >
+                {totalAllocatedDays} of {tripDurationDays} Days Planned
+                {tripDurationDays - totalAllocatedDays > 0
+                  ? ` (${tripDurationDays - totalAllocatedDays} remaining)`
+                  : ''}
+              </span>
+              {availableCountries.length > 0 && (
+                <>
+                  <span className="text-xs text-stone-300">•</span>
+                  <span className="text-xs text-slate-500">
+                    {availableCountries.join(' • ')}
+                  </span>
+                </>
+              )}
+            </div>
           </div>
         </div>
         <div className="workspace-header-actions">
           <div className="workspace-pill-date">
-            {formatTripDateRange(trip.startDate, trip.endDate)}
+            {formatTripDateRange(trip.startDate, trip.endDate, userDateFormat)}
           </div>
         </div>
       </header>
@@ -967,16 +1065,57 @@ export default function TripWorkspace() {
                             </span>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={(e) => handleRemoveCountry(group.country, e)}
-                            className="text-xs text-stone-500 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded transition-colors flex items-center gap-1 cursor-pointer font-medium border border-transparent hover:border-rose-200"
-                            title={`Remove ${group.country} from trip`}
-                            aria-label={`Remove ${group.country}`}
-                          >
-                            <X size={13} />
-                            <span>Remove Country</span>
-                          </button>
+                          <div className="flex items-center gap-2">
+                            {availableCountries.length > 1 && (
+                              <div
+                                className="flex items-center gap-0.5 mr-1"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  type="button"
+                                  disabled={
+                                    availableCountries.indexOf(group.country) === 0
+                                  }
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    moveCountry(group.country, 'up');
+                                  }}
+                                  className="p-1 text-amber-900/60 hover:text-amber-900 hover:bg-amber-200/50 rounded disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+                                  title={`Move ${group.country} earlier in itinerary`}
+                                  aria-label={`Move ${group.country} earlier`}
+                                >
+                                  <ArrowUp size={13} />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={
+                                    availableCountries.indexOf(group.country) ===
+                                    availableCountries.length - 1
+                                  }
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    moveCountry(group.country, 'down');
+                                  }}
+                                  className="p-1 text-amber-900/60 hover:text-amber-900 hover:bg-amber-200/50 rounded disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+                                  title={`Move ${group.country} later in itinerary`}
+                                  aria-label={`Move ${group.country} later`}
+                                >
+                                  <ArrowDown size={13} />
+                                </button>
+                              </div>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={(e) => handleRemoveCountry(group.country, e)}
+                              className="text-xs text-stone-500 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded transition-colors flex items-center gap-1 cursor-pointer font-medium border border-transparent hover:border-rose-200"
+                              title={`Remove ${group.country} from trip`}
+                              aria-label={`Remove ${group.country}`}
+                            >
+                              <X size={13} />
+                              <span>Remove Country</span>
+                            </button>
+                          </div>
                         </div>
 
                         {/* Nested Cities / Destinations Rows */}
@@ -1513,6 +1652,50 @@ export default function TripWorkspace() {
             )}
 
             <form onSubmit={handleAddCountry}>
+              <div style={{ marginBottom: '14px' }}>
+                <span
+                  style={{
+                    display: 'block',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: '#8A7A70',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    marginBottom: '6px',
+                  }}
+                >
+                  Popular Suggestions
+                </span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {POPULAR_COUNTRIES.filter(
+                    (p) => !availableCountries.some((c) => isSameCountry(c, p)),
+                  )
+                    .slice(0, 8)
+                    .map((popular) => (
+                      <button
+                        key={popular}
+                        type="button"
+                        onClick={() => setNewCountryInput(popular)}
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: '16px',
+                          border:
+                            newCountryInput === popular
+                              ? '1.5px solid #E9724C'
+                              : '1px solid #E2E8F0',
+                          background: newCountryInput === popular ? '#FFF7ED' : '#F8FAFC',
+                          color: newCountryInput === popular ? '#C2410C' : '#475569',
+                          fontSize: '11.5px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        + {popular}
+                      </button>
+                    ))}
+                </div>
+              </div>
+
               <div style={{ marginBottom: '16px' }}>
                 <label
                   htmlFor="newCountryInput"
@@ -1530,10 +1713,10 @@ export default function TripWorkspace() {
                   id="newCountryInput"
                   type="text"
                   required
+                  list="canonical-countries-list"
                   placeholder="e.g. South Korea, France, Japan, Philippines..."
                   value={newCountryInput}
                   onChange={(e) => setNewCountryInput(e.target.value)}
-                  autoFocus
                   style={{
                     width: '100%',
                     padding: '8px 12px',
@@ -1543,6 +1726,11 @@ export default function TripWorkspace() {
                     outline: 'none',
                   }}
                 />
+                <datalist id="canonical-countries-list">
+                  {COUNTRIES.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
