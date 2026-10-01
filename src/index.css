@@ -159,6 +159,17 @@
   --stagger-step: 70ms;
 }
 
+/* ==========================================================================
+   High-DPI Laptops (e.g. 14" Asus ZenBook 2880x1800 at 200% Windows scale -> 1440x900 viewport)
+   Automatically scales the layout to 80% (0.8) so it natively renders with the identical
+   proportions, density, and breathing room as 1920x1080 without manual browser zoom.
+   ========================================================================== */
+@media screen and (min-width: 1025px) and (max-width: 1600px) {
+  html {
+    zoom: 0.8;
+  }
+}
+
 /* Animation Delays */
 .delay-100 {
   animation-delay: var(--delay-100);
