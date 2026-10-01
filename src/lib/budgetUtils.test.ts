@@ -4,6 +4,9 @@ import {
   isCategoryMatch,
   calculateTotalSpent,
   calculateCategoryBreakdown,
+  calculateBudgetRemaining,
+  calculateBudgetPercentage,
+  calculateCategoryPercentage,
 } from './budgetUtils';
 
 describe('budgetUtils', () => {
@@ -82,6 +85,54 @@ describe('budgetUtils', () => {
       expect(breakdown.Transport).toBe(800);
       expect(breakdown.Activities).toBe(500);
       expect(breakdown.Other).toBe(200);
+    });
+  });
+
+  describe('budget tracker edge cases', () => {
+    it('handles calculateBudgetRemaining with surplus, exact, and overbudget deficit', () => {
+      // Surplus
+      expect(calculateBudgetRemaining(50000, 32000)).toBe(18000);
+      // Exact
+      expect(calculateBudgetRemaining(50000, 50000)).toBe(0);
+      // Overbudget deficit
+      expect(calculateBudgetRemaining(50000, 65000)).toBe(-15000);
+      // Zero budget with expenses
+      expect(calculateBudgetRemaining(0, 1200)).toBe(-1200);
+      // NaN or undefined protection
+      expect(calculateBudgetRemaining(NaN, 500)).toBe(-500);
+    });
+
+    it('handles calculateBudgetPercentage with zero budget, partial, and over 100%', () => {
+      // 0 budget, 0 spent
+      expect(calculateBudgetPercentage(0, 0)).toBe(0);
+      // 0 budget, positive spent
+      expect(calculateBudgetPercentage(0, 500)).toBe(100);
+      // 50% spent
+      expect(calculateBudgetPercentage(10000, 5000)).toBe(50);
+      // 150% overbudget
+      expect(calculateBudgetPercentage(10000, 15000)).toBe(150);
+    });
+
+    it('handles calculateCategoryPercentage edge cases without NaN or division by zero', () => {
+      // Zero total spent
+      expect(calculateCategoryPercentage(500, 0)).toBe(0);
+      // Zero category cost
+      expect(calculateCategoryPercentage(0, 5000)).toBe(0);
+      // 100% single category
+      expect(calculateCategoryPercentage(5000, 5000)).toBe(100);
+      // Proportional rounding
+      expect(calculateCategoryPercentage(3333, 10000)).toBe(33);
+    });
+
+    it('handles calculateTotalSpent with malformed, NaN, or non-numeric costs', () => {
+      const expenses = [
+        { cost: 1000 },
+        { cost: NaN },
+        { cost: '500' as unknown as number },
+        { cost: 0 },
+        { cost: undefined as unknown as number },
+      ];
+      expect(calculateTotalSpent(expenses)).toBe(1500);
     });
   });
 });

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatDateByPreference } from '../lib/tripExtras';
 
 interface DateRangePickerProps {
   startDate: string;
@@ -191,7 +192,7 @@ export function DateRangePicker({
             readOnly
             className="modal-input cursor-pointer"
             placeholder="Start Date"
-            value={startDate}
+            value={startDate ? formatDateByPreference(startDate) : ''}
             onClick={() => {
               setIsOpen(true);
               setStep(0);
@@ -212,7 +213,7 @@ export function DateRangePicker({
             readOnly
             className="modal-input cursor-pointer"
             placeholder="End Date"
-            value={endDate}
+            value={endDate ? formatDateByPreference(endDate) : ''}
             onClick={() => {
               setIsOpen(true);
               setStep(1);
@@ -228,19 +229,22 @@ export function DateRangePicker({
 
       {isOpen && (
         <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-[590px] max-w-[calc(100vw-32px)] bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] border border-slate-200 p-6 z-[100] animate-slide-up">
-          <div className="flex justify-between items-center absolute w-full left-0 px-6 top-6 z-10 pointer-events-none">
+          <div className="flex justify-between items-center mb-3 px-1">
             <button
               type="button"
               onClick={() => shiftMonth(-1)}
-              className="pointer-events-auto w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-95 transition-all shadow-sm bg-white cursor-pointer"
+              className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-95 transition-all shadow-sm bg-white cursor-pointer"
               aria-label="Previous month"
             >
               <ChevronLeft size={16} />
             </button>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider select-none">
+              {step === 0 ? 'Select Departure Date' : 'Select Return Date'}
+            </span>
             <button
               type="button"
               onClick={() => shiftMonth(1)}
-              className="pointer-events-auto w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-95 transition-all shadow-sm bg-white cursor-pointer"
+              className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-95 transition-all shadow-sm bg-white cursor-pointer"
               aria-label="Next month"
             >
               <ChevronRight size={16} />

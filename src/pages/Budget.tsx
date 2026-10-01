@@ -16,6 +16,10 @@ import {
   getCurrencySymbol,
   SUPPORTED_CURRENCIES,
   formatCurrency,
+  getCurrencyInputStep,
+  getCurrencyInputMin,
+  validateCurrencyAmount,
+  isZeroDecimalCurrency,
 } from '../lib/currency';
 
 import bedIcon from '../assets/budget/bed.png';
@@ -330,7 +334,16 @@ export function Budget() {
     e.preventDefault();
     setAddBalanceError('');
     const enteredAmount = parseFloat(balanceInput);
-    if (isNaN(enteredAmount) || enteredAmount <= 0) return;
+    if (isNaN(enteredAmount) || enteredAmount <= 0) {
+      setAddBalanceError('Please enter a valid amount.');
+      return;
+    }
+
+    const valResult = validateCurrencyAmount(enteredAmount, displayCurrency);
+    if (!valResult.isValid) {
+      setAddBalanceError(valResult.error || 'Invalid currency amount.');
+      return;
+    }
 
     const amountInPhp =
       displayCurrency === 'PHP'
@@ -389,6 +402,12 @@ export function Budget() {
     const enteredCost = parseFloat(expenseCost);
     if (isNaN(enteredCost) || enteredCost <= 0) {
       setExpenseError('Please enter a valid expense cost.');
+      return;
+    }
+
+    const valResult = validateCurrencyAmount(enteredCost, displayCurrency);
+    if (!valResult.isValid) {
+      setExpenseError(valResult.error || 'Invalid currency amount.');
       return;
     }
 
@@ -676,8 +695,8 @@ export function Budget() {
           </div>
 
           <div className="budget-donut-container">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
+            <ResponsiveContainer width={210} height={210} minWidth={210} minHeight={210}>
+              <PieChart width={210} height={210} style={{ overflow: 'visible' }}>
                 <Pie
                   data={chartData}
                   cx="50%"
@@ -1048,10 +1067,14 @@ export function Budget() {
                       <input
                         id="modal-expense-cost"
                         type="number"
-                        min="0.01"
-                        step={displayCurrency === 'JPY' ? '1' : '0.01'}
+                        min={getCurrencyInputMin(displayCurrency)}
+                        step={getCurrencyInputStep(displayCurrency)}
                         required
-                        placeholder={`${currentSymbol} 0.00`}
+                        placeholder={
+                          isZeroDecimalCurrency(displayCurrency)
+                            ? `${currentSymbol} 0`
+                            : `${currentSymbol} 0.00`
+                        }
                         className="budget-modal-gradient-input budget-modal-cost-input"
                         value={expenseCost}
                         onChange={(e) => setExpenseCost(e.target.value)}
@@ -1217,10 +1240,14 @@ export function Budget() {
                 <input
                   id="modal-balance-amount"
                   type="number"
-                  min="0.01"
-                  step={displayCurrency === 'JPY' ? '1' : '0.01'}
+                  min={getCurrencyInputMin(displayCurrency)}
+                  step={getCurrencyInputStep(displayCurrency)}
                   required
-                  placeholder={`Amount in ${displayCurrency} (${currentSymbol})`}
+                  placeholder={
+                    isZeroDecimalCurrency(displayCurrency)
+                      ? `Amount in ${displayCurrency} (${currentSymbol} 0)`
+                      : `Amount in ${displayCurrency} (${currentSymbol})`
+                  }
                   className="budget-modal-gradient-input budget-balance-input"
                   value={balanceInput}
                   onChange={(e) => setBalanceInput(e.target.value)}

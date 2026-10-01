@@ -25,7 +25,13 @@ import {
   bookingsApi,
   type ExpenseApiResponse,
 } from '../services/api';
-import { mergeTripsWithExtras, formatDateOnly } from '../lib/tripExtras';
+import {
+  mergeTripsWithExtras,
+  formatDateByPreference,
+  formatTripDateRange,
+  getStoredDateFormat,
+} from '../lib/tripExtras';
+import { useAuth } from '../context/AuthContext';
 import { normalizeCategory } from '../lib/budgetUtils';
 import type { Trip } from '../types/trip';
 import type { Destination } from '../types/destination';
@@ -94,6 +100,8 @@ function renderStatusBadge(status: BookingStatus) {
 
 export default function Bookings() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const userDateFormat = user?.preferences?.dateFormat || getStoredDateFormat();
 
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -391,10 +399,12 @@ export default function Bookings() {
         }
 
         const dateStr = b.booking_date
-          ? formatDateOnly(b.booking_date)
+          ? formatDateByPreference(b.booking_date, userDateFormat)
           : b.created_at
-            ? formatDateOnly(b.created_at)
-            : formatDateOnly(selectedTrip.startDate) || 'Flexible';
+            ? formatDateByPreference(b.created_at, userDateFormat)
+            : selectedTrip.startDate
+              ? formatDateByPreference(selectedTrip.startDate, userDateFormat)
+              : 'Flexible';
 
         const rawStatus = (b.status || 'pending').toLowerCase();
         const itemStatus: BookingStatus =
@@ -425,6 +435,7 @@ export default function Bookings() {
     userBookings,
     catalogActivities,
     allDestinations,
+    userDateFormat,
   ]);
 
   const filteredLedgerItems = useMemo(() => {
@@ -639,7 +650,7 @@ export default function Bookings() {
                     const isSelected = selectedTrip?.id === t.id;
                     const dateStr =
                       t.startDate && t.endDate
-                        ? `${formatDateOnly(t.startDate)} - ${formatDateOnly(t.endDate)}`
+                        ? formatTripDateRange(t.startDate, t.endDate, userDateFormat)
                         : 'Flexible Dates';
                     const nightsCount = t.nights > 0 ? t.nights : 1;
 
@@ -675,7 +686,11 @@ export default function Bookings() {
                       <h2 className="bookings-ledger-title">{selectedTrip.name}</h2>
                       <span className="badge-pill-daterange-gradient">
                         {selectedTrip.startDate && selectedTrip.endDate
-                          ? `${formatDateOnly(selectedTrip.startDate)} - ${formatDateOnly(selectedTrip.endDate)}`
+                          ? formatTripDateRange(
+                              selectedTrip.startDate,
+                              selectedTrip.endDate,
+                              userDateFormat,
+                            )
                           : 'Dates Pending'}
                       </span>
                     </div>
@@ -906,7 +921,7 @@ export default function Bookings() {
                     : 'Philippines';
                 const dateStr =
                   trip.startDate && trip.endDate
-                    ? `${formatDateOnly(trip.startDate)} - ${formatDateOnly(trip.endDate)}`
+                    ? formatTripDateRange(trip.startDate, trip.endDate, userDateFormat)
                     : 'Flexible Dates';
                 const isSelected = selectedTrip?.id === trip.id;
 

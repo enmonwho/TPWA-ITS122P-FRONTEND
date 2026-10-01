@@ -74,3 +74,43 @@ export function calculateCategoryBreakdown(
 
   return breakdown;
 }
+
+/**
+ * Calculates remaining budget. Can be negative if over budget.
+ */
+export function calculateBudgetRemaining(
+  totalBudget: number,
+  totalSpent: number,
+): number {
+  const budget = Number(totalBudget) || 0;
+  const spent = Number(totalSpent) || 0;
+  return budget - spent;
+}
+
+/**
+ * Calculates percentage of budget spent (0 to 100+). Returns 0 if totalBudget <= 0 and spent <= 0.
+ */
+export function calculateBudgetPercentage(
+  totalBudget: number,
+  totalSpent: number,
+): number {
+  const budget = Number(totalBudget) || 0;
+  const spent = Number(totalSpent) || 0;
+  if (budget <= 0) {
+    return spent > 0 ? 100 : 0;
+  }
+  return Math.round((spent / budget) * 100);
+}
+
+/**
+ * Calculates percentage of a category against total spent. Returns 0 if totalSpent <= 0.
+ */
+export function calculateCategoryPercentage(
+  categoryCost: number,
+  totalSpent: number,
+): number {
+  const cat = Number(categoryCost) || 0;
+  const total = Number(totalSpent) || 0;
+  if (total <= 0 || cat <= 0) return 0;
+  return Math.round((cat / total) * 100);
+}

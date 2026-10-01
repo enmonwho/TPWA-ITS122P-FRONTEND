@@ -205,16 +205,69 @@ export function getCurrencySymbol(code: string): string {
 }
 
 /**
- * Format a number with currency symbol and localized thousand separators.
+ * Checks whether a currency is a zero-decimal / non-fractional currency (e.g. JPY).
+ */
+export function isZeroDecimalCurrency(currencyCode?: string | null): boolean {
+  if (!currencyCode) return false;
+  return currencyCode.trim().toUpperCase() === 'JPY';
+}
+
+/**
+ * Returns the HTML input step for an amount field based on currency decimal rules.
+ * JPY uses step "1" (whole numbers), while standard currencies use "0.01".
+ */
+export function getCurrencyInputStep(currencyCode?: string | null): string {
+  return isZeroDecimalCurrency(currencyCode) ? '1' : '0.01';
+}
+
+/**
+ * Returns the HTML input min attribute for an amount field based on currency decimal rules.
+ * JPY uses min "1", while standard currencies use "0.01".
+ * Crucial: having min="0.01" with step="1" breaks browser validation for integer values (e.g. 1000).
+ */
+export function getCurrencyInputMin(currencyCode?: string | null): string {
+  return isZeroDecimalCurrency(currencyCode) ? '1' : '0.01';
+}
+
+/**
+ * Validates a user-entered currency amount according to currency minor-unit rules.
+ */
+export function validateCurrencyAmount(
+  amount: number | string,
+  currencyCode: string = 'PHP',
+): { isValid: boolean; error?: string } {
+  if (amount === '' || amount === null || amount === undefined) {
+    return { isValid: false, error: 'Please enter an amount.' };
+  }
+
+  const num = typeof amount === 'number' ? amount : parseFloat(String(amount).trim());
+  if (isNaN(num) || num <= 0) {
+    return { isValid: false, error: 'Please enter a valid positive amount.' };
+  }
+
+  if (isZeroDecimalCurrency(currencyCode)) {
+    const strVal = String(amount).trim();
+    if (strVal.includes('.') || Math.floor(num) !== num) {
+      return {
+        isValid: false,
+        error: 'JPY amounts must be whole numbers without decimals.',
+      };
+    }
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Format a number as currency string according to currency rules.
  */
 export function formatCurrency(amount: number, currencyCode: string = 'PHP'): string {
-  const symbol = getCurrencySymbol(currencyCode);
-  const fractionDigits = currencyCode === 'JPY' ? 0 : 2;
-
-  const formattedNum = (amount || 0).toLocaleString('en-US', {
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: fractionDigits,
-  });
-
-  return `${symbol}${formattedNum}`;
+  const sym = getCurrencySymbol(currencyCode);
+  if (isZeroDecimalCurrency(currencyCode)) {
+    return `${sym} ${Math.round(amount).toLocaleString()}`;
+  }
+  return `${sym} ${amount.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
