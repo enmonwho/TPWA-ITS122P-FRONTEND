@@ -28,10 +28,12 @@ import { STORAGE_KEYS } from '../../lib/constants';
 import type { Booking, Activity, BookingStatus } from '../../types/booking';
 import type { AdminUser } from '../../services/api';
 import '../../styles/Staff.css';
+import { formatDateByPreference } from '../../lib/tripExtras';
 
 type StaffTab = 'pending' | 'bookings';
 type SortOrder = 'desc' | 'asc';
-type SortField = 'id' | 'customer' | 'title' | 'date' | 'cost' | 'status';
+type SortField =
+  'id' | 'customer' | 'title' | 'date' | 'cost' | 'submitted' | 'processed' | 'status';
 
 /**
  * Helper to retry network operations once upon initial failure.
@@ -47,33 +49,55 @@ async function withRetry<T>(fn: () => Promise<T>, delayMs = 800): Promise<T> {
 }
 
 /**
- * Format ISO date string into readable date & time.
+ * Format ISO date string into date only respecting user format preference.
+ */
+function formatDate(dateStr?: string | null): string {
+  if (!dateStr) return '—';
+  const formatted = formatDateByPreference(dateStr);
+  if (formatted) return formatted;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+/**
+ * Format ISO date string into readable date & time respecting user format preference.
  */
 function formatDateTime(dateStr?: string | null): string {
   if (!dateStr) return '—';
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
+  const datePart = formatDate(dateStr);
+  const timePart = d.toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
   });
+  return `${datePart} ${timePart}`;
 }
 
 /**
- * Format ISO date string into date only (e.g. Apr 15, 2026).
+ * Format scheduled booking date & time.
+ * Falls back to '—' if no schedule date exists (never falls back to request creation date).
  */
-function formatDate(dateStr?: string | null): string {
-  if (!dateStr) return '—';
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+function formatScheduleDateTime(
+  bookingDate?: string | null,
+  startTime?: string | null,
+): string {
+  if (!bookingDate) {
+    return startTime ? `Time: ${startTime}` : '—';
+  }
+  if (
+    bookingDate.includes('T') ||
+    (bookingDate.includes(' ') && bookingDate.includes(':'))
+  ) {
+    return formatDateTime(bookingDate);
+  }
+  const datePart = formatDate(bookingDate);
+  return startTime ? `${datePart} • ${startTime}` : datePart;
 }
 
 function getCustomerDisplayName(booking: Booking, user?: AdminUser): string {
@@ -269,12 +293,23 @@ export default function StaffDashboard() {
     setOpenStatusDropdownId(null);
     setOpenActionMenuId(null);
 
+    const nowIso = new Date().toISOString();
+
     try {
       const updated = await bookingsApi.updateStatus(bookingId, nextStatus);
       // Update local state smoothly
       setBookings((prev) =>
         prev.map((b) =>
-          b.id === bookingId ? { ...b, status: updated.status || nextStatus } : b,
+          b.id === bookingId
+            ? {
+                ...b,
+                status: updated?.status || nextStatus,
+                processed_at:
+                  updated?.processed_at ||
+                  (nextStatus !== 'pending' ? nowIso : undefined),
+                updated_at: updated?.updated_at || nowIso,
+              }
+            : b,
         ),
       );
     } catch (err) {
@@ -434,8 +469,14 @@ export default function StaffDashboard() {
         valA = (a.activity_title || actA || '').toLowerCase();
         valB = (b.activity_title || actB || '').toLowerCase();
       } else if (sortField === 'date') {
-        valA = new Date(a.booking_date || a.created_at || 0).getTime();
-        valB = new Date(b.booking_date || b.created_at || 0).getTime();
+        valA = a.booking_date ? new Date(a.booking_date).getTime() : 0;
+        valB = b.booking_date ? new Date(b.booking_date).getTime() : 0;
+      } else if (sortField === 'submitted') {
+        valA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        valB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      } else if (sortField === 'processed') {
+        valA = new Date(a.processed_at || a.updated_at || 0).getTime();
+        valB = new Date(b.processed_at || b.updated_at || 0).getTime();
       } else if (sortField === 'cost') {
         const costA = a.activity_id ? activityMap.get(Number(a.activity_id))?.cost : 0;
         const costB = b.activity_id ? activityMap.get(Number(b.activity_id))?.cost : 0;
@@ -763,9 +804,9 @@ export default function StaffDashboard() {
                     {renderSortHeader('id', 'Booking ID')}
                     {renderSortHeader('customer', 'Customer Name')}
                     {renderSortHeader('title', 'Activity Title')}
-                    {renderSortHeader('date', 'Schedule Date & Time')}
+                    {renderSortHeader('date', 'Scheduled Date & Time')}
                     {renderSortHeader('cost', 'Cost')}
-                    <th className="staff-th">Submitted At</th>
+                    {renderSortHeader('submitted', 'Submitted At')}
                     {renderSortHeader('status', 'Status', 'center')}
                     <th className="staff-th" style={{ textAlign: 'center' }}>
                       Actions
@@ -786,9 +827,10 @@ export default function StaffDashboard() {
                       booking.activity_title ||
                       activity?.title ||
                       `Activity #${booking.activity_id ?? 'Custom'}`;
-                    const scheduleDate = booking.booking_date
-                      ? formatDate(booking.booking_date)
-                      : formatDateTime(booking.created_at);
+                    const scheduleDate = formatScheduleDateTime(
+                      booking.booking_date,
+                      activity?.start_time,
+                    );
                     const submittedAt = formatDateTime(booking.created_at);
                     const isUpdating = statusUpdatingId === booking.id;
                     const isDropdownOpen = openStatusDropdownId === booking.id;
@@ -940,9 +982,9 @@ export default function StaffDashboard() {
                     {renderSortHeader('id', 'Booking ID')}
                     {renderSortHeader('customer', 'Customer Name')}
                     {renderSortHeader('title', 'Activity')}
-                    {renderSortHeader('date', 'Schedule Date & Time')}
+                    {renderSortHeader('date', 'Scheduled Date & Time')}
                     {renderSortHeader('cost', 'Cost')}
-                    <th className="staff-th">Processed At</th>
+                    {renderSortHeader('processed', 'Processed At')}
                     {renderSortHeader('status', 'Status', 'center')}
                     <th className="staff-th" style={{ textAlign: 'center' }}>
                       Actions
@@ -963,10 +1005,14 @@ export default function StaffDashboard() {
                       booking.activity_title ||
                       activity?.title ||
                       `Activity #${booking.activity_id ?? 'Custom'}`;
-                    const scheduleDate = booking.booking_date
-                      ? formatDate(booking.booking_date)
-                      : formatDateTime(booking.created_at);
-                    const processedAt = formatDateTime(booking.created_at);
+                    const scheduleDate = formatScheduleDateTime(
+                      booking.booking_date,
+                      activity?.start_time,
+                    );
+                    const processedAt =
+                      booking.processed_at || booking.updated_at
+                        ? formatDateTime(booking.processed_at || booking.updated_at)
+                        : '—';
                     const normStatus = (booking.status || 'confirmed').toLowerCase();
                     const isActionOpen = openActionMenuId === booking.id;
                     const isUpdating = statusUpdatingId === booking.id;
@@ -1181,11 +1227,14 @@ export default function StaffDashboard() {
             </div>
 
             <div className="staff-detail-row">
-              <span className="staff-detail-label">Schedule Date</span>
+              <span className="staff-detail-label">Scheduled Date & Time</span>
               <span className="staff-detail-val">
-                {formatDate(
-                  selectedBookingForModal.booking_date ||
-                    selectedBookingForModal.created_at,
+                {formatScheduleDateTime(
+                  selectedBookingForModal.booking_date,
+                  selectedBookingForModal.activity_id
+                    ? activityMap.get(Number(selectedBookingForModal.activity_id))
+                        ?.start_time
+                    : undefined,
                 )}
               </span>
             </div>
@@ -1196,6 +1245,21 @@ export default function StaffDashboard() {
                 {formatDateTime(selectedBookingForModal.created_at)}
               </span>
             </div>
+
+            {(selectedBookingForModal.status || '').toLowerCase() !== 'pending' && (
+              <div className="staff-detail-row">
+                <span className="staff-detail-label">Processed At</span>
+                <span className="staff-detail-val">
+                  {selectedBookingForModal.processed_at ||
+                  selectedBookingForModal.updated_at
+                    ? formatDateTime(
+                        selectedBookingForModal.processed_at ||
+                          selectedBookingForModal.updated_at,
+                      )
+                    : '—'}
+                </span>
+              </div>
+            )}
 
             <div className="staff-detail-row">
               <span className="staff-detail-label">Current Status</span>

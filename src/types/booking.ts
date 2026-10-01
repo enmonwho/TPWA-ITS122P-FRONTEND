@@ -17,6 +17,8 @@ export interface Booking {
   cost?: number | string;
   booking_date?: string;
   created_at?: string;
+  processed_at?: string;
+  updated_at?: string;
   activity_title?: string;
   custom_title?: string;
   custom_type?: string;
