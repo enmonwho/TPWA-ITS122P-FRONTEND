@@ -20,6 +20,7 @@ import {
   type CountryId,
   type CountryRouteEntry,
 } from '../lib/countries';
+import { getPersistedCoverReference } from '../lib/coverPhoto';
 
 type TravelType = 'Solo' | 'Couple' | 'Friends' | 'Family' | '';
 
@@ -97,7 +98,7 @@ export function Settings() {
       }
     >,
   ) => {
-    if (!trip || !tripId) return;
+    if (!trip || !tripId) return false;
     setSaveStatus('Saving...');
 
     const apiPayload: Record<string, unknown> = {};
@@ -108,13 +109,6 @@ export function Settings() {
     if (updates.totalBudget !== undefined) apiPayload.total_budget = updates.totalBudget;
     if (updates.coverPhoto !== undefined) apiPayload.cover_photo = updates.coverPhoto;
     if (updates.visibility !== undefined) apiPayload.visibility = updates.visibility;
-
-    // Always persist coverPhoto to tripExtras and cache so it is immediately preserved
-    if (updates.coverPhoto !== undefined) {
-      saveTripExtras(tripId, { coverPhoto: updates.coverPhoto });
-      setTrip((prev) => (prev ? { ...prev, cover_photo: updates.coverPhoto } : null));
-      setCachedTrip(tripId, { ...trip, cover_photo: updates.coverPhoto });
-    }
 
     if (
       updates.countries !== undefined ||
@@ -134,30 +128,26 @@ export function Settings() {
     if (Object.keys(apiPayload).length > 0) {
       try {
         const updatedTrip = await tripsApi.updateTrip(tripId, apiPayload);
+        if (updates.coverPhoto !== undefined) {
+          const persistedCover = getPersistedCoverReference(updatedTrip.cover_photo);
+          if (!persistedCover) {
+            throw new Error('The server did not persist the uploaded cover photo.');
+          }
+          saveTripExtras(tripId, { coverPhoto: persistedCover });
+          setCoverPhoto(persistedCover);
+        }
         const merged = mergeTripWithExtras(updatedTrip);
         setTrip(merged);
         setCachedTrip(tripId, merged);
         if (outlet?.setTrip) outlet.setTrip(merged);
         setSaveStatus('Saved!');
         setTimeout(() => setSaveStatus(''), 2000);
+        return true;
       } catch (err) {
-        console.warn('API update failed, verifying local fallback:', err);
-        // If updates included coverPhoto, it was already safely persisted in tripExtras and cache
-        if (updates.coverPhoto !== undefined) {
-          const fallbackTrip: Trip = {
-            ...trip,
-            ...updates,
-            cover_photo: updates.coverPhoto,
-          };
-          setTrip(fallbackTrip);
-          setCachedTrip(tripId, fallbackTrip);
-          if (outlet?.setTrip) outlet.setTrip(fallbackTrip);
-          setSaveStatus('Saved!');
-          setTimeout(() => setSaveStatus(''), 2000);
-        } else {
-          setSaveStatus('Error saving');
-          setTimeout(() => setSaveStatus(''), 2000);
-        }
+        console.warn('API update failed:', err);
+        setSaveStatus('Error saving');
+        setTimeout(() => setSaveStatus(''), 2000);
+        return false;
       }
     } else {
       const nextTrip = { ...trip, ...updates } as Trip;
@@ -166,6 +156,7 @@ export function Settings() {
       if (outlet?.setTrip) outlet.setTrip(nextTrip);
       setSaveStatus('Saved!');
       setTimeout(() => setSaveStatus(''), 2000);
+      return true;
     }
   };
 
@@ -182,12 +173,13 @@ export function Settings() {
       setSaveStatus('Optimizing image...');
       // Compress and resize image to web-optimized dimensions (< 120KB)
       const compressed = await compressImage(file, 1280, 720, 0.78);
-      setCoverPhoto(compressed);
       await saveChanges({ coverPhoto: compressed });
     } catch (err) {
       console.error('Failed to process cover photo:', err);
       setSaveStatus('Error saving');
       setTimeout(() => setSaveStatus(''), 2000);
+    } finally {
+      e.target.value = '';
     }
   };
 
