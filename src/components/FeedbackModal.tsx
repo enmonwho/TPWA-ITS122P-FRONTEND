@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Star, MapPin, Send, CheckCircle2 } from 'lucide-react';
+import { X, Star, MapPin, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { feedbackApi, type FeedbackItem } from '../services/api';
 import { COUNTRIES } from '../constants/countries';
@@ -95,42 +95,49 @@ export default function FeedbackModal({
   const reviewerName = user?.full_name || user?.username || 'Traveler';
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true">
+    <div className="feedback-overlay" role="dialog" aria-modal="true">
       <button
         type="button"
-        className="modal-backdrop-dismiss"
+        className="feedback-backdrop-dismiss"
         onClick={() => !submitting && onClose()}
         aria-label="Close feedback modal"
       />
 
-      <div
-        className="modal-box animate-slide-up"
-        style={{
-          width: '520px',
-          maxWidth: '92vw',
-          padding: '28px 32px',
-          position: 'relative',
-          borderRadius: '24px',
-          maxHeight: 'calc(100dvh - 32px)',
-          overflowY: 'auto',
-        }}
-      >
+      <div className="feedback-shell animate-slide-up">
         <button
           type="button"
           onClick={() => !submitting && onClose()}
           disabled={submitting}
-          className="modal-close-btn"
+          className="feedback-close"
           aria-label="Close modal"
         >
-          <X size={18} />
+          <X size={16} />
         </button>
 
-        <div className="mb-5 text-center">
-          <h2 className="modal-title text-xl font-bold text-stone-900 mb-1">
-            Give Us Feedback
+        <div className="mb-4 text-center">
+          <h2
+            style={{
+              margin: '4px 28px 2px',
+              textAlign: 'center',
+              fontSize: '26px',
+              lineHeight: 1.2,
+              fontWeight: 700,
+            }}
+          >
+            <span className="feedback-heading-plain">Give Us </span>
+            <span className="feedback-heading-gradient">Feedback</span>
           </h2>
-          <p className="text-xs text-stone-500 font-medium">
-            Share your experience exploring destinations with LakBye!
+          <p
+            style={{
+              margin: '0 auto 16px',
+              maxWidth: '320px',
+              textAlign: 'center',
+              color: 'rgba(72,42,19,.78)',
+              fontSize: '13px',
+              lineHeight: 1.55,
+            }}
+          >
+            Share your travel experience with LakBye.
           </p>
         </div>
 
@@ -145,7 +152,7 @@ export default function FeedbackModal({
             </p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <form onSubmit={handleSubmit} className="feedback-form">
             {error && (
               <div className="px-3.5 py-2.5 bg-rose-50 border border-rose-200/80 rounded-xl text-rose-700 text-xs font-medium">
                 {error}
@@ -153,29 +160,41 @@ export default function FeedbackModal({
             )}
 
             {/* Traveler Name (Read-only / prefilled from user) */}
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1">
-                Your Name
-              </label>
+            <div className="feedback-field">
+              <label htmlFor="feedback-user-name">Your Name</label>
               <input
+                id="feedback-user-name"
                 type="text"
                 disabled
                 value={reviewerName}
-                className="w-full px-3.5 py-2.5 bg-stone-100 border border-stone-200 rounded-xl text-xs font-medium text-stone-700 cursor-not-allowed"
+                style={{
+                  opacity: 0.85,
+                  cursor: 'not-allowed',
+                  backgroundColor: 'rgba(255,255,255,0.5)',
+                }}
               />
             </div>
 
             {/* Country / Place Visited (Restricted to Country level) */}
-            <div className="relative">
-              <label className="block text-xs font-semibold text-stone-700 mb-1">
-                Country / Place Visited <span className="text-amber-600">*</span>
+            <div className="feedback-field relative">
+              <label htmlFor="feedback-country-input">
+                Country / Place Visited <span className="req">*</span>
               </label>
               <div
-                className="flex items-center gap-2 px-3.5 py-2.5 border border-stone-200 rounded-xl bg-white focus-within:border-amber-500 focus-within:ring-1 focus-within:ring-amber-500 transition-all cursor-pointer"
+                className="flex items-center gap-2 cursor-pointer"
+                style={{
+                  width: '100%',
+                  borderRadius: '14px',
+                  border: '1px solid rgba(72,42,19,.14)',
+                  background: 'rgba(255,255,255,.78)',
+                  padding: '11px 14px',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,.08)',
+                }}
                 onClick={() => setIsCountryDropdownOpen((prev) => !prev)}
               >
-                <MapPin className="w-4 h-4 text-amber-600 shrink-0" />
+                <MapPin className="w-4 h-4 text-[#E9724C] shrink-0" />
                 <input
+                  id="feedback-country-input"
                   type="text"
                   placeholder="Select country visited..."
                   value={countryName || countrySearch}
@@ -184,12 +203,25 @@ export default function FeedbackModal({
                     setCountryName('');
                     setIsCountryDropdownOpen(true);
                   }}
-                  className="w-full text-xs font-medium text-stone-800 focus:outline-none bg-transparent"
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    padding: 0,
+                    margin: 0,
+                    boxShadow: 'none',
+                    fontSize: '13px',
+                    color: '#2F1B0C',
+                    width: '100%',
+                    outline: 'none',
+                  }}
                 />
               </div>
 
               {isCountryDropdownOpen && (
-                <div className="absolute top-full mt-1.5 left-0 right-0 bg-white border border-stone-200 rounded-xl shadow-xl max-h-48 overflow-y-auto z-50 py-1">
+                <div
+                  className="absolute top-full mt-1.5 left-0 right-0 bg-white border border-[rgba(72,42,19,0.18)] rounded-xl shadow-xl max-h-48 overflow-y-auto z-50 py-1"
+                  style={{ zIndex: 100 }}
+                >
                   {filteredCountries.length > 0 ? (
                     filteredCountries.map((c) => (
                       <button
@@ -200,11 +232,15 @@ export default function FeedbackModal({
                           setCountrySearch('');
                           setIsCountryDropdownOpen(false);
                         }}
-                        className={`w-full text-left px-3.5 py-2 text-xs hover:bg-amber-50 transition-colors ${
+                        className={`w-full text-left px-3.5 py-2 text-xs transition-colors cursor-pointer ${
                           countryName === c
-                            ? 'font-bold text-amber-700 bg-amber-50/60'
-                            : 'text-stone-700'
+                            ? 'font-bold text-[#E9724C] bg-[#FFF8F3]'
+                            : 'text-[#2F1B0C] hover:bg-stone-50'
                         }`}
+                        style={{
+                          border: 'none',
+                          background: countryName === c ? '#FFF8F3' : 'transparent',
+                        }}
                       >
                         {c}
                       </button>
@@ -219,11 +255,11 @@ export default function FeedbackModal({
             </div>
 
             {/* Rating Stars */}
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                Rating <span className="text-amber-600">*</span>
-              </label>
-              <div className="flex items-center gap-1.5">
+            <div className="feedback-field">
+              <span className="text-[12px] font-bold text-[rgba(72,42,19,0.88)]">
+                Rating <span className="req">*</span>
+              </span>
+              <div className="feedback-stars">
                 {[1, 2, 3, 4, 5].map((star) => {
                   const filled = (hoverRating || rating) >= star;
                   return (
@@ -233,74 +269,68 @@ export default function FeedbackModal({
                       onClick={() => setRating(star)}
                       onMouseEnter={() => setHoverRating(star)}
                       onMouseLeave={() => setHoverRating(0)}
-                      className="p-1 text-amber-400 hover:scale-110 active:scale-95 transition-transform"
+                      className="p-0.5 cursor-pointer bg-transparent border-none transition-transform hover:scale-110 active:scale-95 text-[#FFC245]"
                       aria-label={`Rate ${star} stars`}
                     >
                       <Star
-                        size={22}
+                        size={24}
                         className={
-                          filled ? 'fill-amber-400 text-amber-400' : 'text-stone-300'
+                          filled ? 'fill-[#FFC245] text-[#FFC245]' : 'text-stone-300'
                         }
                       />
                     </button>
                   );
                 })}
-                <span className="text-xs font-bold text-amber-700 ml-2">
-                  {rating} / 5 Stars
-                </span>
+                <span className="rating-copy">{rating} / 5 Stars</span>
               </div>
             </div>
 
             {/* Review Title */}
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1">
-                Title <span className="text-amber-600">*</span>
+            <div className="feedback-field">
+              <label htmlFor="feedback-title-input">
+                Title <span className="req">*</span>
               </label>
               <input
+                id="feedback-title-input"
                 type="text"
                 required
-                placeholder="e.g. Unforgettable Island Getaway!"
+                placeholder="Summarize your experience"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-stone-200 rounded-xl text-xs font-medium text-stone-800 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all"
               />
             </div>
 
             {/* Comments */}
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1">
-                Comments <span className="text-amber-600">*</span>
+            <div className="feedback-field">
+              <label htmlFor="feedback-comment-input">
+                Comments <span className="req">*</span>
               </label>
               <textarea
+                id="feedback-comment-input"
                 required
                 rows={3}
-                placeholder="Tell us about your trip and experience using LakBye..."
+                placeholder="Tell us about your experience..."
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-stone-200 rounded-xl text-xs font-medium text-stone-800 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all resize-none"
               />
             </div>
 
-            {/* Submit Button */}
-            <div className="flex items-center justify-end gap-2.5 pt-2">
+            {/* Actions */}
+            <div className="feedback-actions">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={submitting}
-                className="px-4 py-2 rounded-full border border-stone-200 text-xs font-semibold text-stone-600 hover:bg-stone-50 transition-colors"
+                className="feedback-btn secondary"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="btn-create-trip flex items-center gap-1.5 px-6 py-2 rounded-full text-xs font-bold text-white shadow-md disabled:opacity-50"
-                style={{
-                  background: 'linear-gradient(135deg, #f05a28 0%, #e04a18 100%)',
-                }}
+                className="feedback-btn primary"
               >
-                <Send size={13} />
-                <span>{submitting ? 'Submitting...' : 'Submit Feedback'}</span>
+                {submitting ? 'Submitting...' : 'Submit Feedback'}
               </button>
             </div>
           </form>
