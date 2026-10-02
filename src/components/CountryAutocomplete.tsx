@@ -1,10 +1,10 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { ChevronDown, X } from 'lucide-react';
-import { COUNTRIES } from '../constants/countries';
+import { COUNTRY_OPTIONS, getCountryName, type CountryId } from '../lib/countries';
 
 interface CountryAutocompleteProps {
-  value: string[];
-  onChange: (countries: string[]) => void;
+  value: CountryId[];
+  onChange: (countryIds: CountryId[]) => void;
   error?: boolean;
 }
 
@@ -33,29 +33,30 @@ export function CountryAutocomplete({
   // Tolerant fuzzy matching for partial inputs (e.g. 'Philippin' -> 'Philippines')
   const filteredCountries = useMemo(() => {
     const query = search.trim().toLowerCase();
-    const available = COUNTRIES.filter((c) => !value.includes(c));
+    const available = COUNTRY_OPTIONS.filter((country) => !value.includes(country.id));
     if (!query) return available;
 
-    return available.filter((c) => {
-      const lower = c.toLowerCase();
-      if (lower.includes(query)) return true;
-      // Also match individual words
-      const words = lower.split(/\s+/);
-      return words.some((w) => w.startsWith(query) || query.startsWith(w));
+    return available.filter((country) => {
+      return [country.name, ...country.aliases].some((candidate) => {
+        const lower = candidate.toLowerCase();
+        if (lower.includes(query)) return true;
+        const words = lower.split(/\s+/);
+        return words.some((word) => word.startsWith(query) || query.startsWith(word));
+      });
     });
   }, [search, value]);
 
-  const handleSelect = (country: string) => {
-    if (!value.includes(country)) {
-      onChange([...value, country]);
+  const handleSelect = (countryId: CountryId) => {
+    if (!value.includes(countryId)) {
+      onChange([...value, countryId]);
     }
     setSearch('');
     inputRef.current?.focus();
   };
 
-  const handleDeselect = (countryToDeselect: string, e?: React.MouseEvent) => {
+  const handleDeselect = (countryId: CountryId, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    onChange(value.filter((c) => c !== countryToDeselect));
+    onChange(value.filter((id) => id !== countryId));
   };
 
   return (
@@ -75,22 +76,25 @@ export function CountryAutocomplete({
       onClick={() => inputRef.current?.focus()}
     >
       {/* Selected Country Badges with Deselect (x) buttons */}
-      {value.map((country) => (
-        <span
-          key={country}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-900 border border-amber-200/80 rounded-full text-xs font-semibold shrink-0 animate-fade-in"
-        >
-          <span>{country}</span>
-          <button
-            type="button"
-            onClick={(e) => handleDeselect(country, e)}
-            className="w-3.5 h-3.5 rounded-full hover:bg-amber-200/70 flex items-center justify-center transition-colors text-amber-700"
-            aria-label={`Deselect ${country}`}
+      {value.map((countryId) => {
+        const countryName = getCountryName(countryId);
+        return (
+          <span
+            key={countryId}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-900 border border-amber-200/80 rounded-full text-xs font-semibold shrink-0 animate-fade-in"
           >
-            <X size={11} strokeWidth={2.5} />
-          </button>
-        </span>
-      ))}
+            <span>{countryName}</span>
+            <button
+              type="button"
+              onClick={(e) => handleDeselect(countryId, e)}
+              className="w-3.5 h-3.5 rounded-full hover:bg-amber-200/70 flex items-center justify-center transition-colors text-amber-700"
+              aria-label={`Deselect ${countryName}`}
+            >
+              <X size={11} strokeWidth={2.5} />
+            </button>
+          </span>
+        );
+      })}
 
       {/* Search Input */}
       <input
@@ -155,14 +159,14 @@ export function CountryAutocomplete({
           }}
         >
           {filteredCountries.length > 0 ? (
-            filteredCountries.map((c) => (
+            filteredCountries.map((country) => (
               <button
-                key={c}
+                key={country.id}
                 type="button"
                 className="country-suggestion-item text-left w-full hover:bg-amber-50/70 transition-colors"
-                onClick={() => handleSelect(c)}
+                onClick={() => handleSelect(country.id)}
               >
-                {c}
+                {country.name}
               </button>
             ))
           ) : (

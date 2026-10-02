@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../lib/constants';
 import { tripsApi } from '../services/api';
 import { saveTripExtras } from '../lib/tripExtras';
+import { normalizeCountryRoute, type CountryId } from '../lib/countries';
 import axios from 'axios';
 
 interface CreateTripModalProps {
@@ -25,7 +26,7 @@ export default function CreateTripModal({
   const navigate = useNavigate();
 
   const [tripName, setTripName] = useState('');
-  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
+  const [selectedCountries, setSelectedCountries] = useState<CountryId[]>([]);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [travelType, setTravelType] = useState<TravelType>('');
@@ -89,7 +90,7 @@ export default function CreateTripModal({
       });
 
       saveTripExtras(newTrip.id, {
-        countries: selectedCountries,
+        countryRoute: normalizeCountryRoute(selectedCountries),
         travelType,
       });
 

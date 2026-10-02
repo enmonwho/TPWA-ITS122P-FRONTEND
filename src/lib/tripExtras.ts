@@ -1,13 +1,20 @@
 import { STORAGE_KEYS } from './constants';
 import type { Trip } from '../types/trip';
+import { normalizeCountryRoute, type CountryRouteEntry } from './countries';
 
 export interface TripExtras {
   countries: string[];
+  countryRoute: CountryRouteEntry[];
   travelType: string;
   coverPhoto?: string;
 }
 
-const DEFAULT_EXTRAS: TripExtras = { countries: [], travelType: '', coverPhoto: '' };
+const DEFAULT_EXTRAS: TripExtras = {
+  countries: [],
+  countryRoute: [],
+  travelType: '',
+  coverPhoto: '',
+};
 
 /**
  * Compresses an image file to a web-optimized JPEG data URL using HTML5 canvas.
@@ -58,7 +65,18 @@ export function compressImage(
 export function getTripExtras(tripId: string | number): TripExtras {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.TRIP_EXTRAS(tripId));
-    if (raw) return JSON.parse(raw) as TripExtras;
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<TripExtras>;
+      const countryRoute = normalizeCountryRoute(
+        parsed.countryRoute?.length ? parsed.countryRoute : parsed.countries || [],
+      );
+      return {
+        ...DEFAULT_EXTRAS,
+        ...parsed,
+        countries: countryRoute.map((country) => country.name),
+        countryRoute,
+      };
+    }
   } catch {
     // Corrupted data — return defaults
   }
@@ -70,7 +88,14 @@ export function saveTripExtras(
   extras: Partial<TripExtras>,
 ): void {
   const current = getTripExtras(tripId);
-  const merged = { ...current, ...extras };
+  const routeInput = extras.countryRoute ?? extras.countries ?? current.countryRoute;
+  const countryRoute = normalizeCountryRoute(routeInput);
+  const merged = {
+    ...current,
+    ...extras,
+    countries: countryRoute.map((country) => country.name),
+    countryRoute,
+  };
   localStorage.setItem(STORAGE_KEYS.TRIP_EXTRAS(tripId), JSON.stringify(merged));
 }
 
@@ -230,6 +255,7 @@ export function mergeTripsWithExtras(trips: Trip[]): Trip[] {
     return {
       ...trip,
       countries: extras.countries,
+      countryRoute: extras.countryRoute,
       travelType: extras.travelType,
       cover_photo: trip.cover_photo || extras.coverPhoto || null,
       nights: derived.nights,

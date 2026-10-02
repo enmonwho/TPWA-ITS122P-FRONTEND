@@ -163,6 +163,7 @@ function mapTripFromApi(raw: TripApiResponse): Trip {
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
     countries: [],
+    countryRoute: [],
     travelType: '',
     nights: 0,
   };

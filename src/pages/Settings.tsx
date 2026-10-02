@@ -16,6 +16,11 @@ import {
   formatTripDateRange,
   compressImage,
 } from '../lib/tripExtras';
+import {
+  normalizeCountryRoute,
+  type CountryId,
+  type CountryRouteEntry,
+} from '../lib/countries';
 
 type TravelType = 'Solo' | 'Couple' | 'Friends' | 'Family' | '';
 
@@ -32,8 +37,8 @@ export function Settings() {
 
   // Form states
   const [tripName, setTripName] = useState(() => cached?.name || '');
-  const [selectedCountries, setSelectedCountries] = useState<string[]>(
-    () => cached?.countries || [],
+  const [selectedCountries, setSelectedCountries] = useState<CountryId[]>(
+    () => cached?.countryRoute?.map((country) => country.countryId) || [],
   );
   const [startDate, setStartDate] = useState(() =>
     cached ? formatDateOnly(cached.startDate) : '',
@@ -66,7 +71,7 @@ export function Settings() {
         if (outlet?.setTrip) outlet.setTrip(merged);
 
         setTripName(merged.name);
-        setSelectedCountries(merged.countries);
+        setSelectedCountries(merged.countryRoute.map((country) => country.countryId));
         setStartDate(formatDateOnly(merged.startDate));
         setEndDate(formatDateOnly(merged.endDate));
         setTravelType((merged.travelType as TravelType) || '');
@@ -87,7 +92,13 @@ export function Settings() {
   }, [user, tripId, cached, outlet]);
 
   const saveChanges = async (
-    updates: Partial<Trip & { coverPhoto?: string; visibility?: string }>,
+    updates: Partial<
+      Trip & {
+        coverPhoto?: string;
+        visibility?: string;
+        countryRoute?: CountryRouteEntry[];
+      }
+    >,
   ) => {
     if (!trip || !tripId) return;
     setSaveStatus('Saving...');
@@ -108,9 +119,17 @@ export function Settings() {
       setCachedTrip(tripId, { ...trip, cover_photo: updates.coverPhoto });
     }
 
-    if (updates.countries !== undefined || updates.travelType !== undefined) {
-      const extrasUpdate: Record<string, unknown> = {};
-      if (updates.countries !== undefined) extrasUpdate.countries = updates.countries;
+    if (
+      updates.countries !== undefined ||
+      updates.countryRoute !== undefined ||
+      updates.travelType !== undefined
+    ) {
+      const extrasUpdate: Parameters<typeof saveTripExtras>[1] = {};
+      if (updates.countryRoute !== undefined) {
+        extrasUpdate.countryRoute = updates.countryRoute;
+      } else if (updates.countries !== undefined) {
+        extrasUpdate.countries = updates.countries;
+      }
       if (updates.travelType !== undefined) extrasUpdate.travelType = updates.travelType;
       saveTripExtras(tripId, extrasUpdate);
     }
@@ -387,9 +406,13 @@ export function Settings() {
             <div className="form-label">Which countries are you going to?</div>
             <CountryAutocomplete
               value={selectedCountries}
-              onChange={(countries) => {
-                setSelectedCountries(countries);
-                saveChanges({ countries });
+              onChange={(countryIds) => {
+                const countryRoute = normalizeCountryRoute(countryIds);
+                setSelectedCountries(countryIds);
+                saveChanges({
+                  countries: countryRoute.map((country) => country.name),
+                  countryRoute,
+                });
               }}
             />
           </div>

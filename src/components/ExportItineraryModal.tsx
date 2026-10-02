@@ -4,6 +4,7 @@ import { tripsApi, budgetApi } from '../services/api';
 import { mergeTripWithExtras, formatDateOnly } from '../lib/tripExtras';
 import type { Trip } from '../types/trip';
 import type { WorkspaceDestination } from '../pages/TripWorkspace';
+import { getCountryId } from '../lib/countries';
 
 interface ExportItineraryModalProps {
   isOpen: boolean;
@@ -66,7 +67,9 @@ export default function ExportItineraryModal({
             return {
               id: `dest-${i + 1}`,
               name: c,
+              countryId: getCountryId(c) || 'philippines',
               country: c,
+              order: i,
               days: count,
               nights: count,
               accommodation: 'Hotel / Resort',

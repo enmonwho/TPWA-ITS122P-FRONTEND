@@ -31,6 +31,7 @@ import {
   formatTripDateRange,
 } from '../lib/tripExtras';
 import { formatUserCurrency } from '../lib/formatters';
+import { normalizeCountryRoute } from '../lib/countries';
 
 export default function Dashboard() {
   const { user, setUser } = useAuth();
@@ -142,6 +143,7 @@ export default function Dashboard() {
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 countries: ['Philippines'],
+                countryRoute: normalizeCountryRoute(['Philippines']),
                 travelType: 'Solo',
                 nights: 6,
               },

@@ -1,19 +1,23 @@
+import type { CountryRouteEntry } from '../lib/countries';
+
 export type TripStatus = 'planning' | 'confirmed' | 'ongoing' | 'completed' | 'cancelled';
 
 export interface Trip {
   id: number;
-  name: string; 
-  startDate: string; 
-  endDate: string; 
-  totalBudget: number; 
+  name: string;
+  startDate: string;
+  endDate: string;
+  totalBudget: number;
   status: TripStatus;
-  cover_photo?: string | null; 
-  visibility?: string; 
-  createdAt?: string; 
-  updatedAt?: string; 
+  cover_photo?: string | null;
+  visibility?: string;
+  createdAt?: string;
+  updatedAt?: string;
 
   /** @local — not persisted to backend yet */
   countries: string[];
+  /** Canonical, explicitly ordered route persisted in trip extras. */
+  countryRoute: CountryRouteEntry[];
   /** @local — not persisted to backend yet */
   travelType: string;
 
