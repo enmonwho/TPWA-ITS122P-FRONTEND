@@ -12464,3 +12464,63 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 .feedback-btn.secondary:hover {
   background: rgba(255, 255, 255, 0.9);
 }
+
+/* ========================================================================= */
+/*           Responsive Layout Polish (1024px, 768px, 640px, 375px)          */
+/* ========================================================================= */
+
+@media (max-width: 1024px) {
+  .budget-main-card {
+    flex-direction: column;
+    min-height: auto;
+    height: auto;
+    overflow: visible;
+  }
+  .budget-left-zone {
+    width: 100%;
+    flex: 1 1 auto;
+    border-bottom: 1px solid rgba(64, 28, 2, 0.25);
+    padding: 24px 16px;
+  }
+  .budget-vertical-divider {
+    display: none;
+  }
+  .budget-right-zone {
+    width: 100%;
+    padding: 24px 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .budget-modal-card {
+    padding: 24px 18px 20px 18px;
+    margin: 12px;
+  }
+  .budget-balance-amount {
+    font-size: 44px;
+  }
+  .budget-action-buttons {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+  }
+  .budget-btn-add-expense,
+  .budget-btn-add-balance {
+    width: 100% !important;
+  }
+  .packing-table-header,
+  .packing-table-row {
+    font-size: 13px;
+  }
+  .feedback-overlay {
+    padding: 12px;
+  }
+  .feedback-shell {
+    padding: 20px 16px 18px;
+    border-radius: 20px;
+  }
+  .feedback-shell h3 {
+    font-size: 22px;
+    margin: 4px 16px 2px;
+  }
+}
