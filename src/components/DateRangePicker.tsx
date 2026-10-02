@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import AnchoredPopover from './AnchoredPopover';
 
 interface DateRangePickerProps {
   startDate: string;
@@ -29,17 +30,8 @@ export function DateRangePicker({
     return startDate ? new Date(startDate) : new Date();
   });
 
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    if (isOpen) document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
+  const startAnchorRef = useRef<HTMLDivElement>(null);
+  const endAnchorRef = useRef<HTMLDivElement>(null);
 
   const generateMonthGrid = (year: number, month: number) => {
     const start = new Date(year, month, 1);
@@ -141,8 +133,6 @@ export function DateRangePicker({
               <div
                 key={dateStr}
                 className="relative flex items-center justify-center h-8"
-                onMouseEnter={() => !disabled && handleMouseEnter(dateStr)}
-                onMouseLeave={() => setHoverDate(null)}
               >
                 {inRange && (
                   <div className="absolute inset-y-0 left-0 right-0 bg-amber-50 z-0" />
@@ -157,6 +147,8 @@ export function DateRangePicker({
                 <button
                   type="button"
                   onClick={() => handleDayClick(dateStr)}
+                  onMouseEnter={() => !disabled && handleMouseEnter(dateStr)}
+                  onMouseLeave={() => setHoverDate(null)}
                   disabled={disabled}
                   className={`w-8 h-8 rounded-full text-xs font-medium flex items-center justify-center relative z-10 transition-colors ${
                     selected
@@ -179,9 +171,10 @@ export function DateRangePicker({
   };
 
   return (
-    <div className="relative" ref={popoverRef}>
+    <div className="relative">
       <div className="flex items-center gap-3">
         <div
+          ref={startAnchorRef}
           className="input-gradient-border relative flex-1 flex items-center gap-2.5"
           style={{ borderColor: errorStart ? 'red' : undefined }}
         >
@@ -203,6 +196,7 @@ export function DateRangePicker({
         </div>
         <span className="text-slate-500 font-medium text-sm">to</span>
         <div
+          ref={endAnchorRef}
           className="input-gradient-border relative flex-1 flex items-center gap-2.5"
           style={{ borderColor: errorEnd ? 'red' : undefined }}
         >
@@ -227,12 +221,19 @@ export function DateRangePicker({
       </div>
 
       {isOpen && (
-        <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-[590px] max-w-[calc(100vw-32px)] bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] border border-slate-200 p-6 z-[100] animate-slide-up">
-          <div className="flex justify-between items-center absolute w-full left-0 px-6 top-6 z-10 pointer-events-none">
+        <AnchoredPopover
+          anchorRef={step === 0 ? startAnchorRef : endAnchorRef}
+          onClose={() => setIsOpen(false)}
+          width={590}
+          estimatedHeight={360}
+          className="date-range-popover bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] border border-slate-200 p-6 overflow-y-auto animate-slide-up"
+          role="dialog"
+        >
+          <div className="flex justify-between items-center mb-3">
             <button
               type="button"
               onClick={() => shiftMonth(-1)}
-              className="pointer-events-auto w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-95 transition-all shadow-sm bg-white cursor-pointer"
+              className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-95 transition-all shadow-sm bg-white cursor-pointer"
               aria-label="Previous month"
             >
               <ChevronLeft size={16} />
@@ -240,18 +241,18 @@ export function DateRangePicker({
             <button
               type="button"
               onClick={() => shiftMonth(1)}
-              className="pointer-events-auto w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-95 transition-all shadow-sm bg-white cursor-pointer"
+              className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-95 transition-all shadow-sm bg-white cursor-pointer"
               aria-label="Next month"
             >
               <ChevronRight size={16} />
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 relative mt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 relative">
             {renderMonth(0)}
             <div className="hidden sm:block">{renderMonth(1)}</div>
           </div>
-        </div>
+        </AnchoredPopover>
       )}
     </div>
   );

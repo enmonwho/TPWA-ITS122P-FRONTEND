@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Trip } from '../types/trip';
 import {
@@ -28,6 +28,8 @@ import { tripsApi, journalsApi, preferencesApi } from '../services/api';
 import { mergeTripsWithExtras, mergeTripWithExtras } from '../lib/tripExtras';
 import { formatUserCurrency, formatUserDateRange } from '../lib/formatters';
 import { normalizeCountryRoute } from '../lib/countries';
+import AnchoredPopover from '../components/AnchoredPopover';
+import { toggleTripMenu } from '../lib/dashboardMenu';
 
 export default function Dashboard() {
   const { user, setUser } = useAuth();
@@ -239,6 +241,7 @@ export default function Dashboard() {
   };
 
   const [openMenuTripId, setOpenMenuTripId] = useState<string | number | null>(null);
+  const menuAnchorRef = useRef<HTMLButtonElement>(null);
 
   // Edit Modal State
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
@@ -252,18 +255,6 @@ export default function Dashboard() {
   // Delete Confirmation Modal State
   const [deletingTrip, setDeletingTrip] = useState<Trip | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  // Close 3-dots dropdown on outside click
-  useEffect(() => {
-    const handleDocumentClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest('.trip-row-options-container')) {
-        setOpenMenuTripId(null);
-      }
-    };
-    document.addEventListener('mousedown', handleDocumentClick);
-    return () => document.removeEventListener('mousedown', handleDocumentClick);
-  }, []);
 
   const handleOpenEdit = (trip: Trip) => {
     setEditingTrip(trip);
@@ -710,8 +701,9 @@ export default function Dashboard() {
                               className="trip-row-options"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                menuAnchorRef.current = e.currentTarget;
                                 setOpenMenuTripId((prev) =>
-                                  prev === trip.id ? null : trip.id,
+                                  toggleTripMenu(prev, trip.id),
                                 );
                               }}
                               aria-label="Trip options"
@@ -724,9 +716,12 @@ export default function Dashboard() {
                             </button>
 
                             {openMenuTripId === trip.id && (
-                              <div
+                              <AnchoredPopover
+                                anchorRef={menuAnchorRef}
+                                onClose={() => setOpenMenuTripId(null)}
+                                width={180}
+                                estimatedHeight={190}
                                 className="dashboard-trip-options-menu"
-                                onClick={(e) => e.stopPropagation()}
                               >
                                 <button
                                   type="button"
@@ -785,7 +780,7 @@ export default function Dashboard() {
                                   <Trash2 size={15} />
                                   <span>Delete Trip</span>
                                 </button>
-                              </div>
+                              </AnchoredPopover>
                             )}
                           </div>
                         </div>

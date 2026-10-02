@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { CountryAutocomplete, DateRangePicker } from './';
@@ -8,6 +8,7 @@ import { tripsApi } from '../services/api';
 import { saveTripExtras } from '../lib/tripExtras';
 import { normalizeCountryRoute, type CountryId } from '../lib/countries';
 import axios from 'axios';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 
 interface CreateTripModalProps {
   isOpen: boolean;
@@ -50,16 +51,7 @@ export default function CreateTripModal({
     }
   }
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isOpen, onClose]);
+  useModalBehavior(isOpen, onClose, submitting);
 
   const handleStartPlanning = async () => {
     const newErrors: Record<string, boolean> = {};
@@ -122,6 +114,12 @@ export default function CreateTripModal({
       aria-modal="true"
       aria-labelledby="modal-create-trip-title"
     >
+      <button
+        type="button"
+        className="modal-backdrop-dismiss"
+        aria-label="Close create trip modal"
+        onClick={() => !submitting && onClose()}
+      />
       <div className="modal-content">
         <h2 id="modal-create-trip-title" className="sr-only">
           Create Trip
@@ -130,7 +128,8 @@ export default function CreateTripModal({
           type="button"
           className="modal-close-btn"
           aria-label="Close modal"
-          onClick={onClose}
+          onClick={() => !submitting && onClose()}
+          disabled={submitting}
         >
           <X size={18} />
         </button>

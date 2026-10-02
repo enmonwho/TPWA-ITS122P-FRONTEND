@@ -3689,6 +3689,11 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   align-items: center;
   justify-content: center;
   flex: 1;
+  width: 100%;
+  min-width: 0;
+  padding: 24px;
+  text-align: center;
+  box-sizing: border-box;
 }
 
 .dashboard-empty-title {
@@ -3705,6 +3710,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   text-align: center;
   max-width: 376px;
   margin-bottom: 20px;
+  overflow-wrap: anywhere;
 }
 
 .dashboard-empty-actions {
@@ -11653,9 +11659,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 }
 
 .dashboard-trip-options-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
+  position: fixed;
   z-index: 100;
   min-width: 180px;
   background: #ffffff;
@@ -11669,6 +11673,16 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   flex-direction: column;
   gap: 2px;
   animation: fadeInDown 0.15s ease-out;
+}
+
+.date-range-popover {
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .date-range-popover {
+    padding: 16px;
+  }
 }
 
 @keyframes fadeInDown {
