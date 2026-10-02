@@ -204,10 +204,7 @@ export function Budget() {
   const [expenseName, setExpenseName] = useState('');
   const [expenseItemRows, setExpenseItemRows] = useState<
     { name: string; quantity: string }[]
-  >([
-    { name: '', quantity: '1' },
-    { name: '', quantity: '1' },
-  ]);
+  >([{ name: '', quantity: '1' }]);
   const [expenseCategory, setExpenseCategory] = useState(BUDGET_CATEGORIES[0].name);
   const [expenseCost, setExpenseCost] = useState('');
   const [expenseDestination, setExpenseDestination] = useState<string>('Entire Trip');
@@ -424,10 +421,7 @@ export function Budget() {
     });
 
     setExpenseName('');
-    setExpenseItemRows([
-      { name: '', quantity: '1' },
-      { name: '', quantity: '1' },
-    ]);
+    setExpenseItemRows([{ name: '', quantity: '1' }]);
     setExpenseCategory(BUDGET_CATEGORIES[0].name);
     setExpenseCost('');
     setExpenseDestination('Entire Trip');
@@ -728,7 +722,11 @@ export function Budget() {
               <button
                 type="button"
                 className="budget-btn-add-expense"
-                onClick={() => setIsAddExpenseOpen(true)}
+                onClick={() => {
+                  setExpenseItemRows([{ name: '', quantity: '1' }]);
+                  setExpenseError('');
+                  setIsAddExpenseOpen(true);
+                }}
               >
                 <CirclePlus size={20} color="#ffffff" strokeWidth={2.2} />
                 <span>Add Expense</span>

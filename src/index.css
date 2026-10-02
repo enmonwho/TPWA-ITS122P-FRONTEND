@@ -6830,15 +6830,18 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 
 .packing-filter-controls {
   display: grid;
-  grid-template-columns: 104px 124px;
+  grid-template-columns: 78px 94px;
   align-items: center;
   gap: 6px;
+  max-width: 180px;
 }
 
 .packing-filter-controls .budget-currency-pill {
   width: 100%;
   min-width: 0;
   max-width: 100%;
+  height: 32px;
+  padding: 0 8px;
   box-sizing: border-box;
 }
 
@@ -6847,6 +6850,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 11.5px;
 }
 
 .budget-title {
