@@ -3,6 +3,7 @@ import { X, Star, MapPin, Send, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { feedbackApi, type FeedbackItem } from '../services/api';
 import { COUNTRIES } from '../constants/countries';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 
 interface FeedbackModalProps {
   isOpen: boolean;
@@ -27,6 +28,8 @@ export default function FeedbackModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  useModalBehavior(isOpen, onClose, submitting);
 
   if (!isOpen) return null;
 
@@ -93,7 +96,12 @@ export default function FeedbackModal({
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true">
-      <div className="modal-backdrop-dismiss" onClick={onClose} aria-hidden="true" />
+      <button
+        type="button"
+        className="modal-backdrop-dismiss"
+        onClick={() => !submitting && onClose()}
+        aria-label="Close feedback modal"
+      />
 
       <div
         className="modal-box animate-slide-up"
@@ -103,11 +111,14 @@ export default function FeedbackModal({
           padding: '28px 32px',
           position: 'relative',
           borderRadius: '24px',
+          maxHeight: 'calc(100dvh - 32px)',
+          overflowY: 'auto',
         }}
       >
         <button
           type="button"
-          onClick={onClose}
+          onClick={() => !submitting && onClose()}
+          disabled={submitting}
           className="modal-close-btn"
           aria-label="Close modal"
         >
