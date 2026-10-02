@@ -237,6 +237,20 @@ body {
   gap: 1.5rem;
 }
 
+.header-traveler-search {
+  position: relative;
+  width: 16rem;
+  min-width: 0;
+}
+
+.header-traveler-search-input {
+  width: 100%;
+}
+
+.header-traveler-results {
+  overflow-wrap: anywhere;
+}
+
 .btn-login {
   color: var(--color-brand-red);
   font-weight: 700;
@@ -946,6 +960,10 @@ h6 {
   .auth-links--open {
     display: flex;
     animation: headerMobileSlideDown 0.2s ease-out;
+  }
+
+  .header-traveler-search {
+    width: 100%;
   }
 
   @keyframes headerMobileSlideDown {

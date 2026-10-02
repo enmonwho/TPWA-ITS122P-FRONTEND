@@ -14,6 +14,13 @@ import { useAuth } from '../context/AuthContext';
 import { usePageLoader } from '../context/PageLoaderContext';
 import { ROUTES } from '../lib/constants';
 import { userApi } from '../services/api';
+import AnchoredPopover from './AnchoredPopover';
+import {
+  createLatestRequestGuard,
+  dedupeTravelerResults,
+  getPublicProfilePath,
+  type TravelerSearchResult,
+} from '../lib/travelerSearch';
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -23,15 +30,10 @@ export default function Header() {
 
   // Search State
   const searchRef = useRef<HTMLDivElement>(null);
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const searchRequestGuardRef = useRef(createLatestRequestGuard());
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<
-    {
-      id: number;
-      full_name: string;
-      username: string;
-      avatar_url?: string;
-    }[]
-  >([]);
+  const [searchResults, setSearchResults] = useState<TravelerSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
 
@@ -52,9 +54,6 @@ export default function Header() {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDropdownOpen(false);
-      }
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        setShowSearchResults(false);
       }
     };
 
@@ -78,29 +77,41 @@ export default function Header() {
   useEffect(() => {
     const query = searchQuery.trim();
 
+    searchAbortRef.current?.abort();
+    const requestId = searchRequestGuardRef.current.begin();
+
     if (!query) {
-      // Wrapped in a timeout to avoid synchronous setState-in-effect linter warnings
-      const resetTimer = setTimeout(() => {
-        setSearchResults([]);
-        setIsSearching(false);
-      }, 0);
-      return () => clearTimeout(resetTimer);
+      return;
     }
 
     const timer = setTimeout(async () => {
+      const controller = new AbortController();
+      searchAbortRef.current = controller;
       setIsSearching(true);
       try {
-        const results = await userApi.searchUsers(query);
-        setSearchResults(results);
+        const results = await userApi.searchUsers(query, controller.signal);
+        if (searchRequestGuardRef.current.isCurrent(requestId)) {
+          setSearchResults(dedupeTravelerResults(results));
+        }
       } catch (err) {
-        console.error('User search failed', err);
-        setSearchResults([]);
+        if (
+          !controller.signal.aborted &&
+          searchRequestGuardRef.current.isCurrent(requestId)
+        ) {
+          console.error('User search failed', err);
+          setSearchResults([]);
+        }
       } finally {
-        setIsSearching(false);
+        if (searchRequestGuardRef.current.isCurrent(requestId)) {
+          setIsSearching(false);
+        }
       }
     }, 350); // 350ms debounce
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      searchAbortRef.current?.abort();
+    };
   }, [searchQuery]);
 
   const handleLinkClick = () => {
@@ -125,7 +136,9 @@ export default function Header() {
   const handleUserSelect = (username?: string | null) => {
     if (!username) return;
     const cleanUsername = username.replace(/^@+/, '');
-    navigate(`/${cleanUsername}`);
+    navigate(getPublicProfilePath(cleanUsername), {
+      state: { returnTo: ROUTES.HOME, fromTravelerSearch: true },
+    });
     handleLinkClick();
   };
 
@@ -187,7 +200,7 @@ export default function Header() {
           ) : user && user.is_verified !== false ? (
             <>
               {/* Traveler Search Bar (Only visible to logged-in users) */}
-              <div className="relative hidden md:block" ref={searchRef}>
+              <div className="header-traveler-search" ref={searchRef}>
                 <div className="relative flex items-center">
                   <Search className="absolute left-3 w-4 h-4 text-stone-400" />
                   <input
@@ -195,11 +208,14 @@ export default function Header() {
                     placeholder="Find travelers..."
                     value={searchQuery}
                     onChange={(e) => {
-                      setSearchQuery(e.target.value);
-                      setShowSearchResults(true);
+                      const nextQuery = e.target.value;
+                      setSearchQuery(nextQuery);
+                      setSearchResults([]);
+                      setIsSearching(Boolean(nextQuery.trim()));
+                      setShowSearchResults(Boolean(nextQuery.trim()));
                     }}
                     onFocus={() => setShowSearchResults(true)}
-                    className="pl-9 pr-4 py-2 w-64 bg-stone-100 border border-stone-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:bg-white transition-all"
+                    className="header-traveler-search-input pl-9 pr-9 py-2 bg-stone-100 border border-stone-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:bg-white transition-all"
                   />
                   {isSearching && (
                     <Loader2 className="absolute right-3 w-4 h-4 text-stone-400 animate-spin" />
@@ -208,7 +224,14 @@ export default function Header() {
 
                 {/* Search Results Dropdown */}
                 {showSearchResults && searchQuery.trim() !== '' && (
-                  <div className="absolute top-full mt-2 w-full bg-white border border-stone-200 rounded-xl shadow-lg overflow-hidden flex flex-col max-h-80 overflow-y-auto">
+                  <AnchoredPopover
+                    anchorRef={searchRef}
+                    onClose={() => setShowSearchResults(false)}
+                    matchAnchorWidth
+                    estimatedHeight={240}
+                    className="header-traveler-results bg-white border border-stone-200 rounded-xl shadow-lg overflow-hidden flex flex-col max-h-80 overflow-y-auto"
+                    role="listbox"
+                  >
                     {isSearching ? (
                       <div className="p-4 text-center text-sm text-stone-500">
                         Searching...
@@ -260,7 +283,7 @@ export default function Header() {
                         No travelers found.
                       </div>
                     )}
-                  </div>
+                  </AnchoredPopover>
                 )}
               </div>
 

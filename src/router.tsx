@@ -23,6 +23,7 @@ import {
   TripPacking,
   PublicProfile,
 } from './pages';
+import { LegacyPublicProfileRedirect } from './pages/PublicProfile';
 
 /**
  * Application router configuration.
@@ -166,17 +167,7 @@ const router = createBrowserRouter([
       },
       {
         path: ':username', // Wildcard route placed at the very bottom
-        element: (
-          <ProtectedRoute>
-            <DashboardLayout />
-          </ProtectedRoute>
-        ),
-        children: [
-          {
-            index: true,
-            element: <PublicProfile />,
-          },
-        ],
+        element: <LegacyPublicProfileRedirect />,
       },
     ],
   },

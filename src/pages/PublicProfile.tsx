@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { userApi, type PublicProfileResponse } from '../services/api';
-import { useAuth } from '../context/AuthContext'; // Import auth hook
-import { MapPin, Globe, User, Settings } from 'lucide-react';
+import { MapPin, Globe, User, ArrowLeft } from 'lucide-react';
 import { formatUserDateRange } from '../lib/formatters';
 
 export default function PublicProfile() {
   const { username } = useParams<{ username: string }>();
   const navigate = useNavigate();
-  const { user: currentUser } = useAuth(); // Get current logged-in user
+  const location = useLocation();
 
   const [profile, setProfile] = useState<PublicProfileResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -24,6 +23,12 @@ export default function PublicProfile() {
 
     const cleanUsername = username.startsWith('@') ? username.slice(1) : username;
     let isMounted = true;
+    const resetTimer = window.setTimeout(() => {
+      if (!isMounted) return;
+      setLoading(true);
+      setNotFound(false);
+      setProfile(null);
+    }, 0);
 
     async function fetchUser() {
       try {
@@ -49,11 +54,16 @@ export default function PublicProfile() {
 
     return () => {
       isMounted = false;
+      window.clearTimeout(resetTimer);
     };
   }, [username]);
 
-  // Check if the currently logged-in user is viewing their own public profile
-  const isOwner = currentUser && profile && String(currentUser.id) === String(profile.id);
+  const handleBack = () => {
+    const state = location.state as { returnTo?: string } | null;
+    if (state?.returnTo) navigate(state.returnTo);
+    else if (window.history.length > 1) navigate(-1);
+    else navigate('/');
+  };
 
   if (loading) {
     return (
@@ -69,10 +79,10 @@ export default function PublicProfile() {
           No user exists with the handle @{username?.replace(/^@+/, '')}
         </p>
         <button
-          onClick={() => navigate('/')}
+          onClick={handleBack}
           className="px-6 py-2.5 bg-stone-900 text-white rounded-full text-sm font-semibold"
         >
-          Return Home
+          Back to Find Travelers
         </button>
       </div>
     );
@@ -80,18 +90,15 @@ export default function PublicProfile() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
+      <button
+        type="button"
+        onClick={handleBack}
+        className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-stone-600 hover:text-stone-900"
+      >
+        <ArrowLeft size={16} /> Back to Find Travelers
+      </button>
       {/* Profile Header */}
       <div className="flex flex-col items-center text-center bg-white border border-stone-200/80 rounded-3xl p-8 shadow-sm mb-8 relative">
-        {/* Only show edit profile button if viewing your own profile */}
-        {isOwner && (
-          <button
-            onClick={() => navigate('/dashboard/settings')}
-            className="absolute top-6 right-6 px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-colors"
-          >
-            <Settings size={14} /> Edit Profile
-          </button>
-        )}
-
         <div className="w-24 h-24 rounded-full bg-stone-200 overflow-hidden flex items-center justify-center text-stone-500 text-2xl font-bold mb-4 shadow-inner">
           {profile.avatar_url ? (
             <img
@@ -125,18 +132,7 @@ export default function PublicProfile() {
             {profile.trips.map((trip) => (
               <div
                 key={trip.id}
-                role="button"
-                tabIndex={0}
-                className="bg-white border border-stone-200/80 rounded-2xl p-5 hover:shadow-md transition flex flex-col justify-between text-left cursor-pointer overflow-hidden"
-                onClick={() => {
-                  if (isOwner) navigate(`/trip/${trip.id}`);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    if (isOwner) navigate(`/trip/${trip.id}`);
-                  }
-                }}
+                className="bg-white border border-stone-200/80 rounded-2xl p-5 flex flex-col justify-between text-left overflow-hidden"
               >
                 <div>
                   {trip.cover_photo && (
@@ -176,5 +172,16 @@ export default function PublicProfile() {
         )}
       </div>
     </div>
+  );
+}
+
+export function LegacyPublicProfileRedirect() {
+  const { username } = useParams<{ username: string }>();
+  if (!username) return <Navigate to="/" replace />;
+  return (
+    <Navigate
+      to={`/profile/${encodeURIComponent(username.replace(/^@+/, ''))}`}
+      replace
+    />
   );
 }

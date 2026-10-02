@@ -24,6 +24,8 @@ import { COUNTRIES } from '../constants/countries';
 import { getTripExtras } from '../lib/tripExtras';
 import { getExploreDestinationImage } from './exploreService';
 import { computeSessionMetrics } from '../lib/sessionTracker';
+import { sanitizePublicProfile } from '../lib/publicProfile';
+import type { TravelerSearchResult } from '../lib/travelerSearch';
 
 /**
  * Resolves the base URL for API requests.
@@ -1159,18 +1161,15 @@ export const userApi = {
   },
   searchUsers: async (
     query: string,
-  ): Promise<{ id: number; full_name: string; username: string }[]> => {
-    try {
-      const res = await api.get('/users/search', { params: { q: query } });
-      return Array.isArray(res.data) ? res.data : res.data.users || [];
-    } catch {
-      return [];
-    }
+    signal?: AbortSignal,
+  ): Promise<TravelerSearchResult[]> => {
+    const res = await api.get('/users/search', { params: { q: query }, signal });
+    return Array.isArray(res.data) ? res.data : res.data.users || [];
   },
   getUserByUsername: async (username: string): Promise<PublicProfileResponse | null> => {
     try {
       const res = await api.get<PublicProfileResponse>(`/users/profile/${username}`);
-      return res.data;
+      return sanitizePublicProfile(res.data);
     } catch {
       return null;
     }
