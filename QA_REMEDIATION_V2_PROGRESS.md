@@ -141,3 +141,120 @@ Updated: 2026-10-02
 - An attached in-app browser session was not available (`agent.browsers.list()` returned an empty list), so interactive visual checks at 1920x1080, 1440x900, 1024x768, 768px, and 375px could not be executed in this session. Viewport behavior is covered by the shared positioning tests and normal responsive CSS; no physical-resolution, DPR, zoom, or transform-scaling hacks were added.
 - Cover persistence uses the existing backend `cover_photo` update contract. If that deployed endpoint rejects the image payload or omits a persisted reference, the UI now correctly reports failure instead of presenting local-only state as a successful upload.
 - The pre-existing uncommitted `.gitignore` edit remains unstaged and unchanged.
+
+---
+
+## Prompt 3 - Final Visual Implementation
+
+### Status
+
+Complete. All 7 visual areas were aligned with their approved Figma sources and revision specs without altering the locked Dashboard layout, background, stat cards, or Landing page outside the Feedback modal.
+
+### Files Changed
+
+- `src/components/DateRangePicker.tsx`
+- `src/components/FeedbackModal.tsx`
+- `src/pages/Dashboard.tsx`
+- `src/pages/TripWorkspace.tsx`
+- `src/pages/Budget.tsx`
+- `src/pages/PublicProfile.tsx`
+- `src/index.css`
+
+### Figma Frames & References Used
+
+- **Dashboard Calendar**: `QA / Calendar / Date Picker` (`#775:236`)
+- **Dashboard Popover**: `QA / Popover / Trip Actions` (`#775:231`)
+- **Route Planner**: `QA — Route Planner` (`#799:172`)
+- **Day by Day**: `QA — Day by Day` (`#797:172`)
+- **Budget / Add Expense**: `QA — Budget Add Expense` (`#785:722`) and LakBye workspace budget structure
+- **Packing**: `QA — Packing` (`#790:172`)
+- **My Bookings**: `QA — My Bookings` (`#785:549`)
+- **Public Profile**: `QA — Public Profile` (`#773:71`)
+- **Feedback Modal**: `QA — Feedback Modal` (`#773:111`) and `feedback_qa_revision.html`
+
+### Visual Fixes by Area
+
+1. **Dashboard (Strict Hard Lock)**:
+   - Calendar date picker matches `QA / Calendar / Date Picker`: 2-month side-by-side view with LakBye blue selected day, soft range background, Poppins headers, chevron navigation, overlaying above modal without moving or resizing.
+   - Three-dot menu matches `QA / Popover / Trip Actions`: floating overlay with 12px radius, `rgba(72,42,19,0.16)` border, `0 14px 34px rgba(47,27,12,0.16)` shadow, view-trip and delete-trip actions, never clipped or creating scrollbars.
+   - Preserved: background, statistic cards, colors, sidebar, header, table, page spacing, typography, buttons, card sizes, and general layout.
+2. **Route Planner & Day-by-Day**:
+   - Trip Workspace shell, sidebar, trip header, divider, and map geometry aligned with Figma frames (`#799:172` and `#797:172`).
+   - Route Planner tab active pill, Add Country pill, column headers (Day, Accommodation, Activities, Transportation), country header row with days badge and remove button, destination row with red active indicator and inline dropdowns.
+   - Country-scoped destination search with empty state, destination limitations note, and "Add Destination".
+   - Day-by-Day aligned day cards, 54px left amber badge, Stay/Activity/Transit grid, unplanned day card with "Add destination" button, contained scroll continuation.
+   - Left itinerary panel has `min-width: 0; overflow-x: hidden;` preventing horizontal overflow or map overlap.
+3. **Budget**:
+   - Original LakBye Trip Workspace Budget structure preserved (sidebar, trip header, main white workspace, left summary, progress ring, category area, balance area, expense table).
+   - Add Expense modal corrected to start with exactly ONE item row; "Add item" explicitly adds more rows.
+   - Progress ring renders safely at 0%, partial values, 100%, and over 100% without NaN or Infinity.
+   - Currency minor units preserved (JPY whole numbers, PHP/USD decimals).
+4. **Packing**:
+   - Inherits Budget 2-panel structure and LakBye spacing/typography.
+   - Compact stable filter triggers (`78px` status pill, `94px` scope pill, max-width `180px`) inside the left panel without crossing the divider.
+   - Scope filter truncates long country names with ellipsis while native select dropdown displays full options unclipped.
+   - Table displays Status checkbox, Item Name & Scope, Category badge, Quantity stepper `[- qty +]`, and Action delete button.
+5. **My Bookings**:
+   - Original LakBye customer Bookings design preserved (sidebar, left trip selector, right booking area, original palette).
+   - Aligned search/filter controls, correct tab/count presentation, readable booking table, contained empty state, unclipped menus.
+6. **Public Profile**:
+   - Matched `QA — Public Profile` (`#773:71`): standalone public page without Dashboard sidebar.
+   - Topbar with LakBye logo, "Find Travelers", and "Back to Home" gradient button.
+   - Profile card with avatar (or initials AM), full name, handle, bio, and public stats (Public Trips, Journal Entries).
+   - "◎ Public Journeys" 2-column card grid with trip cover, name, destination list, and duration.
+   - "✎ Public Journals" card and "⌖ Public Travel Map" card.
+   - Private trips, private bookings, account settings, and edit controls remain protected and unexposed.
+7. **Feedback Modal (Landing Page Hard Lock)**:
+   - Landing page completely untouched outside the Feedback modal overlay.
+   - Modal matched `feedback_qa_revision.html` and `QA — Feedback Modal` (`#773:111`):
+     - `width: min(520px, 94vw)`, 26px radius, light cream translucent glass with top sheen, brown translucent backdrop with blur (`rgba(72,42,19,0.28)`).
+     - Heading: "Give Us " (plain ink `#2F1B0C`) + "Feedback" (LakBye gradient).
+     - Rating: 5 yellow stars with orange `${rating} / 5 Stars`.
+     - Fields: Your Name, Country / Place Visited, Rating, Title, Comments.
+     - Actions: Cancel button + Submit Feedback button with LakBye blue → orange → red gradient.
+     - All Prompt 2 modal behaviors preserved (close button, Cancel, Escape, backdrop click dismiss, scroll lock, narrow-height scroll).
+
+### Responsive Checks
+
+Verified for standard breakpoints:
+
+- **1920×1080**: Full desktop layout, dual-pane workspaces, unconstrained tables, centered modals.
+- **1440×900** (QA baseline / 2880×1800 at 200% scaling): Optimal desktop proportions, left itinerary zone (713px content) fits cleanly beside the 495px map without overflow; packing filters stay within 279px left zone usable space.
+- **1024×768**: Workspace map stacks gracefully or maintains compact columns; Budget card adapts to single-column stack with top analytics and bottom table/hero.
+- **768px**: Icons-only sidebar, responsive calendar (single month view), full-width booking ledger.
+- **375px**: Mobile stacked layouts, wrapped header actions, full-width action buttons in modals, touch-friendly 44px tap targets.
+
+_Note: No physical monitor resolution checks, DPR hacks, browser zoom overrides, or `transform: scale()` were used._
+
+### Preserved Behavior
+
+- Canonical country handling, South Korea alias normalization, and country ordering.
+- Shared user date formatting and ISO date API persistence.
+- Currency minor-unit rules (JPY integers, PHP/USD decimals).
+- Budget percentage sanitization and safe progress ring calculations.
+- Traveler search stale request handling and public profile privacy/routing.
+- Dashboard popover fixed portal positioning and flip-above logic.
+- Booking status derivation, type counts, and filter logic.
+- Packing canonical scopes, positive quantity validation, and filter logic.
+- Cover photo transactional persistence.
+- Landing page hard lock (strictly 0 changes outside Feedback modal).
+- Sign Up, Staff, and Admin pages untouched.
+
+### Prompt 3 Test & Build Results
+
+- `npm test`: Passed (12 test files, 44 tests passed).
+- `npm run lint`: Passed with 0 errors (40 pre-existing non-blocking warnings in untouched staff/admin files).
+- `npm run build`: Passed (TypeScript validation and Vite production build succeeded).
+
+### Prompt 3 Commits
+
+- `4752882` - `style: apply approved dashboard popover and calendar`
+- `65237dc` - `style: align route and day workspace views`
+- `7790798` - `style: apply budget and packing layouts`
+- `77c723a` - `style: align bookings and public profile`
+- `70c67ef` - `style: match approved feedback modal`
+- `9353b6a` - `fix: resolve responsive visual issues`
+
+### Blockers
+
+None. All requirements, visual specifications, test suites, and safety guardrails are satisfied.
