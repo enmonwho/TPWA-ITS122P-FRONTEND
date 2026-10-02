@@ -100,6 +100,7 @@ export default function PublicProfile() {
 
   return (
     <div
+      className="public-profile-page"
       style={{
         backgroundColor: '#F8F3EC',
         minHeight: '100vh',
@@ -107,7 +108,7 @@ export default function PublicProfile() {
       }}
     >
       {/* Topbar */}
-      <header className="w-full h-[74px] border-b border-[rgba(72,42,19,0.1)] px-6 lg:px-12 flex items-center justify-between bg-[#F8F3EC]">
+      <header className="public-profile-topbar w-full h-[74px] border-b border-[rgba(72,42,19,0.1)] px-6 lg:px-12 flex items-center justify-between bg-[#F8F3EC]">
         <button
           type="button"
           onClick={() => navigate('/')}
@@ -139,17 +140,17 @@ export default function PublicProfile() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-[1240px] mx-auto px-4 sm:px-6 py-6 pb-16">
+      <main className="public-profile-main max-w-[1240px] mx-auto px-4 sm:px-6 py-6 pb-16">
         <button
           type="button"
           onClick={handleBack}
-          className="mb-4 inline-flex items-center gap-2 text-[12px] font-semibold text-[#2F1B0C] hover:opacity-75 transition cursor-pointer"
+          className="public-profile-back mb-4 inline-flex items-center gap-2 text-[12px] font-semibold text-[#2F1B0C] hover:opacity-75 transition cursor-pointer"
         >
           <ArrowLeft size={14} /> Back to Find Travelers
         </button>
 
         {/* Profile Card */}
-        <div className="bg-white border border-[rgba(72,42,19,0.16)] rounded-[14px] p-6 lg:p-8 flex flex-col md:flex-row items-center md:items-start justify-between gap-6 shadow-xs mb-8">
+        <div className="public-profile-card bg-white border border-[rgba(72,42,19,0.16)] rounded-[14px] p-6 lg:p-8 flex flex-col md:flex-row items-center md:items-start justify-between gap-6 shadow-xs mb-8">
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 text-center sm:text-left">
             <div className="w-[86px] h-[86px] rounded-full overflow-hidden shrink-0 bg-[#B28073] flex items-center justify-center text-white text-[25px] font-bold shadow-inner">
               {profile.avatar_url ? (
@@ -196,8 +197,8 @@ export default function PublicProfile() {
         </div>
 
         {/* Public Journeys Section */}
-        <section className="mb-8">
-          <div className="mb-4">
+        <section className="public-profile-journeys mb-8">
+          <div className="public-profile-section-header mb-4">
             <h2 className="text-[20px] font-bold text-[#2F1B0C] flex items-center gap-2">
               <span>◎</span> Public Journeys
             </h2>
@@ -211,7 +212,7 @@ export default function PublicProfile() {
               This traveler has no public trips shared yet.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="public-profile-journey-grid grid grid-cols-1 md:grid-cols-2 gap-5">
               {publicTrips.map((trip) => {
                 const countriesStr =
                   trip.countries && trip.countries.length > 0
@@ -222,9 +223,9 @@ export default function PublicProfile() {
                 return (
                   <div
                     key={trip.id}
-                    className="bg-white border border-[rgba(72,42,19,0.16)] rounded-[14px] p-3.5 flex flex-col justify-between shadow-xs transition hover:shadow-sm"
+                    className="public-profile-journey-card bg-white border border-[rgba(72,42,19,0.16)] rounded-[14px] p-3.5 flex flex-col justify-between shadow-xs transition hover:shadow-sm"
                   >
-                    <div className="w-full h-[120px] rounded-[12px] overflow-hidden mb-3 bg-[#E3EDF0] relative flex items-center justify-center">
+                    <div className="public-profile-cover w-full h-[120px] rounded-[12px] overflow-hidden mb-3 bg-[#E3EDF0] relative flex items-center justify-center">
                       {trip.cover_photo ? (
                         <img
                           src={trip.cover_photo}
@@ -258,13 +259,13 @@ export default function PublicProfile() {
         </section>
 
         {/* Public Journals and Travel Map Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <div className="public-profile-bottom-grid grid grid-cols-1 lg:grid-cols-12 gap-5">
           {/* Public Journals Card */}
-          <div className="lg:col-span-7">
+          <div className="public-profile-journals lg:col-span-7">
             <h2 className="text-[20px] font-bold text-[#2F1B0C] mb-3 flex items-center gap-2">
               <span>✎</span> Public Journals
             </h2>
-            <div className="bg-white border border-[rgba(72,42,19,0.16)] rounded-[14px] p-5 shadow-xs min-h-[175px] flex flex-col justify-center">
+            <div className="public-profile-bottom-card bg-white border border-[rgba(72,42,19,0.16)] rounded-[14px] p-5 shadow-xs min-h-[175px] flex flex-col justify-center">
               {publicTrips.length > 0 ? (
                 <div className="space-y-4">
                   <div className="border-b border-stone-100 pb-3 last:border-none last:pb-0">
@@ -297,12 +298,12 @@ export default function PublicProfile() {
           </div>
 
           {/* Public Travel Map Card */}
-          <div className="lg:col-span-5">
+          <div className="public-profile-map lg:col-span-5">
             <h2 className="text-[20px] font-bold text-[#2F1B0C] mb-3 flex items-center gap-2">
               <span>⌖</span> Public Travel Map
             </h2>
-            <div className="bg-white border border-[rgba(72,42,19,0.16)] rounded-[14px] p-3.5 shadow-xs min-h-[175px] flex flex-col items-center justify-center">
-              <div className="w-full h-[120px] rounded-[12px] bg-[#DBE5E0] flex flex-col items-center justify-center text-[#255F85] relative overflow-hidden">
+            <div className="public-profile-bottom-card public-profile-map-card bg-white border border-[rgba(72,42,19,0.16)] rounded-[14px] p-3.5 shadow-xs min-h-[175px] flex flex-col items-center justify-center">
+              <div className="public-profile-map-placeholder w-full h-[120px] rounded-[12px] bg-[#DBE5E0] flex flex-col items-center justify-center text-[#255F85] relative overflow-hidden">
                 <MapPin className="w-6 h-6 text-[#C5283D] mb-1" />
                 <span className="text-[12px] font-semibold text-[#2F1B0C]">
                   {publicTrips.length > 0

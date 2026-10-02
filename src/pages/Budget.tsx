@@ -91,6 +91,7 @@ function getDonutFontSize(len: number): string {
 export function Budget() {
   const { tripId } = useParams<{ tripId: string }>();
   const outlet = useOutletContext<TripWorkspaceOutletContext | undefined>();
+  const setOutletTrip = outlet?.setTrip;
   const cached = outlet?.trip || (tripId ? getCachedTrip(tripId) : null);
   const budgetKey = `lakbye_budget_${tripId}`;
   const { user } = useAuth();
@@ -263,7 +264,7 @@ export function Budget() {
             const merged = mergeTripWithExtras(apiTrip);
             setTrip(merged);
             setCachedTrip(tripId, merged);
-            if (outlet?.setTrip) outlet.setTrip(merged);
+            if (setOutletTrip) setOutletTrip(merged);
           }
         })
         .catch(() => {
@@ -313,7 +314,7 @@ export function Budget() {
     return () => {
       cancelled = true;
     };
-  }, [user, tripId, budgetKey, outlet]);
+  }, [user, tripId, budgetKey, setOutletTrip]);
 
   useEffect(() => {
     if (!isAddExpenseOpen && !isAddBalanceOpen) return;
@@ -576,7 +577,7 @@ export function Budget() {
   }
 
   return (
-    <div className="workspace-page">
+    <div className="workspace-page budget-workspace-page">
       <header className="workspace-header-card animate-slide-up">
         <h1 className="workspace-trip-title">{currentTrip.name}</h1>
         <div className="workspace-header-actions">
@@ -647,12 +648,11 @@ export function Budget() {
                   data={chartData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={76}
-                  outerRadius={98}
+                  innerRadius={62}
+                  outerRadius={75}
                   stroke="none"
                   dataKey="value"
-                  isAnimationActive={true}
-                  animationDuration={800}
+                  isAnimationActive={false}
                   startAngle={90}
                   endAngle={-270}
                 >

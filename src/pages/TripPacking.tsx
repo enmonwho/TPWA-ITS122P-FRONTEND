@@ -560,12 +560,11 @@ export default function TripPacking() {
                   data={chartData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={76}
-                  outerRadius={98}
+                  innerRadius={62}
+                  outerRadius={75}
                   stroke="none"
                   dataKey="value"
-                  isAnimationActive={true}
-                  animationDuration={800}
+                  isAnimationActive={false}
                   startAngle={90}
                   endAngle={-270}
                 >
