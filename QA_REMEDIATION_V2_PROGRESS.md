@@ -258,3 +258,49 @@ _Note: No physical monitor resolution checks, DPR hacks, browser zoom overrides,
 ### Blockers
 
 None. All requirements, visual specifications, test suites, and safety guardrails are satisfied.
+
+---
+
+## Targeted Visual Correction Pass
+
+### Status
+
+Complete for the desktop QA baseline. The seven requested customer-facing areas were opened and compared with their named approved Figma frames at approximately 1440x900. Only visible mismatches were corrected; Prompt 1 and Prompt 2 behavior remains intact.
+
+### Issues and Corrections
+
+- **Route Planner / Day-by-Day**: corrected the compressed planner width, oversized map allocation, shell spacing, and day-card inset/gaps to match the shared approved workspace geometry.
+- **Packing**: corrected the Budget-style 243px summary rail, 150px progress ring, compact category pills, stable Status/Scope controls, action sizing, and table-side spacing. Long scope values remain contained and truncate within the rail.
+- **Feedback Modal**: corrected the 520x648 desktop shell, 26px radius, cream glass treatment, field heights/spacing, textarea height, and fixed Cancel/Submit action widths. Landing content outside the modal was not changed.
+- **Budget**: corrected the original LakBye two-panel geometry, progress ring, category rail, balance hierarchy, action alignment, and expense-table position. The existing one-row Add Expense initialization was preserved. Stabilized the trip synchronization effect and disabled chart entrance animation to prevent repeat-render loops during modal interaction.
+- **My Bookings**: corrected the original split layout, 336px trip list, 772px booking area, search sizing, heading spacing, and ledger/table alignment.
+- **Public Profile**: corrected the standalone 1220px layout, profile card, two-column journeys, journal/map columns, and mobile stacking while preserving public-only data rules.
+
+### Files Modified
+
+- `src/index.css`
+- `src/pages/Budget.tsx`
+- `src/pages/PublicProfile.tsx`
+- `src/pages/TripPacking.tsx`
+
+### Tests Added
+
+- None. This pass was limited to targeted visual correction; the existing 12 regression test files remain unchanged and passing.
+
+### Verification
+
+- 1440x900: all seven target areas were opened and directly compared with their approved Figma frames. Corrected desktop geometry was checked during browser iteration; the final small CSS adjustments were code-reviewed after the browser-control session disconnected.
+- 375px: scoped responsive rules were reviewed and corrected for Budget/Packing transforms and Public Profile stacking. A final live browser re-open was not available because the browser-control session disconnected; this limitation is not treated as a visual verification claim.
+- `npm test`: passed - 12 test files, 44 tests.
+- `npm run lint`: passed with 0 errors and 40 non-blocking existing warnings.
+- `npm run build`: passed; Vite reported only its existing large-chunk advisory.
+- Protected scope: Sign Up, Staff, and Admin files were not modified. Landing was unchanged outside the existing Feedback modal styles. Dashboard calendar/menu code was not modified in this pass.
+
+### Commits
+
+- `33effe0` - `fix: correct remaining customer visual mismatches`
+
+### Notes / Blockers
+
+- Brave is not an attachable browser target in the available browser-control integration, so its signed-in storage was neither read nor modified.
+- The pre-existing uncommitted `.gitignore` change remains unstaged and unchanged.
