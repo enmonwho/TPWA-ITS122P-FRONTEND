@@ -5,6 +5,7 @@ import {
   mergeCountryRoute,
   normalizeCountryRoute,
   orderDestinationsByCountryRoute,
+  searchCountryOptions,
 } from './countries';
 
 describe('country normalization', () => {
@@ -19,6 +20,13 @@ describe('country normalization', () => {
 
   it('rejects uncontrolled free-text countries', () => {
     expect(getCountryId('Made Up Country')).toBeNull();
+  });
+
+  it('returns canonical autocomplete matches for partial input', () => {
+    expect(searchCountryOptions('Jap').map((country) => country.name)).toContain('Japan');
+    expect(
+      searchCountryOptions('Republic of Korea').map((country) => country.name),
+    ).toContain('South Korea');
   });
 
   it('keeps Seoul under the existing South Korea country', () => {
@@ -62,5 +70,18 @@ describe('multi-country ordering', () => {
         (item) => item.name,
       ),
     ).toEqual(['Seoul', 'Tokyo', 'Manila']);
+  });
+
+  it('keeps route order after a destination is deleted', () => {
+    const remainingDestinations = [
+      { name: 'Manila', countryId: 'philippines', order: 2 },
+      { name: 'Tokyo', countryId: 'japan', order: 1 },
+    ];
+
+    expect(
+      orderDestinationsByCountryRoute(remainingDestinations, route).map(
+        (destination) => destination.name,
+      ),
+    ).toEqual(['Tokyo', 'Manila']);
   });
 });

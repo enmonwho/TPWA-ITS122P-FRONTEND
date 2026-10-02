@@ -205,6 +205,7 @@ export default function TripWorkspace() {
         setCountryRoute(normalizedRoute);
         setDestinations(orderedDestinations);
         saveTripExtras(tripId, { countryRoute: normalizedRoute });
+        localStorage.removeItem(`lakbye_workspace_countries_${tripId}`);
         setSelectedCountryForNew(normalizedRoute[0].countryId);
         if (orderedDestinations.length > 0) {
           setActiveDestinationId(orderedDestinations[0].id);
@@ -1372,7 +1373,7 @@ export default function TripWorkspace() {
 
             <form onSubmit={handleAddCountry}>
               <div style={{ marginBottom: '16px' }}>
-                <label
+                <div
                   style={{
                     display: 'block',
                     fontSize: '12px',
@@ -1382,7 +1383,7 @@ export default function TripWorkspace() {
                   }}
                 >
                   Country Name
-                </label>
+                </div>
                 <CountryAutocomplete
                   value={newCountrySelection}
                   onChange={(countryIds) => setNewCountrySelection(countryIds.slice(-1))}

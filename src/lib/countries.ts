@@ -83,6 +83,29 @@ export function getCountryName(value?: string | null): string {
   return getCountryOption(value)?.name || '';
 }
 
+export function searchCountryOptions(
+  query: string,
+  excludedCountryIds: readonly CountryId[] = [],
+): CountryOption[] {
+  const normalizedQuery = query.trim().toLowerCase();
+  const excluded = new Set(excludedCountryIds);
+
+  return COUNTRY_OPTIONS.filter((country) => {
+    if (excluded.has(country.id)) return false;
+    if (!normalizedQuery) return true;
+
+    return [country.name, ...country.aliases].some((candidate) => {
+      const lower = candidate.toLowerCase();
+      if (lower.includes(normalizedQuery)) return true;
+      return lower
+        .split(/\s+/)
+        .some(
+          (word) => word.startsWith(normalizedQuery) || normalizedQuery.startsWith(word),
+        );
+    });
+  });
+}
+
 export function normalizeCountryRoute(
   inputs: readonly CountryRouteInput[] = [],
 ): CountryRouteEntry[] {

@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { ChevronDown, X } from 'lucide-react';
-import { COUNTRY_OPTIONS, getCountryName, type CountryId } from '../lib/countries';
+import { getCountryName, searchCountryOptions, type CountryId } from '../lib/countries';
 
 interface CountryAutocompleteProps {
   value: CountryId[];
@@ -33,17 +33,7 @@ export function CountryAutocomplete({
   // Tolerant fuzzy matching for partial inputs (e.g. 'Philippin' -> 'Philippines')
   const filteredCountries = useMemo(() => {
     const query = search.trim().toLowerCase();
-    const available = COUNTRY_OPTIONS.filter((country) => !value.includes(country.id));
-    if (!query) return available;
-
-    return available.filter((country) => {
-      return [country.name, ...country.aliases].some((candidate) => {
-        const lower = candidate.toLowerCase();
-        if (lower.includes(query)) return true;
-        const words = lower.split(/\s+/);
-        return words.some((word) => word.startsWith(query) || query.startsWith(word));
-      });
-    });
+    return searchCountryOptions(query, value);
   }, [search, value]);
 
   const handleSelect = (countryId: CountryId) => {
