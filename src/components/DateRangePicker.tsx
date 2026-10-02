@@ -110,11 +110,11 @@ export function DateRangePicker({
 
     return (
       <div className="w-full">
-        <h4 className="text-center font-bold text-slate-800 text-sm mb-3 select-none">
+        <h4 className="text-center font-bold text-[#2F1B0C] text-[13px] mb-3 select-none">
           {dateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
         </h4>
 
-        <div className="grid grid-cols-7 gap-y-2 text-center text-xs text-slate-400 mb-2 font-medium">
+        <div className="grid grid-cols-7 gap-y-2 text-center text-[9px] text-[#74675D] mb-2 font-semibold">
           {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((d) => (
             <div key={d}>{d}</div>
           ))}
@@ -135,13 +135,13 @@ export function DateRangePicker({
                 className="relative flex items-center justify-center h-8"
               >
                 {inRange && (
-                  <div className="absolute inset-y-0 left-0 right-0 bg-amber-50 z-0" />
+                  <div className="absolute inset-y-0 left-0 right-0 bg-[#eef4f8] z-0" />
                 )}
                 {selected && dateStr === startDate && endDate && (
-                  <div className="absolute inset-y-0 left-1/2 right-0 bg-amber-50 z-0" />
+                  <div className="absolute inset-y-0 left-1/2 right-0 bg-[#eef4f8] z-0" />
                 )}
                 {selected && dateStr === endDate && (
-                  <div className="absolute inset-y-0 left-0 right-1/2 bg-amber-50 z-0" />
+                  <div className="absolute inset-y-0 left-0 right-1/2 bg-[#eef4f8] z-0" />
                 )}
 
                 <button
@@ -150,14 +150,14 @@ export function DateRangePicker({
                   onMouseEnter={() => !disabled && handleMouseEnter(dateStr)}
                   onMouseLeave={() => setHoverDate(null)}
                   disabled={disabled}
-                  className={`w-8 h-8 rounded-full text-xs font-medium flex items-center justify-center relative z-10 transition-colors ${
+                  className={`w-7 h-7 rounded-full text-[11px] font-medium flex items-center justify-center relative z-10 transition-colors ${
                     selected
-                      ? 'bg-amber-600 text-white font-bold shadow'
+                      ? 'bg-[#255F85] text-white font-bold shadow-sm'
                       : inRange
-                        ? 'text-amber-900 font-semibold'
+                        ? 'text-[#255F85] font-semibold'
                         : disabled
-                          ? 'text-slate-300 cursor-not-allowed opacity-40'
-                          : 'text-slate-700 hover:bg-slate-100'
+                          ? 'text-[#74675D] cursor-not-allowed opacity-35'
+                          : 'text-[#2F1B0C] hover:bg-[#255F85]/10'
                   }`}
                 >
                   {dayNum}
@@ -226,14 +226,14 @@ export function DateRangePicker({
           onClose={() => setIsOpen(false)}
           width={590}
           estimatedHeight={360}
-          className="date-range-popover bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] border border-slate-200 p-6 overflow-y-auto animate-slide-up"
+          className="date-range-popover bg-white rounded-2xl shadow-[0_16px_40px_rgba(47,27,12,0.18)] border border-[rgba(72,42,19,0.16)] p-6 overflow-y-auto animate-slide-up"
           role="dialog"
         >
           <div className="flex justify-between items-center mb-3">
             <button
               type="button"
               onClick={() => shiftMonth(-1)}
-              className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-95 transition-all shadow-sm bg-white cursor-pointer"
+              className="w-8 h-8 rounded-full border border-[rgba(72,42,19,0.16)] flex items-center justify-center text-[#255F85] hover:bg-[#255F85]/10 active:scale-95 transition-all shadow-sm bg-white cursor-pointer"
               aria-label="Previous month"
             >
               <ChevronLeft size={16} />
@@ -241,7 +241,7 @@ export function DateRangePicker({
             <button
               type="button"
               onClick={() => shiftMonth(1)}
-              className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-95 transition-all shadow-sm bg-white cursor-pointer"
+              className="w-8 h-8 rounded-full border border-[rgba(72,42,19,0.16)] flex items-center justify-center text-[#255F85] hover:bg-[#255F85]/10 active:scale-95 transition-all shadow-sm bg-white cursor-pointer"
               aria-label="Next month"
             >
               <ChevronRight size={16} />

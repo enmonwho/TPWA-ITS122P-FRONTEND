@@ -732,7 +732,7 @@ export default function Dashboard() {
                                     handleOpenEdit(trip);
                                   }}
                                 >
-                                  <Pencil size={15} className="text-stone-500" />
+                                  <Pencil size={14} className="text-[#74675D]" />
                                   <span>Edit Details</span>
                                 </button>
 
@@ -745,7 +745,7 @@ export default function Dashboard() {
                                     handleToggleStatus(trip);
                                   }}
                                 >
-                                  <Archive size={15} className="text-stone-500" />
+                                  <Archive size={14} className="text-[#74675D]" />
                                   <span>
                                     {getDisplayStatus(trip) === 'past'
                                       ? 'Mark as Upcoming'
@@ -762,7 +762,7 @@ export default function Dashboard() {
                                     handleDuplicateTrip(trip);
                                   }}
                                 >
-                                  <Copy size={15} className="text-stone-500" />
+                                  <Copy size={14} className="text-[#74675D]" />
                                   <span>Duplicate Trip</span>
                                 </button>
 
@@ -777,7 +777,7 @@ export default function Dashboard() {
                                     handleOpenDelete(trip);
                                   }}
                                 >
-                                  <Trash2 size={15} />
+                                  <Trash2 size={14} className="text-[#C5283D]" />
                                   <span>Delete Trip</span>
                                 </button>
                               </AnchoredPopover>

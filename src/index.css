@@ -11741,11 +11741,9 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   z-index: 100;
   min-width: 180px;
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  box-shadow:
-    0 10px 25px -5px rgba(0, 0, 0, 0.1),
-    0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(72, 42, 19, 0.16);
+  border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(47, 27, 12, 0.16);
   padding: 6px;
   display: flex;
   flex-direction: column;
@@ -11780,10 +11778,10 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   gap: 10px;
   width: 100%;
   padding: 8px 12px;
-  border-radius: 9px;
-  font-size: 13px;
+  border-radius: 8px;
+  font-size: 11px;
   font-weight: 500;
-  color: #334155;
+  color: #2f1b0c;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -11792,22 +11790,22 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 }
 
 .trip-options-menu-item:hover {
-  background: #f8fafc;
-  color: #0f172a;
+  background: rgba(72, 42, 19, 0.05);
+  color: #2f1b0c;
 }
 
 .trip-options-menu-item.danger {
-  color: #dc2626;
+  color: #c5283d;
 }
 
 .trip-options-menu-item.danger:hover {
-  background: #fef2f2;
-  color: #b91c1c;
+  background: rgba(197, 40, 61, 0.08);
+  color: #c5283d;
 }
 
 .trip-options-menu-divider {
   height: 1px;
-  background: #f1f5f9;
+  background: rgba(72, 42, 19, 0.12);
   margin: 4px 0;
 }
 
