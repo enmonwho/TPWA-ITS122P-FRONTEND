@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import {
@@ -24,6 +24,13 @@ import { mergeTripWithExtras } from '../lib/tripExtras';
 import { formatUserDateRange } from '../lib/formatters';
 import type { Trip } from '../types/trip';
 import arrowDownIcon from '../assets/budget/arrow_down.png';
+import {
+  filterPackingItems,
+  getPackingCountryScopes,
+  isValidPackingScope,
+  normalizePackingQuantity,
+} from '../lib/packing';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 
 export type PackingCategory =
   'Essentials' | 'Clothing' | 'Toiletries' | 'Electronics' | 'Documents' | 'Other';
@@ -77,11 +84,8 @@ export default function TripPacking() {
   const [statusFilter, setStatusFilter] = useState<'All' | 'Unpacked' | 'Packed'>('All');
   const [scopeFilter, setScopeFilter] = useState<string>('All');
 
-  // Destination / Place / Country options loaded from planner
+  // Canonical country options from the persisted trip route.
   const [availableCountries, setAvailableCountries] = useState<string[]>([]);
-  const [availablePlaces, setAvailablePlaces] = useState<
-    { name: string; country?: string }[]
-  >([]);
 
   const [items, setItems] = useState<PackingItem[]>([]);
   const [isAddItemOpen, setIsAddItemOpen] = useState(false);
@@ -89,12 +93,15 @@ export default function TripPacking() {
   const [newItemQty, setNewItemQty] = useState(1);
   const [newItemCategory, setNewItemCategory] = useState<PackingCategory>('Essentials');
   const [newItemScope, setNewItemScope] = useState<string>('Overall Trip');
+  const addItemSubmitLockRef = useRef(false);
 
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isExportSuccess, setIsExportSuccess] = useState(false);
 
   // Storage key scoped to this trip
   const storageKey = `lakbye_packing_${tripId}`;
+
+  useModalBehavior(isAddItemOpen, () => setIsAddItemOpen(false));
 
   // Load trip and persistent packing items (Starts EMPTY - never forces 21 items)
   useEffect(() => {
@@ -149,59 +156,15 @@ export default function TripPacking() {
     };
   }, [tripId, storageKey]);
 
-  // Load available countries and places from Trip and Planner
+  // Keep filters and add-item scope aligned to the canonical persisted route.
   useEffect(() => {
-    if (!tripId) return;
-
-    try {
-      const countrySet = new Set<string>();
-      if (trip?.countries) {
-        trip.countries.forEach((c) => c && countrySet.add(c.trim()));
-      }
-
-      // Check extra countries added in Route Planner
-      const extraCountriesRaw = localStorage.getItem(
-        `lakbye_workspace_countries_${tripId}`,
-      );
-      if (extraCountriesRaw) {
-        try {
-          const parsed = JSON.parse(extraCountriesRaw);
-          if (Array.isArray(parsed)) {
-            parsed.forEach((c: string) => c && countrySet.add(c.trim()));
-          }
-        } catch {
-          // ignore
-        }
-      }
-
-      // Check destinations added in Route Planner
-      const destsRaw = localStorage.getItem(`lakbye_workspace_dests_${tripId}`);
-      const placesList: { name: string; country?: string }[] = [];
-      if (destsRaw) {
-        try {
-          const dests = JSON.parse(destsRaw);
-          if (Array.isArray(dests)) {
-            dests.forEach((d: any) => {
-              if (d.country) countrySet.add(d.country.trim());
-              if (d.name && d.name.trim() !== d.country?.trim()) {
-                placesList.push({
-                  name: d.name.trim(),
-                  country: d.country?.trim(),
-                });
-              }
-            });
-          }
-        } catch {
-          // ignore
-        }
-      }
-
-      setAvailableCountries(Array.from(countrySet));
-      setAvailablePlaces(placesList);
-    } catch {
-      // ignore
-    }
-  }, [tripId, trip?.countries]);
+    const route = trip?.countryRoute?.length ? trip.countryRoute : trip?.countries || [];
+    const scopes = getPackingCountryScopes(route);
+    const updateTimer = window.setTimeout(() => {
+      setAvailableCountries(scopes.map((scope) => scope.replace(/^Country: /, '')));
+    }, 0);
+    return () => window.clearTimeout(updateTimer);
+  }, [trip?.countryRoute, trip?.countries]);
 
   // Persist items on change
   const saveItems = (updated: PackingItem[]) => {
@@ -233,12 +196,15 @@ export default function TripPacking() {
 
   const handleAddItemSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newItemName.trim()) return;
+    if (!newItemName.trim() || addItemSubmitLockRef.current) return;
+    const countryScopes = availableCountries.map((country) => `Country: ${country}`);
+    if (!isValidPackingScope(newItemScope, countryScopes)) return;
+    addItemSubmitLockRef.current = true;
 
     const newItem: PackingItem = {
       id: `item-${Date.now()}`,
       name: newItemName.trim(),
-      qty: Math.max(1, newItemQty),
+      qty: normalizePackingQuantity(newItemQty),
       packed: false,
       category: newItemCategory,
       destination: newItemScope,
@@ -247,7 +213,11 @@ export default function TripPacking() {
     saveItems([...items, newItem]);
     setNewItemName('');
     setNewItemQty(1);
+    setNewItemScope('Overall Trip');
     setIsAddItemOpen(false);
+    window.setTimeout(() => {
+      addItemSubmitLockRef.current = false;
+    }, 0);
   };
 
   const handleAddEssentialsPreset = () => {
@@ -315,25 +285,22 @@ export default function TripPacking() {
     return counts;
   }, [items]);
 
+  const packingScopeOptions = useMemo(
+    () => [
+      'All',
+      'Overall Trip',
+      ...availableCountries.map((country) => `Country: ${country}`),
+    ],
+    [availableCountries],
+  );
+  const effectiveScopeFilter = packingScopeOptions.includes(scopeFilter)
+    ? scopeFilter
+    : 'All';
+
   // Filtered items
   const filteredItems = useMemo(() => {
-    return items.filter((item) => {
-      // Category filter
-      if (activeCategory !== 'All Items' && item.category !== activeCategory) {
-        return false;
-      }
-      // Status filter
-      if (statusFilter === 'Packed' && !item.packed) return false;
-      if (statusFilter === 'Unpacked' && item.packed) return false;
-      // Scope filter
-      if (scopeFilter !== 'All') {
-        const itemScope = item.destination || 'Overall Trip';
-        if (scopeFilter === 'Overall Trip' && itemScope !== 'Overall Trip') return false;
-        if (scopeFilter !== 'Overall Trip' && itemScope !== scopeFilter) return false;
-      }
-      return true;
-    });
-  }, [items, activeCategory, statusFilter, scopeFilter]);
+    return filterPackingItems(items, activeCategory, statusFilter, effectiveScopeFilter);
+  }, [items, activeCategory, statusFilter, effectiveScopeFilter]);
 
   // Donut chart data (Clean progress ring)
   const chartData = useMemo(() => {
@@ -496,11 +463,11 @@ export default function TripPacking() {
             <h2 className="budget-title">Packing</h2>
 
             {/* Filter Controls (Status & Scope) */}
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="packing-filter-controls">
               {/* Status Filter Pill */}
               <div
                 className="budget-currency-pill"
-                style={{ minWidth: '72px', padding: '0 10px' }}
+                style={{ padding: '0 10px' }}
                 title="Filter by packing status"
               >
                 <select
@@ -541,11 +508,11 @@ export default function TripPacking() {
               {/* Destination / Scope Filter Pill */}
               <div
                 className="budget-currency-pill"
-                style={{ minWidth: '82px', padding: '0 10px' }}
-                title="Filter by Country, Place, or Overall Trip"
+                style={{ padding: '0 10px' }}
+                title="Filter by Country or Overall Trip"
               >
                 <select
-                  value={scopeFilter}
+                  value={effectiveScopeFilter}
                   onChange={(e) => setScopeFilter(e.target.value)}
                   className="budget-currency-select"
                   style={{
@@ -568,20 +535,11 @@ export default function TripPacking() {
                       ))}
                     </optgroup>
                   )}
-                  {availablePlaces.length > 0 && (
-                    <optgroup label="Places / Cities">
-                      {availablePlaces.map((p) => (
-                        <option key={`filter-p-${p.name}`} value={`Place: ${p.name}`}>
-                          Place: {p.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
                 </select>
                 <span style={{ pointerEvents: 'none' }} className="truncate max-w-[85px]">
-                  {scopeFilter === 'All'
+                  {effectiveScopeFilter === 'All'
                     ? 'Scope: All'
-                    : scopeFilter.replace(/^(Country:|Place:)\s*/, '')}
+                    : effectiveScopeFilter.replace(/^Country:\s*/, '')}
                 </span>
                 <img
                   src={arrowDownIcon}
@@ -683,7 +641,10 @@ export default function TripPacking() {
               <button
                 type="button"
                 className="budget-btn-add-expense"
-                onClick={() => setIsAddItemOpen(true)}
+                onClick={() => {
+                  setNewItemScope('Overall Trip');
+                  setIsAddItemOpen(true);
+                }}
               >
                 <CirclePlus size={20} color="#ffffff" strokeWidth={2.2} />
                 <span>Add Item</span>
@@ -905,7 +866,7 @@ export default function TripPacking() {
             <div style={{ marginBottom: '16px' }}>
               <h3 className="text-xl font-bold text-stone-900">Add Packing Item</h3>
               <p className="text-xs text-stone-500 mt-1">
-                Enter an item and choose if it is for a country, place, or overall trip.
+                Enter an item and choose if it is for a trip country or the overall trip.
               </p>
             </div>
 
@@ -962,7 +923,7 @@ export default function TripPacking() {
                 </div>
               </div>
 
-              {/* Destination / Scope Selector (Only Trip Countries, Places, or Overall Trip) */}
+              {/* Scope Selector (Only canonical trip countries or Overall Trip) */}
               <div>
                 <label
                   htmlFor="modal-item-scope"
@@ -993,16 +954,6 @@ export default function TripPacking() {
                       {availableCountries.map((c) => (
                         <option key={`country-${c}`} value={`Country: ${c}`}>
                           {c} (Country)
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-
-                  {availablePlaces.length > 0 && (
-                    <optgroup label="Places / Cities in Itinerary">
-                      {availablePlaces.map((p) => (
-                        <option key={`place-${p.name}`} value={`Place: ${p.name}`}>
-                          {p.name} {p.country ? `(${p.country})` : ''}
                         </option>
                       ))}
                     </optgroup>
@@ -1066,7 +1017,7 @@ export default function TripPacking() {
                     className="w-20 text-center font-bold text-lg py-2 border border-stone-300 rounded-xl outline-none"
                     value={newItemQty}
                     onChange={(e) =>
-                      setNewItemQty(Math.max(1, parseInt(e.target.value) || 1))
+                      setNewItemQty(normalizePackingQuantity(Number(e.target.value)))
                     }
                   />
                   <button

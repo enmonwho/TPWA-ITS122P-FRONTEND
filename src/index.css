@@ -6825,6 +6825,27 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   margin-bottom: 24px;
 }
 
+.packing-filter-controls {
+  display: grid;
+  grid-template-columns: 104px 124px;
+  align-items: center;
+  gap: 6px;
+}
+
+.packing-filter-controls .budget-currency-pill {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.packing-filter-controls .budget-currency-pill span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .budget-title {
   font-family: 'Poppins', var(--font-sans);
   font-weight: 600;
