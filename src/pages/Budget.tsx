@@ -7,7 +7,8 @@ import type { Trip } from '../types/trip';
 import type { TripWorkspaceOutletContext } from '../layouts/TripWorkspaceLayout';
 import { getCachedTrip, setCachedTrip } from '../lib/tripCache';
 import { tripsApi, budgetApi } from '../services/api';
-import { mergeTripWithExtras, formatTripDateRange } from '../lib/tripExtras';
+import { mergeTripWithExtras } from '../lib/tripExtras';
+import { formatUserDateRange } from '../lib/formatters';
 import { STORAGE_KEYS } from '../lib/constants';
 import {
   fetchExchangeRates,
@@ -564,7 +565,7 @@ export function Budget() {
         <h1 className="workspace-trip-title">{currentTrip.name}</h1>
         <div className="workspace-header-actions">
           <div className="workspace-pill-date">
-            {formatTripDateRange(currentTrip.startDate, currentTrip.endDate)}
+            {formatUserDateRange(currentTrip.startDate, currentTrip.endDate)}
           </div>
         </div>
       </header>

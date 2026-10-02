@@ -5,7 +5,7 @@ import {
   getCurrencySymbol,
   SUPPORTED_CURRENCIES,
 } from './currency';
-import { formatDateByPreference, formatTripDateRange } from './tripExtras';
+import { formatDate, formatDateRange, toApiDate } from './date';
 
 /**
  * Reads user preferences from active cache or user session in localStorage.
@@ -82,7 +82,7 @@ export function formatUserCurrency(
 export function formatUserDate(dateStr?: string | null, customFormat?: string): string {
   if (!dateStr) return '';
   const fmt = customFormat || getActiveUserPreferences().dateFormat;
-  return formatDateByPreference(dateStr, fmt);
+  return formatDate(dateStr, fmt);
 }
 
 /**
@@ -94,7 +94,7 @@ export function formatUserDateRange(
   customFormat?: string,
 ): string {
   const fmt = customFormat || getActiveUserPreferences().dateFormat;
-  return formatTripDateRange(startDate, endDate, fmt);
+  return formatDateRange(startDate, endDate, fmt);
 }
 
 /**
@@ -174,4 +174,4 @@ export function formatUserPopulation(num?: number | null): string {
   return val.toLocaleString();
 }
 
-export { getCurrencySymbol, SUPPORTED_CURRENCIES };
+export { getCurrencySymbol, SUPPORTED_CURRENCIES, toApiDate };

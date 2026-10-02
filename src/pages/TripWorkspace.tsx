@@ -18,11 +18,8 @@ import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../lib/constants';
 import type { Trip } from '../types/trip';
 import { tripsApi } from '../services/api';
-import {
-  mergeTripWithExtras,
-  saveTripExtras,
-  formatTripDateRange,
-} from '../lib/tripExtras';
+import { mergeTripWithExtras, saveTripExtras } from '../lib/tripExtras';
+import { formatUserDateRange } from '../lib/formatters';
 import {
   searchDestinations,
   type DestinationPlace,
@@ -767,7 +764,7 @@ export default function TripWorkspace() {
         </div>
         <div className="workspace-header-actions">
           <div className="workspace-pill-date">
-            {formatTripDateRange(trip.startDate, trip.endDate)}
+            {formatUserDateRange(trip.startDate, trip.endDate)}
           </div>
         </div>
       </header>

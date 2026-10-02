@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { X, Printer, Download, MapPin, Calendar, CheckCircle2 } from 'lucide-react';
 import { tripsApi, budgetApi } from '../services/api';
-import { mergeTripWithExtras, formatDateOnly } from '../lib/tripExtras';
+import { mergeTripWithExtras } from '../lib/tripExtras';
+import { formatUserDate } from '../lib/formatters';
 import type { Trip } from '../types/trip';
 import type { WorkspaceDestination } from '../pages/TripWorkspace';
 import { getCountryId } from '../lib/countries';
@@ -196,8 +197,8 @@ export default function ExportItineraryModal({
                   <div className="printable-meta-item">
                     <Calendar className="w-4 h-4 text-amber-600 shrink-0" />
                     <span>
-                      {formatDateOnly(trip.startDate) || 'Flexible'} –{' '}
-                      {formatDateOnly(trip.endDate) || 'Flexible'}
+                      {formatUserDate(trip.startDate) || 'Flexible'} –{' '}
+                      {formatUserDate(trip.endDate) || 'Flexible'}
                       {trip.nights
                         ? ` (${trip.nights} Night${trip.nights > 1 ? 's' : ''})`
                         : ''}

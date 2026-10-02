@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { userApi, type PublicProfileResponse } from '../services/api';
 import { useAuth } from '../context/AuthContext'; // Import auth hook
 import { MapPin, Globe, User, Settings } from 'lucide-react';
-import { formatDateOnly } from '../lib/tripExtras';
+import { formatUserDateRange } from '../lib/formatters';
 
 export default function PublicProfile() {
   const { username } = useParams<{ username: string }>();
@@ -164,7 +164,7 @@ export default function PublicProfile() {
 
                 <div className="flex items-center justify-between pt-3 border-t border-stone-100 text-xs font-medium text-stone-500">
                   <span className="truncate">
-                    {formatDateOnly(trip.startDate)} - {formatDateOnly(trip.endDate)}
+                    {formatUserDateRange(trip.startDate, trip.endDate)}
                   </span>
                   <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-semibold uppercase tracking-wider text-[10px] shrink-0">
                     {trip.status}

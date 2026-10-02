@@ -20,7 +20,8 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { tripsApi } from '../services/api';
-import { mergeTripWithExtras, formatTripDateRange } from '../lib/tripExtras';
+import { mergeTripWithExtras } from '../lib/tripExtras';
+import { formatUserDateRange } from '../lib/formatters';
 import type { Trip } from '../types/trip';
 import arrowDownIcon from '../assets/budget/arrow_down.png';
 
@@ -391,7 +392,7 @@ export default function TripPacking() {
       doc.setTextColor(71, 85, 105);
       const datesStr =
         trip.startDate && trip.endDate
-          ? `${formatTripDateRange(trip.startDate, trip.endDate)} (${trip.nights || 0} nights)`
+          ? `${formatUserDateRange(trip.startDate, trip.endDate)} (${trip.nights || 0} nights)`
           : `${trip.nights || 0} nights planned`;
       doc.text(`Travel Dates: ${datesStr}`, 20, 53);
       doc.text(
@@ -482,7 +483,7 @@ export default function TripPacking() {
         <h1 className="workspace-trip-title">{trip.name}</h1>
         <div className="workspace-header-actions">
           <div className="workspace-pill-date">
-            {formatTripDateRange(trip.startDate, trip.endDate)}
+            {formatUserDateRange(trip.startDate, trip.endDate)}
           </div>
         </div>
       </header>

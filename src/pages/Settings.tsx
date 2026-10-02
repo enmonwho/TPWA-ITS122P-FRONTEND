@@ -12,10 +12,9 @@ import {
   mergeTripWithExtras,
   saveTripExtras,
   deleteTripExtras,
-  formatDateOnly,
-  formatTripDateRange,
   compressImage,
 } from '../lib/tripExtras';
+import { formatUserDateRange, toApiDate } from '../lib/formatters';
 import {
   normalizeCountryRoute,
   type CountryId,
@@ -41,11 +40,9 @@ export function Settings() {
     () => cached?.countryRoute?.map((country) => country.countryId) || [],
   );
   const [startDate, setStartDate] = useState(() =>
-    cached ? formatDateOnly(cached.startDate) : '',
+    cached ? toApiDate(cached.startDate) : '',
   );
-  const [endDate, setEndDate] = useState(() =>
-    cached ? formatDateOnly(cached.endDate) : '',
-  );
+  const [endDate, setEndDate] = useState(() => (cached ? toApiDate(cached.endDate) : ''));
   const [travelType, setTravelType] = useState<TravelType>(
     () => (cached?.travelType as TravelType) || '',
   );
@@ -72,8 +69,8 @@ export function Settings() {
 
         setTripName(merged.name);
         setSelectedCountries(merged.countryRoute.map((country) => country.countryId));
-        setStartDate(formatDateOnly(merged.startDate));
-        setEndDate(formatDateOnly(merged.endDate));
+        setStartDate(toApiDate(merged.startDate));
+        setEndDate(toApiDate(merged.endDate));
         setTravelType((merged.travelType as TravelType) || '');
         setCoverPhoto(merged.cover_photo || '');
         setVisibility(merged.visibility || 'private');
@@ -233,7 +230,7 @@ export function Settings() {
         <h1 className="workspace-trip-title">{trip.name}</h1>
         <div className="workspace-header-actions">
           <div className="workspace-pill-date">
-            {formatTripDateRange(trip.startDate, trip.endDate)}
+            {formatUserDateRange(trip.startDate, trip.endDate)}
           </div>
         </div>
       </header>

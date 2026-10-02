@@ -23,14 +23,10 @@ import tripSchedIcon from '../assets/trip-sched.svg';
 import createTripBtnIcon from '../assets/create-trip-button.svg';
 import browseDestIcon from '../assets/browse-destination.svg';
 import { useAuth } from '../context/AuthContext';
-import { ROUTES, STORAGE_KEYS } from '../lib/constants';
+import { ROUTES } from '../lib/constants';
 import { tripsApi, journalsApi, preferencesApi } from '../services/api';
-import {
-  mergeTripsWithExtras,
-  mergeTripWithExtras,
-  formatTripDateRange,
-} from '../lib/tripExtras';
-import { formatUserCurrency } from '../lib/formatters';
+import { mergeTripsWithExtras, mergeTripWithExtras } from '../lib/tripExtras';
+import { formatUserCurrency, formatUserDateRange } from '../lib/formatters';
 import { normalizeCountryRoute } from '../lib/countries';
 
 export default function Dashboard() {
@@ -50,23 +46,6 @@ export default function Dashboard() {
       return 0;
     }
   });
-
-  // Active date format preference (e.g. 'MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD')
-  const userDateFormat =
-    user?.preferences?.dateFormat ||
-    (() => {
-      if (!user?.id) return 'MM/DD/YYYY';
-      try {
-        const raw = localStorage.getItem(STORAGE_KEYS.USER_PREFERENCES(user.id));
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed.dateFormat) return parsed.dateFormat;
-        }
-      } catch {
-        // ignore
-      }
-      return 'MM/DD/YYYY';
-    })();
 
   const userCurrency = user?.preferences?.currency || 'PHP';
 
@@ -714,11 +693,7 @@ export default function Dashboard() {
 
                             <div className="trip-cell-dates">
                               <span className="trip-text-date">
-                                {formatTripDateRange(
-                                  trip.startDate,
-                                  trip.endDate,
-                                  userDateFormat,
-                                )}
+                                {formatUserDateRange(trip.startDate, trip.endDate)}
                               </span>
                             </div>
 

@@ -25,7 +25,8 @@ import {
   bookingsApi,
   type ExpenseApiResponse,
 } from '../services/api';
-import { mergeTripsWithExtras, formatDateOnly } from '../lib/tripExtras';
+import { mergeTripsWithExtras } from '../lib/tripExtras';
+import { formatUserDate, formatUserDateRange } from '../lib/formatters';
 import type { Trip } from '../types/trip';
 import type { Destination } from '../types/destination';
 import type { Activity, Booking, BookingStatus } from '../types/booking';
@@ -390,10 +391,10 @@ export default function Bookings() {
         }
 
         const dateStr = b.booking_date
-          ? formatDateOnly(b.booking_date)
+          ? formatUserDate(b.booking_date)
           : b.created_at
-            ? formatDateOnly(b.created_at)
-            : formatDateOnly(selectedTrip.startDate) || 'Flexible';
+            ? formatUserDate(b.created_at)
+            : formatUserDate(selectedTrip.startDate) || 'Flexible';
 
         const rawStatus = (b.status || 'pending').toLowerCase();
         const itemStatus: BookingStatus =
@@ -638,7 +639,7 @@ export default function Bookings() {
                     const isSelected = selectedTrip?.id === t.id;
                     const dateStr =
                       t.startDate && t.endDate
-                        ? `${formatDateOnly(t.startDate)} - ${formatDateOnly(t.endDate)}`
+                        ? formatUserDateRange(t.startDate, t.endDate)
                         : 'Flexible Dates';
                     const nightsCount = t.nights > 0 ? t.nights : 1;
 
@@ -674,7 +675,10 @@ export default function Bookings() {
                       <h2 className="bookings-ledger-title">{selectedTrip.name}</h2>
                       <span className="badge-pill-daterange-gradient">
                         {selectedTrip.startDate && selectedTrip.endDate
-                          ? `${formatDateOnly(selectedTrip.startDate)} - ${formatDateOnly(selectedTrip.endDate)}`
+                          ? formatUserDateRange(
+                              selectedTrip.startDate,
+                              selectedTrip.endDate,
+                            )
                           : 'Dates Pending'}
                       </span>
                     </div>
@@ -905,7 +909,7 @@ export default function Bookings() {
                     : 'Philippines';
                 const dateStr =
                   trip.startDate && trip.endDate
-                    ? `${formatDateOnly(trip.startDate)} - ${formatDateOnly(trip.endDate)}`
+                    ? formatUserDateRange(trip.startDate, trip.endDate)
                     : 'Flexible Dates';
                 const isSelected = selectedTrip?.id === trip.id;
 

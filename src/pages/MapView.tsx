@@ -4,7 +4,8 @@ import GlobeMap, { type MarkerData } from '../components/GlobeMap';
 import CreateTripModal from '../components/CreateTripModal';
 import magnifierIcon from '../assets/magnifier.png';
 import { tripsApi, destinationsApi } from '../services/api';
-import { mergeTripsWithExtras, formatDateOnly } from '../lib/tripExtras';
+import { mergeTripsWithExtras } from '../lib/tripExtras';
+import { formatUserDate, formatUserDateRange } from '../lib/formatters';
 import { getMapboxStaticThumb } from '../services/exploreService';
 import type { Trip } from '../types/trip';
 import type { Destination } from '../types/destination';
@@ -449,7 +450,7 @@ export default function MapView() {
       return filteredWorldItems.map((item) => {
         const dateStr =
           item.trip.startDate && item.trip.endDate
-            ? `${formatDateOnly(item.trip.startDate)} - ${formatDateOnly(item.trip.endDate)}`
+            ? formatUserDateRange(item.trip.startDate, item.trip.endDate)
             : '';
 
         return {
@@ -480,7 +481,7 @@ export default function MapView() {
       // When a trip is selected, show only that trip's destinations
       const dateStr =
         activeTrip.startDate && activeTrip.endDate
-          ? `${formatDateOnly(activeTrip.startDate)} - ${formatDateOnly(activeTrip.endDate)}`
+          ? formatUserDateRange(activeTrip.startDate, activeTrip.endDate)
           : '';
 
       return (activeTrip.destinations || [])
@@ -523,7 +524,7 @@ export default function MapView() {
       title: item.destination.location_name,
       color: item.isVisited ? '#10b981' : '#e9724c',
       tripName: item.trip.name,
-      tripDates: `${formatDateOnly(item.trip.startDate)} - ${formatDateOnly(item.trip.endDate)}`,
+      tripDates: formatUserDateRange(item.trip.startDate, item.trip.endDate),
       status: item.isVisited ? 'completed' : 'upcoming',
       thumbnailUrl:
         item.trip.cover_photo ||
@@ -923,7 +924,7 @@ export default function MapView() {
                                 {item.trip.startDate && (
                                   <>
                                     <span>•</span>
-                                    <span>{formatDateOnly(item.trip.startDate)}</span>
+                                    <span>{formatUserDate(item.trip.startDate)}</span>
                                   </>
                                 )}
                               </p>
@@ -989,9 +990,7 @@ export default function MapView() {
                     {filteredTrips.map((trip) => {
                       const dateRange =
                         trip.startDate && trip.endDate
-                          ? `${formatDateOnly(trip.startDate)} - ${formatDateOnly(
-                              trip.endDate,
-                            )}`
+                          ? formatUserDateRange(trip.startDate, trip.endDate)
                           : 'No dates set';
 
                       const placeCount = trip.destinations?.length || 0;
@@ -1063,9 +1062,10 @@ export default function MapView() {
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className="map-list-date-badge">
                           {activeTrip.startDate && activeTrip.endDate
-                            ? `${formatDateOnly(activeTrip.startDate)} - ${formatDateOnly(
+                            ? formatUserDateRange(
+                                activeTrip.startDate,
                                 activeTrip.endDate,
-                              )}`
+                              )
                             : 'No dates set'}
                         </span>
                         <span className="text-stone-300 text-xs font-normal">•</span>
@@ -1282,8 +1282,10 @@ export default function MapView() {
                   {selectedDestinationItem.trip.startDate &&
                     selectedDestinationItem.trip.endDate && (
                       <div className="text-xs text-stone-500 mt-0.5">
-                        {formatDateOnly(selectedDestinationItem.trip.startDate)} -{' '}
-                        {formatDateOnly(selectedDestinationItem.trip.endDate)}
+                        {formatUserDateRange(
+                          selectedDestinationItem.trip.startDate,
+                          selectedDestinationItem.trip.endDate,
+                        )}
                       </div>
                     )}
                 </div>
