@@ -5379,6 +5379,8 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 .workspace-itinerary-zone {
   flex: 1;
   max-width: 1000px;
+  min-width: 0;
+  overflow-x: hidden;
   padding: 18px 0 0 0;
   display: flex;
   flex-direction: column;
@@ -5386,7 +5388,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 
 .workspace-vertical-divider {
   width: 1px;
-  background-color: var(--color-dash-divider);
+  background-color: rgba(64, 28, 2, 0.25);
   margin: 0;
 }
 
@@ -5398,6 +5400,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   display: flex;
   flex-direction: column;
   position: relative;
+  overflow: hidden;
 }
 
 /* Tabs */
