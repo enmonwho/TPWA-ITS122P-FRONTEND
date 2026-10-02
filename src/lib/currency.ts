@@ -24,6 +24,34 @@ export const SUPPORTED_CURRENCIES: CurrencyOption[] = [
   { code: 'JPY', symbol: '¥', label: 'JPY (¥)', name: 'Japanese Yen' },
 ];
 
+const CURRENCY_MINOR_UNITS: Record<string, number> = {
+  PHP: 2,
+  USD: 2,
+  EUR: 2,
+  GBP: 2,
+  JPY: 0,
+};
+
+export function getCurrencyMinorUnits(currencyCode: string): number {
+  return CURRENCY_MINOR_UNITS[currencyCode.toUpperCase()] ?? 2;
+}
+
+export function parseCurrencyAmount(value: string, currencyCode: string): number | null {
+  const trimmed = value.trim();
+  const minorUnits = getCurrencyMinorUnits(currencyCode);
+  const pattern =
+    minorUnits === 0 ? /^\d+$/ : new RegExp(`^\\d+(?:\\.\\d{1,${minorUnits}})?$`);
+
+  if (!pattern.test(trimmed)) return null;
+  const amount = Number(trimmed);
+  return Number.isFinite(amount) ? amount : null;
+}
+
+export function getCurrencyInputStep(currencyCode: string): string {
+  const minorUnits = getCurrencyMinorUnits(currencyCode);
+  return minorUnits === 0 ? '1' : (1 / 10 ** minorUnits).toFixed(minorUnits);
+}
+
 export interface ExchangeRatesResult {
   rates: Record<string, number>;
   date: string;
@@ -209,9 +237,11 @@ export function getCurrencySymbol(code: string): string {
  */
 export function formatCurrency(amount: number, currencyCode: string = 'PHP'): string {
   const symbol = getCurrencySymbol(currencyCode);
-  const fractionDigits = currencyCode === 'JPY' ? 0 : 2;
+  const fractionDigits = getCurrencyMinorUnits(currencyCode);
 
-  const formattedNum = (amount || 0).toLocaleString('en-US', {
+  const safeAmount = Number.isFinite(amount) ? amount : 0;
+
+  const formattedNum = safeAmount.toLocaleString('en-US', {
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits,
   });

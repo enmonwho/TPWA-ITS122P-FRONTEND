@@ -16,7 +16,10 @@ import {
   getCurrencySymbol,
   SUPPORTED_CURRENCIES,
   formatCurrency,
+  getCurrencyInputStep,
+  parseCurrencyAmount,
 } from '../lib/currency';
+import { calculateBudgetPercentage, toFiniteAmount } from '../lib/budgetMath';
 
 import bedIcon from '../assets/budget/bed.png';
 import busIcon from '../assets/budget/bus.png';
@@ -39,6 +42,20 @@ interface Expense {
 interface BudgetData {
   balance: number;
   expenses: Expense[];
+}
+
+function normalizeBudgetData(value: unknown): BudgetData {
+  if (!value || typeof value !== 'object') return { balance: 0, expenses: [] };
+  const candidate = value as Partial<BudgetData>;
+  return {
+    balance: toFiniteAmount(candidate.balance),
+    expenses: Array.isArray(candidate.expenses)
+      ? candidate.expenses.map((expense) => ({
+          ...expense,
+          cost: toFiniteAmount(expense.cost),
+        }))
+      : [],
+  };
 }
 
 interface CategoryConfig {
@@ -82,7 +99,7 @@ export function Budget() {
   const [budget, setBudget] = useState<BudgetData>(() => {
     try {
       const stored = localStorage.getItem(budgetKey);
-      if (stored) return JSON.parse(stored) as BudgetData;
+      if (stored) return normalizeBudgetData(JSON.parse(stored));
     } catch {
       /* ignore error */
     }
@@ -261,14 +278,14 @@ export function Budget() {
         .then((budgetData) => {
           if (!cancelled && budgetData) {
             const loadedBudget: BudgetData = {
-              balance: typeof budgetData.balance === 'number' ? budgetData.balance : 0,
+              balance: toFiniteAmount(budgetData.balance),
               expenses: Array.isArray(budgetData.expenses)
                 ? budgetData.expenses.map((e) => ({
                     id: String(e.id),
                     name: e.name,
                     items: Number(e.items) || 1,
                     category: e.category,
-                    cost: Number(e.cost) || 0,
+                    cost: toFiniteAmount(e.cost),
                     date: e.date,
                     destination_id: e.destination_id,
                     country_name: e.country_name,
@@ -320,8 +337,8 @@ export function Budget() {
 
   const handleAddBalanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const enteredAmount = parseFloat(balanceInput);
-    if (isNaN(enteredAmount) || enteredAmount <= 0) return;
+    const enteredAmount = parseCurrencyAmount(balanceInput, displayCurrency);
+    if (enteredAmount === null || enteredAmount <= 0) return;
 
     const amountInPhp =
       displayCurrency === 'PHP'
@@ -341,7 +358,7 @@ export function Budget() {
     if (tripId) {
       try {
         const res = await budgetApi.addBalance(tripId, roundedPhp);
-        if (res && typeof res.balance === 'number') {
+        if (res && Number.isFinite(res.balance)) {
           setBudget((prev) => {
             const reconciled = { ...prev, balance: res.balance };
             localStorage.setItem(budgetKey, JSON.stringify(reconciled));
@@ -361,8 +378,8 @@ export function Budget() {
       setExpenseError('Please enter where you spent.');
       return;
     }
-    const enteredCost = parseFloat(expenseCost);
-    if (isNaN(enteredCost) || enteredCost <= 0) {
+    const enteredCost = parseCurrencyAmount(expenseCost, displayCurrency);
+    if (enteredCost === null || enteredCost <= 0) {
       setExpenseError('Please enter a valid expense cost.');
       return;
     }
@@ -431,7 +448,7 @@ export function Budget() {
         if (res && res.expense) {
           setBudget((prev) => {
             const reconciled: BudgetData = {
-              balance: typeof res.balance === 'number' ? res.balance : prev.balance,
+              balance: Number.isFinite(res.balance) ? res.balance : prev.balance,
               expenses: prev.expenses.map((item) =>
                 item.id === tempId
                   ? {
@@ -439,7 +456,7 @@ export function Budget() {
                       name: res.expense.name,
                       items: Number(res.expense.items) || 1,
                       category: res.expense.category,
-                      cost: Number(res.expense.cost) || 0,
+                      cost: toFiniteAmount(res.expense.cost),
                       date: res.expense.date,
                       destination_id: res.expense.destination_id,
                       country_name: res.expense.country_name,
@@ -482,7 +499,7 @@ export function Budget() {
     if (tripId && !id.startsWith('temp-')) {
       try {
         const res = await budgetApi.deleteExpense(tripId, id);
-        if (res && typeof res.balance === 'number') {
+        if (res && Number.isFinite(res.balance)) {
           setBudget((prev) => {
             const reconciled = { ...prev, balance: res.balance };
             localStorage.setItem(budgetKey, JSON.stringify(reconciled));
@@ -503,7 +520,7 @@ export function Budget() {
           const normCat = cat.name.toLowerCase().replace(/m+/, 'm');
           return normExp === normCat;
         })
-        .reduce((sum, e) => sum + Number(e.cost), 0);
+        .reduce((sum, e) => sum + toFiniteAmount(e.cost), 0);
 
       return {
         name: cat.name,
@@ -514,9 +531,14 @@ export function Budget() {
   }, [budget.expenses, displayCurrency, fxRates]);
 
   const totalSpentPhp = useMemo(
-    () => budget.expenses.reduce((sum, e) => sum + Number(e.cost), 0),
+    () => budget.expenses.reduce((sum, e) => sum + toFiniteAmount(e.cost), 0),
     [budget.expenses],
   );
+
+  const budgetPercentage = useMemo(() => {
+    const totalAllocated = totalSpentPhp + toFiniteAmount(budget.balance);
+    return calculateBudgetPercentage(totalSpentPhp, totalAllocated);
+  }, [budget.balance, totalSpentPhp]);
 
   const convertedTotalSpent = useMemo(
     () => convert(totalSpentPhp, 'PHP', displayCurrency, fxRates),
@@ -620,7 +642,11 @@ export function Budget() {
             )}
           </div>
 
-          <div className="budget-donut-container">
+          <div
+            className="budget-donut-container"
+            role="img"
+            aria-label={`${Math.round(budgetPercentage)}% of the trip budget spent`}
+          >
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -689,7 +715,7 @@ export function Budget() {
                 }}
               >
                 ≈ ₱
-                {budget.balance.toLocaleString('en-US', {
+                {toFiniteAmount(budget.balance).toLocaleString('en-US', {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}{' '}
@@ -958,8 +984,8 @@ export function Budget() {
                       <input
                         id="modal-expense-cost"
                         type="number"
-                        min="0.01"
-                        step={displayCurrency === 'JPY' ? '1' : '0.01'}
+                        min={getCurrencyInputStep(displayCurrency)}
+                        step={getCurrencyInputStep(displayCurrency)}
                         required
                         placeholder={`${currentSymbol} 0.00`}
                         className="budget-modal-gradient-input budget-modal-cost-input"
@@ -1122,8 +1148,8 @@ export function Budget() {
                 <input
                   id="modal-balance-amount"
                   type="number"
-                  min="0.01"
-                  step={displayCurrency === 'JPY' ? '1' : '0.01'}
+                  min={getCurrencyInputStep(displayCurrency)}
+                  step={getCurrencyInputStep(displayCurrency)}
                   required
                   placeholder={`Amount in ${displayCurrency} (${currentSymbol})`}
                   className="budget-modal-gradient-input budget-balance-input"
