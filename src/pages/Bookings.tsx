@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronRight,
@@ -30,6 +30,14 @@ import { formatUserDate, formatUserDateRange } from '../lib/formatters';
 import type { Trip } from '../types/trip';
 import type { Destination } from '../types/destination';
 import type { Activity, Booking, BookingStatus } from '../types/booking';
+import {
+  countBookingStatuses,
+  countBookingTypes,
+  filterBookings,
+  normalizeBookingStatus,
+  type BookingStatusFilter,
+} from '../lib/bookingFilters';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 
 interface BookingLedgerItem {
   id: string;
@@ -114,6 +122,8 @@ export default function Bookings() {
   const [bookingTypeFilter, setBookingTypeFilter] = useState<
     'all' | 'activity' | 'hotel'
   >('all');
+  const [bookingStatusFilter, setBookingStatusFilter] =
+    useState<BookingStatusFilter>('all');
   const [isBookActivityOpen, setIsBookActivityOpen] = useState(false);
   const [bookingMode, setBookingMode] = useState<'catalog' | 'custom'>('catalog');
   const [customType, setCustomType] = useState<'activity' | 'hotel'>('activity');
@@ -126,6 +136,13 @@ export default function Bookings() {
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
   const [bookingSuccessMsg, setBookingSuccessMsg] = useState<string | null>(null);
   const [bookingErrorMsg, setBookingErrorMsg] = useState<string | null>(null);
+  const bookingSubmitLockRef = useRef(false);
+
+  useModalBehavior(
+    isBookActivityOpen,
+    () => setIsBookActivityOpen(false),
+    bookingSubmitting,
+  );
 
   const loadTrips = useCallback(async () => {
     try {
@@ -206,6 +223,21 @@ export default function Bookings() {
     });
   }, [filteredTrips, activeTab, getTripDisplayStatus]);
 
+  const tripTabCounts = useMemo(
+    () =>
+      filteredTrips.reduce(
+        (counts, trip) => {
+          const status = getTripDisplayStatus(trip);
+          counts.all += 1;
+          if (status === 'completed') counts.completed += 1;
+          else counts.upcoming += 1;
+          return counts;
+        },
+        { all: 0, upcoming: 0, completed: 0 },
+      ),
+    [filteredTrips, getTripDisplayStatus],
+  );
+
   const getTripImage = useCallback((trip: Trip, idx: number): string => {
     const nameLower = (trip.name || '').toLowerCase();
     const countryLower = (trip.countries || []).join(' ').toLowerCase();
@@ -244,8 +276,8 @@ export default function Bookings() {
 
   const selectedTrip = useMemo(() => {
     if (!selectedTripId) return filteredTrips[0] || null;
-    return trips.find((t) => t.id === selectedTripId) || filteredTrips[0] || null;
-  }, [trips, filteredTrips, selectedTripId]);
+    return filteredTrips.find((t) => t.id === selectedTripId) || filteredTrips[0] || null;
+  }, [filteredTrips, selectedTripId]);
 
   const scheduleDays = useMemo(() => {
     const baseDate = selectedTrip?.startDate
@@ -396,13 +428,7 @@ export default function Bookings() {
             ? formatUserDate(b.created_at)
             : formatUserDate(selectedTrip.startDate) || 'Flexible';
 
-        const rawStatus = (b.status || 'pending').toLowerCase();
-        const itemStatus: BookingStatus =
-          rawStatus === 'confirmed' ||
-          rawStatus === 'completed' ||
-          rawStatus === 'cancelled'
-            ? (rawStatus as BookingStatus)
-            : 'pending';
+        const itemStatus = normalizeBookingStatus(b.status);
 
         return {
           id: String(b.id || `${selectedTrip.id}-booking-${idx}`),
@@ -428,9 +454,28 @@ export default function Bookings() {
   ]);
 
   const filteredLedgerItems = useMemo(() => {
-    if (bookingTypeFilter === 'all') return ledgerItems;
-    return ledgerItems.filter((i) => i.type === bookingTypeFilter);
-  }, [ledgerItems, bookingTypeFilter]);
+    return filterBookings(ledgerItems, bookingTypeFilter, bookingStatusFilter);
+  }, [ledgerItems, bookingTypeFilter, bookingStatusFilter]);
+
+  const bookingTypeCounts = useMemo(
+    () =>
+      countBookingTypes(
+        bookingStatusFilter === 'all'
+          ? ledgerItems
+          : ledgerItems.filter((item) => item.status === bookingStatusFilter),
+      ),
+    [ledgerItems, bookingStatusFilter],
+  );
+
+  const bookingStatusCounts = useMemo(
+    () =>
+      countBookingStatuses(
+        bookingTypeFilter === 'all'
+          ? ledgerItems
+          : ledgerItems.filter((item) => item.type === bookingTypeFilter),
+      ),
+    [ledgerItems, bookingTypeFilter],
+  );
 
   const handleTripCreated = () => loadTrips();
 
@@ -451,7 +496,7 @@ export default function Bookings() {
 
   const handleBookActivitySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedTrip) return;
+    if (!selectedTrip || bookingSubmitLockRef.current) return;
 
     const isCustom = bookingMode === 'custom';
     if (isCustom && !customTitle.trim()) {
@@ -464,6 +509,7 @@ export default function Bookings() {
     }
 
     setBookingSubmitting(true);
+    bookingSubmitLockRef.current = true;
     setBookingSuccessMsg(null);
     setBookingErrorMsg(null);
 
@@ -532,6 +578,7 @@ export default function Bookings() {
       setBookingErrorMsg(errMsg);
       setSyncNotice(errMsg);
     } finally {
+      bookingSubmitLockRef.current = false;
       setBookingSubmitting(false);
     }
   };
@@ -723,12 +770,36 @@ export default function Bookings() {
                         }`}
                       >
                         {t === 'all'
-                          ? `All Reservations (${ledgerItems.length})`
+                          ? `All Reservations (${bookingTypeCounts.all})`
                           : t === 'activity'
-                            ? `Activities (${ledgerItems.filter((i) => i.type === 'activity').length})`
-                            : `Hotels & Stays (${ledgerItems.filter((i) => i.type === 'hotel').length})`}
+                            ? `Activities (${bookingTypeCounts.activity})`
+                            : `Hotels & Stays (${bookingTypeCounts.hotel})`}
                       </button>
                     ))}
+                  </div>
+
+                  <div
+                    className="bookings-reservation-status-tabs"
+                    aria-label="Reservation status filters"
+                  >
+                    {(['all', 'pending', 'confirmed', 'completed'] as const).map(
+                      (status) => (
+                        <button
+                          key={status}
+                          type="button"
+                          onClick={() => setBookingStatusFilter(status)}
+                          className={`bookings-reservation-status-btn ${bookingStatusFilter === status ? 'active' : ''}`}
+                        >
+                          {status === 'all'
+                            ? `All statuses (${bookingStatusCounts.all})`
+                            : status === 'confirmed'
+                              ? `Confirmed / processed (${bookingStatusCounts.confirmed})`
+                              : status === 'completed'
+                                ? `Used / completed (${bookingStatusCounts.completed})`
+                                : `Pending (${bookingStatusCounts.pending})`}
+                        </button>
+                      ),
+                    )}
                   </div>
 
                   <div className="bookings-table-wrapper">
@@ -787,11 +858,14 @@ export default function Bookings() {
                       >
                         <Ticket className="bookings-table-empty-icon" />
                         <h3 className="bookings-table-empty-title">
-                          No Booked Activities Yet
+                          {ledgerItems.length === 0
+                            ? 'No Booked Activities Yet'
+                            : 'No reservations match this filter'}
                         </h3>
                         <p className="bookings-table-empty-desc">
-                          You haven&apos;t booked any activities for {selectedTrip.name}{' '}
-                          yet. Click &quot;Book Activity&quot; above to add reservations!
+                          {ledgerItems.length === 0
+                            ? `You haven't booked any activities for ${selectedTrip.name} yet. Click "Book Activity" above to add reservations!`
+                            : 'Choose another reservation type or status to see matching records.'}
                         </p>
                       </div>
                     )}
@@ -861,21 +935,21 @@ export default function Bookings() {
               onClick={() => setActiveTab('all')}
               className={`bookings-mobile-tab-btn ${activeTab === 'all' ? 'active' : ''}`}
             >
-              All ({trips.length})
+              All ({tripTabCounts.all})
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('upcoming')}
               className={`bookings-mobile-tab-btn ${activeTab === 'upcoming' ? 'active' : ''}`}
             >
-              Upcoming
+              Upcoming ({tripTabCounts.upcoming})
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('completed')}
               className={`bookings-mobile-tab-btn ${activeTab === 'completed' ? 'active' : ''}`}
             >
-              Completed
+              Completed ({tripTabCounts.completed})
             </button>
           </div>
 
@@ -1002,7 +1076,12 @@ export default function Bookings() {
       />
 
       {isBookActivityOpen && selectedTrip && (
-        <div className="modal-overlay">
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="book-activity-title"
+        >
           <button
             type="button"
             className="modal-backdrop-dismiss"
@@ -1022,6 +1101,7 @@ export default function Bookings() {
             <div className="flex items-center gap-2 mb-2">
               <Sparkles className="w-5 h-5 text-amber-600" />
               <h3
+                id="book-activity-title"
                 className="font-bold text-xl text-stone-900"
                 style={{ fontFamily: 'Poppins, sans-serif' }}
               >
@@ -1088,7 +1168,10 @@ export default function Bookings() {
                 <div className="flex border-b border-stone-200 mb-4">
                   <button
                     type="button"
-                    onClick={() => setBookingMode('catalog')}
+                    onClick={() => {
+                      setBookingMode('catalog');
+                      setBookingErrorMsg(null);
+                    }}
                     className={`flex-1 pb-2.5 text-xs font-semibold text-center border-b-2 transition ${
                       bookingMode === 'catalog'
                         ? 'border-orange-500 text-orange-600'
@@ -1099,7 +1182,10 @@ export default function Bookings() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setBookingMode('custom')}
+                    onClick={() => {
+                      setBookingMode('custom');
+                      setBookingErrorMsg(null);
+                    }}
                     className={`flex-1 pb-2.5 text-xs font-semibold text-center border-b-2 transition ${
                       bookingMode === 'custom'
                         ? 'border-orange-500 text-orange-600'
@@ -1147,6 +1233,11 @@ export default function Bookings() {
                           onChange={(e) => setBookingDate(e.target.value)}
                           required
                         />
+                        {bookingDate && (
+                          <span className="booking-date-preference">
+                            Display date: {formatUserDate(bookingDate)}
+                          </span>
+                        )}
                       </div>
 
                       <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 flex items-center justify-between text-xs mt-1">
@@ -1165,7 +1256,7 @@ export default function Bookings() {
                     </>
                   ) : (
                     <>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="booking-modal-two-column">
                         <div>
                           <label htmlFor="custom-type" className="modal-label">
                             Reservation Type
@@ -1194,6 +1285,11 @@ export default function Bookings() {
                             onChange={(e) => setBookingDate(e.target.value)}
                             required
                           />
+                          {bookingDate && (
+                            <span className="booking-date-preference">
+                              Display date: {formatUserDate(bookingDate)}
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -1218,7 +1314,7 @@ export default function Bookings() {
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="booking-modal-two-column">
                         <div>
                           <label htmlFor="custom-location" className="modal-label">
                             Destination / Location

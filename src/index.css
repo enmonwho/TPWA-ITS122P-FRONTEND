@@ -9927,6 +9927,63 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   padding: 0 28px;
 }
 
+.bookings-reservation-status-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.bookings-reservation-status-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.bookings-reservation-status-btn {
+  flex: 0 0 auto;
+  max-width: 230px;
+  padding: 5px 10px;
+  border: 1px solid #e7e5e4;
+  border-radius: 9999px;
+  background: #fafaf9;
+  color: #57534e;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.bookings-reservation-status-btn.active {
+  background: #292524;
+  border-color: #292524;
+  color: #ffffff;
+}
+
+.booking-modal-two-column {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.booking-date-preference {
+  display: block;
+  margin-top: 5px;
+  color: #78716c;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .booking-modal-two-column {
+    grid-template-columns: 1fr;
+  }
+
+  .start-trip-modal-card {
+    padding: 28px 20px;
+  }
+}
+
 .bookings-table {
   width: 100%;
   border-collapse: collapse;
