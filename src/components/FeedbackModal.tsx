@@ -183,7 +183,7 @@ export default function FeedbackModal({
           <X size={16} />
         </button>
 
-        <div className="mb-4 text-center">
+        <div className="mb-4 text-center relative z-[2]">
           <h2
             style={{
               margin: '4px 28px 2px',
@@ -191,10 +191,18 @@ export default function FeedbackModal({
               fontSize: '26px',
               lineHeight: 1.2,
               fontWeight: 700,
+              fontFamily: "'Poppins', sans-serif",
+              color: '#2F1B0C',
+              opacity: 1,
             }}
           >
             <span className="feedback-heading-plain">Give Us </span>
-            <span className="feedback-heading-gradient">Feedback</span>
+            <span
+              className="feedback-heading-gradient"
+              style={{ filter: "url('#text-inner-shadow')" }}
+            >
+              Feedback
+            </span>
           </h2>
           <p
             style={{
@@ -204,6 +212,7 @@ export default function FeedbackModal({
               color: 'rgba(72,42,19,.78)',
               fontSize: '13px',
               lineHeight: 1.55,
+              fontFamily: "'Poppins', sans-serif",
             }}
           >
             Share your travel experience with LakBye.
