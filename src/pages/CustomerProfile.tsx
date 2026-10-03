@@ -69,9 +69,9 @@ export default function CustomerProfile() {
     };
   }, [user?.id]);
 
-  const displayName = user?.username
-    ? `@${user.username}`
-    : user?.full_name || 'Traveler';
+  const displayName =
+    user?.full_name || (user?.username ? `@${user.username}` : 'Traveler');
+  const userHandle = user?.username ? `@${user.username}` : undefined;
   const fullName = user?.full_name || 'Traveler';
   const avatarUrl =
     user && 'avatar_url' in user
@@ -196,8 +196,8 @@ export default function CustomerProfile() {
               )}
             </div>
             <h1 className="customer-profile-user-name">{displayName}</h1>
-            {user?.username && user?.full_name && (
-              <p className="customer-profile-user-fullname">{user.full_name}</p>
+            {userHandle && user?.full_name && (
+              <p className="customer-profile-user-fullname">{userHandle}</p>
             )}
 
             <div className="customer-profile-stats-row">
