@@ -247,4 +247,46 @@ describe('PublicProfileModal component', () => {
     expect(secondHtml).toContain('Second Traveler');
     expect(secondHtml).not.toContain('Ady Max');
   });
+
+  it('renders a single sliding pill indicator for the segmented control that moves between tabs', () => {
+    const journalHtml = renderToString(
+      <PublicProfileModal
+        username="adiee"
+        isOpen={true}
+        onClose={vi.fn()}
+        initialProfile={mockProfile}
+        initialTab="journal"
+      />,
+    );
+
+    // Single slider pill with slide-left
+    expect(journalHtml).toContain('public-profile-slider-pill slide-left');
+    expect(journalHtml).not.toContain('public-profile-slider-pill slide-right');
+    // Journal button has active class, Journey & Map does not
+    expect(journalHtml).toContain('id="public-profile-tab-journal" aria-selected="true"');
+    expect(journalHtml).toContain(
+      'id="public-profile-tab-journey-map" aria-selected="false"',
+    );
+
+    const journeyMapHtml = renderToString(
+      <PublicProfileModal
+        username="adiee"
+        isOpen={true}
+        onClose={vi.fn()}
+        initialProfile={mockProfile}
+        initialTab="journey-map"
+      />,
+    );
+
+    // Single slider pill with slide-right
+    expect(journeyMapHtml).toContain('public-profile-slider-pill slide-right');
+    expect(journeyMapHtml).not.toContain('public-profile-slider-pill slide-left');
+    // Journey & Map button has active class, Journal does not
+    expect(journeyMapHtml).toContain(
+      'id="public-profile-tab-journal" aria-selected="false"',
+    );
+    expect(journeyMapHtml).toContain(
+      'id="public-profile-tab-journey-map" aria-selected="true"',
+    );
+  });
 });

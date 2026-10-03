@@ -13613,45 +13613,103 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   box-shadow: 0 1px 2px rgba(72, 42, 19, 0.04);
 }
 
-/* Segmented Control */
+/* Segmented Control - Sliding Pill Pattern */
 .public-profile-segmented-control {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 214px;
-  height: 27px;
-  background: #ffffff;
-  border: 1px solid rgba(72, 42, 19, 0.16);
-  border-radius: 19px;
-  margin: 0 auto 16px;
-  padding: 1px;
-  gap: 2px;
+  width: min(230px, 100%);
+  height: 32px;
+  background: #fbf9f5;
+  border: 1px solid rgba(72, 42, 19, 0.14);
+  border-radius: 9999px;
+  margin: 0 auto 18px;
+  padding: 3px;
+  box-sizing: border-box;
 }
 
-.public-profile-tab-pill {
-  border: none;
-  background: transparent;
-  color: #74675d;
-  font-size: 11px;
+.public-profile-slider-pill {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  border-radius: 9999px;
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    linear-gradient(90deg, #255f85 0%, #e9724c 50%, #c5283d 75%, #ffc857 100%) border-box;
+  border: 1.5px solid transparent;
+  box-shadow: 0 2px 8px rgba(47, 27, 12, 0.08);
+  pointer-events: none;
+  transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+  will-change: transform;
+  z-index: 1;
+}
+
+.public-profile-slider-pill.slide-right {
+  transform: translateX(100%);
+}
+
+.public-profile-slider-pill.slide-left {
+  transform: translateX(0%);
+}
+
+.public-profile-tab-btn {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  height: 100%;
+  border-radius: 9999px;
+  font-family: 'Poppins', sans-serif;
   font-weight: 500;
-  height: 23px;
-  padding: 0 12px;
-  border-radius: 19px;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  font-size: 11px;
+  line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: #74675d;
+  transition: color 180ms ease;
+  box-sizing: border-box;
+  white-space: nowrap;
+  padding: 0 8px;
   outline: none;
-  font-family: 'Poppins', sans-serif;
 }
 
-.public-profile-tab-pill.active {
-  background: linear-gradient(90deg, #255f85 0%, #e9724c 50%, #c5283d 75%, #ffc245 100%);
-  color: #ffffff;
-  font-weight: 800;
-  border: 1px solid rgba(72, 42, 19, 0.16);
-  cursor: default;
+.public-profile-tab-btn:hover:not(.active) {
+  color: #2f1b0c;
+}
+
+.public-profile-tab-btn.active {
+  color: #2f1b0c;
+  font-weight: 700;
+}
+
+/* Subtle Tab Content Transition */
+.public-profile-tab-panel {
+  animation: public-profile-panel-fade 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+@keyframes public-profile-panel-fade {
+  from {
+    opacity: 0.35;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-profile-slider-pill {
+    transition: none !important;
+  }
+  .public-profile-tab-panel {
+    animation: none !important;
+  }
 }
 
 /* Journal State */

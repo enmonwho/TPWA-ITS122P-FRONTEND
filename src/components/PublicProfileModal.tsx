@@ -236,16 +236,20 @@ export default function PublicProfileModal({
                 role="tablist"
                 aria-label="Profile views"
               >
+                <div
+                  className={`public-profile-slider-pill ${activeTab === 'journey-map' ? 'slide-right' : 'slide-left'}`}
+                  aria-hidden="true"
+                />
                 <button
                   type="button"
                   role="tab"
                   id="public-profile-tab-journal"
                   aria-selected={activeTab === 'journal'}
                   aria-controls="public-profile-panel-journal"
-                  className={`public-profile-tab-pill ${activeTab === 'journal' ? 'active' : ''}`}
+                  className={`public-profile-tab-btn ${activeTab === 'journal' ? 'active' : ''}`}
                   onClick={() => setActiveTab('journal')}
                 >
-                  Journal
+                  <span>Journal</span>
                 </button>
                 <button
                   type="button"
@@ -253,10 +257,10 @@ export default function PublicProfileModal({
                   id="public-profile-tab-journey-map"
                   aria-selected={activeTab === 'journey-map'}
                   aria-controls="public-profile-panel-journey-map"
-                  className={`public-profile-tab-pill ${activeTab === 'journey-map' ? 'active' : ''}`}
+                  className={`public-profile-tab-btn ${activeTab === 'journey-map' ? 'active' : ''}`}
                   onClick={() => setActiveTab('journey-map')}
                 >
-                  Journey & Map
+                  <span>Journey & Map</span>
                 </button>
               </div>
 
