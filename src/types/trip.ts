@@ -11,6 +11,7 @@ export interface Trip {
   status: TripStatus;
   cover_photo?: string | null;
   visibility?: string;
+  destination?: string;
   createdAt?: string;
   updatedAt?: string;
 

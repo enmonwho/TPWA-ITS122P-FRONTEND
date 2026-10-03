@@ -18,7 +18,8 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import lakbyeLogo from '../../assets/lakbye-logo.png';
-import { adminApi } from '../../services/api';
+import { adminApi, tripsApi } from '../../services/api';
+import { searchDestinations } from '../../lib/tripAutoFill';
 import type {
   AdminUser,
   AdminCategory,
@@ -577,15 +578,17 @@ function UserManagementTab() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [search, setSearch] = useState('');
-  const [sortField, setSortField] = useState<'name' | 'status' | 'role' | 'date'>('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [alphabeticalSort, setAlphabeticalSort] = useState<'asc' | 'desc' | null>('asc');
+  const [statusFilterActive, setStatusFilterActive] = useState(false);
+  const [roleSortActive, setRoleSortActive] = useState(false);
+  const [dateSortActive, setDateSortActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
 
-  // Deletion state
-  const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  // Deactivation confirmation state (replaces userToDelete in standard user management)
+  const [userToDeactivate, setUserToDeactivate] = useState<AdminUser | null>(null);
+  const [isDeactivating, setIsDeactivating] = useState(false);
+  const [deactivateError, setDeactivateError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -614,57 +617,45 @@ function UserManagementTab() {
     }
   };
 
-  const handleConfirmDelete = async () => {
-    if (!userToDelete) return;
-    setIsDeleting(true);
-    setDeleteError(null);
-    try {
-      await adminApi.deleteUser(userToDelete.id);
-      setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
-      setUserToDelete(null);
-    } catch (err: unknown) {
-      console.error('Failed to delete user:', err);
-      const msg =
-        axios.isAxiosError(err) && err.response?.data?.message
-          ? err.response.data.message
-          : 'Failed to delete user account. Please try again.';
-      setDeleteError(msg);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
   const filteredUsers = useMemo(() => {
     return users
       .filter((u) => {
         const displayName = u.full_name || u.name || '';
-        return (
+        const matchesSearch =
           displayName.toLowerCase().includes(search.toLowerCase()) ||
-          u.email.toLowerCase().includes(search.toLowerCase())
-        );
+          u.email.toLowerCase().includes(search.toLowerCase());
+        if (!matchesSearch) return false;
+        if (statusFilterActive && !u.is_active) return false;
+        return true;
       })
       .sort((a, b) => {
-        const nameA = a.full_name || a.name || '';
-        const nameB = b.full_name || b.name || '';
-        if (sortField === 'name') {
-          return sortOrder === 'asc'
+        if (dateSortActive) {
+          const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          const diff = timeB - timeA;
+          if (diff !== 0) return diff;
+        }
+        if (roleSortActive) {
+          const roleDiff = a.role.localeCompare(b.role);
+          if (roleDiff !== 0) return roleDiff;
+        }
+        if (alphabeticalSort) {
+          const nameA = a.full_name || a.name || '';
+          const nameB = b.full_name || b.name || '';
+          return alphabeticalSort === 'asc'
             ? nameA.localeCompare(nameB)
             : nameB.localeCompare(nameA);
         }
-        if (sortField === 'status') {
-          return a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1;
-        }
-        if (sortField === 'role') {
-          return a.role.localeCompare(b.role);
-        }
-        if (sortField === 'date') {
-          const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
-          const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
-          return timeB - timeA;
-        }
         return 0;
       });
-  }, [users, search, sortField, sortOrder]);
+  }, [
+    users,
+    search,
+    alphabeticalSort,
+    statusFilterActive,
+    roleSortActive,
+    dateSortActive,
+  ]);
 
   return (
     <div className="admin-card-panel">
@@ -678,42 +669,40 @@ function UserManagementTab() {
         <span className="admin-filter-bar-label">Filter & Sort by:</span>
         <button
           type="button"
-          className={`admin-filter-pill ${sortField === 'name' && sortOrder === 'asc' ? 'font-bold' : ''}`}
+          className={`admin-filter-pill ${alphabeticalSort === 'asc' ? 'active font-bold border-amber-500 bg-amber-50 text-amber-900' : ''}`}
           onClick={() => {
-            setSortField('name');
-            setSortOrder('asc');
+            setAlphabeticalSort((prev) => (prev === 'asc' ? null : 'asc'));
           }}
         >
           A to Z
         </button>
         <button
           type="button"
-          className={`admin-filter-pill ${sortField === 'name' && sortOrder === 'desc' ? 'font-bold' : ''}`}
+          className={`admin-filter-pill ${alphabeticalSort === 'desc' ? 'active font-bold border-amber-500 bg-amber-50 text-amber-900' : ''}`}
           onClick={() => {
-            setSortField('name');
-            setSortOrder('desc');
+            setAlphabeticalSort((prev) => (prev === 'desc' ? null : 'desc'));
           }}
         >
           Z to A
         </button>
         <button
           type="button"
-          className={`admin-filter-pill ${sortField === 'status' ? 'font-bold' : ''}`}
-          onClick={() => setSortField('status')}
+          className={`admin-filter-pill ${statusFilterActive ? 'active font-bold border-amber-500 bg-amber-50 text-amber-900' : ''}`}
+          onClick={() => setStatusFilterActive((prev) => !prev)}
         >
           Status
         </button>
         <button
           type="button"
-          className={`admin-filter-pill ${sortField === 'role' ? 'font-bold' : ''}`}
-          onClick={() => setSortField('role')}
+          className={`admin-filter-pill ${roleSortActive ? 'active font-bold border-amber-500 bg-amber-50 text-amber-900' : ''}`}
+          onClick={() => setRoleSortActive((prev) => !prev)}
         >
           Role
         </button>
         <button
           type="button"
-          className={`admin-filter-pill ${sortField === 'date' ? 'font-bold' : ''}`}
-          onClick={() => setSortField('date')}
+          className={`admin-filter-pill ${dateSortActive ? 'active font-bold border-amber-500 bg-amber-50 text-amber-900' : ''}`}
+          onClick={() => setDateSortActive((prev) => !prev)}
         >
           Member Since
         </button>
@@ -804,46 +793,36 @@ function UserManagementTab() {
                           <div className="absolute right-0 top-8 bg-white border border-stone-200 shadow-lg rounded-lg py-1 z-20 w-36 text-left">
                             <button
                               type="button"
-                              className="w-full px-3 py-1.5 text-xs text-stone-700 hover:bg-stone-50 flex items-center gap-2"
-                              onClick={() => handleToggleStatus(u)}
-                            >
-                              {isOnline ? (
-                                <XCircle size={14} className="text-red-600" />
-                              ) : (
-                                <CheckCircle size={14} className="text-green-600" />
-                              )}
-                              {isOnline ? 'Deactivate' : 'Activate'}
-                            </button>
-                            <div className="my-1 border-t border-stone-100" />
-                            <button
-                              type="button"
                               disabled={Number(currentUser?.id) === Number(u.id)}
                               title={
                                 Number(currentUser?.id) === Number(u.id)
-                                  ? 'You cannot delete your own account'
-                                  : 'Delete user account'
+                                  ? 'You cannot modify your own account status'
+                                  : isOnline
+                                    ? 'Deactivate user account'
+                                    : 'Activate user account'
                               }
                               className={`w-full px-3 py-1.5 text-xs flex items-center gap-2 transition-colors ${
                                 Number(currentUser?.id) === Number(u.id)
                                   ? 'text-stone-300 cursor-not-allowed'
-                                  : 'text-red-600 hover:bg-red-50'
+                                  : 'text-stone-700 hover:bg-stone-50 cursor-pointer'
                               }`}
                               onClick={() => {
                                 if (Number(currentUser?.id) === Number(u.id)) return;
                                 setActiveMenuId(null);
-                                setDeleteError(null);
-                                setUserToDelete(u);
+                                if (isOnline) {
+                                  setDeactivateError(null);
+                                  setUserToDeactivate(u);
+                                } else {
+                                  handleToggleStatus(u);
+                                }
                               }}
                             >
-                              <Trash2
-                                size={14}
-                                className={
-                                  Number(currentUser?.id) === Number(u.id)
-                                    ? 'text-stone-300'
-                                    : 'text-red-600'
-                                }
-                              />
-                              Delete Account
+                              {isOnline ? (
+                                <XCircle size={14} className="text-amber-600" />
+                              ) : (
+                                <CheckCircle size={14} className="text-emerald-600" />
+                              )}
+                              {isOnline ? 'Deactivate' : 'Activate'}
                             </button>
                           </div>
                         </>
@@ -857,26 +836,28 @@ function UserManagementTab() {
         )}
       </div>
 
-      {/* Delete User Confirmation Modal */}
-      {userToDelete && (
+      {/* Deactivate User Confirmation Modal */}
+      {userToDeactivate && (
         <div className="admin-modal-overlay" role="dialog" aria-modal="true">
           <div
             className="admin-modal-box"
             style={{ width: '460px', maxWidth: '92vw', boxSizing: 'border-box' }}
           >
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0 text-red-600">
-                <Trash2 size={20} />
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0 text-amber-600">
+                <XCircle size={20} />
               </div>
               <div>
-                <h3 className="admin-modal-title mb-0 text-red-700">
-                  Delete User Account
+                <h3 className="admin-modal-title mb-0 text-stone-900">
+                  Deactivate User Account
                 </h3>
-                <p className="text-xs text-stone-500">This action cannot be undone.</p>
+                <p className="text-xs text-stone-500">
+                  Account status will be set to inactive and login will be disabled.
+                </p>
               </div>
             </div>
 
-            {deleteError && (
+            {deactivateError && (
               <div
                 style={{
                   backgroundColor: '#FEF2F2',
@@ -892,7 +873,7 @@ function UserManagementTab() {
                 }}
               >
                 <AlertCircle size={14} className="shrink-0" />
-                <span>{deleteError}</span>
+                <span>{deactivateError}</span>
               </div>
             )}
 
@@ -900,25 +881,24 @@ function UserManagementTab() {
               <div className="flex justify-between">
                 <span className="text-stone-500">User:</span>
                 <span className="font-semibold text-stone-800">
-                  {userToDelete.full_name || userToDelete.name || 'User'}
+                  {userToDeactivate.full_name || userToDeactivate.name || 'User'}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-stone-500">Email:</span>
-                <span className="font-mono text-stone-700">{userToDelete.email}</span>
+                <span className="font-mono text-stone-700">{userToDeactivate.email}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-stone-500">Role:</span>
                 <span className="font-bold text-stone-700 uppercase">
-                  {userToDelete.role}
+                  {userToDeactivate.role}
                 </span>
               </div>
             </div>
 
             <p className="text-xs text-stone-600 leading-relaxed mb-4">
-              Are you sure you want to permanently delete this user account? All
-              associated data including trips, activities, and bookings will be
-              permanently removed.
+              Are you sure you want to deactivate this account? Permanent account deletion
+              is restricted to Master Records Override.
             </p>
 
             <div
@@ -927,7 +907,7 @@ function UserManagementTab() {
                 alignItems: 'center',
                 justifyContent: 'flex-end',
                 gap: '12px',
-                marginTop: '24px',
+                marginTop: '20px',
                 paddingTop: '16px',
                 borderTop: '1px solid #f3f4f6',
               }}
@@ -935,31 +915,37 @@ function UserManagementTab() {
               <button
                 type="button"
                 className="btn-admin-cancel-pill"
-                disabled={isDeleting}
+                disabled={isDeactivating}
                 onClick={() => {
-                  setUserToDelete(null);
-                  setDeleteError(null);
+                  setUserToDeactivate(null);
+                  setDeactivateError(null);
                 }}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                className="btn-admin-danger-pill"
-                disabled={isDeleting}
-                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-full text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+                disabled={isDeactivating}
+                onClick={async () => {
+                  setIsDeactivating(true);
+                  try {
+                    await adminApi.toggleUserStatus(userToDeactivate.id, false);
+                    setUsers((prev) =>
+                      prev.map((u) =>
+                        u.id === userToDeactivate.id ? { ...u, is_active: false } : u,
+                      ),
+                    );
+                    setUserToDeactivate(null);
+                  } catch (err) {
+                    console.error('Failed to deactivate user:', err);
+                    setDeactivateError('Failed to deactivate user account.');
+                  } finally {
+                    setIsDeactivating(false);
+                  }
+                }}
               >
-                {isDeleting ? (
-                  <>
-                    <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Deleting Account...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 size={16} />
-                    Delete Account
-                  </>
-                )}
+                {isDeactivating ? 'Deactivating...' : 'Deactivate Account'}
               </button>
             </div>
           </div>
@@ -992,6 +978,14 @@ function CategoriesActivitiesTab() {
   const [activityDest, setActivityDest] = useState('');
   const [activityCatId, setActivityCatId] = useState<number | ''>('');
   const [activityCost, setActivityCost] = useState('');
+  const [showDestSuggestions, setShowDestSuggestions] = useState(false);
+  const [actError, setActError] = useState<string | null>(null);
+  const [isSavingAct, setIsSavingAct] = useState(false);
+
+  const destSuggestions = useMemo(() => {
+    if (!activityDest.trim() || activityDest.trim().length < 2) return [];
+    return searchDestinations(activityDest, 6);
+  }, [activityDest]);
 
   const refreshData = async () => {
     try {
@@ -1037,7 +1031,14 @@ function CategoriesActivitiesTab() {
 
   const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!categoryName.trim()) return;
+    if (!categoryName.trim()) {
+      setCatError('Category Name is required.');
+      return;
+    }
+    if (!categoryType.trim()) {
+      setCatError('Category Tag / Slug is required.');
+      return;
+    }
     setIsSavingCat(true);
     setCatError(null);
 
@@ -1046,12 +1047,12 @@ function CategoriesActivitiesTab() {
         const catId = editingCategory.id ?? editingCategory.categoryid ?? 0;
         await adminApi.updateCategory(catId, {
           name: categoryName.trim(),
-          type: categoryType.trim() || 'General',
+          type: categoryType.trim(),
         });
       } else {
         await adminApi.createCategory({
           name: categoryName.trim(),
-          type: categoryType.trim() || 'General',
+          type: categoryType.trim(),
         });
       }
       setCatModalOpen(false);
@@ -1075,12 +1076,18 @@ function CategoriesActivitiesTab() {
 
   const handleSaveActivity = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activityName.trim()) return;
+    if (!activityName.trim() || !activityDest.trim() || !activityCatId) {
+      setActError('Activity Title, Destination, and Category are all required.');
+      return;
+    }
+    setIsSavingAct(true);
+    setActError(null);
 
     try {
       await adminApi.createActivity({
-        title: activityName,
-        category_id: activityCatId ? Number(activityCatId) : undefined,
+        title: activityName.trim(),
+        destination: activityDest.trim(),
+        category_id: Number(activityCatId),
         cost: Number(activityCost) || 0,
       });
       setActModalOpen(false);
@@ -1088,9 +1095,13 @@ function CategoriesActivitiesTab() {
       setActivityDest('');
       setActivityCatId('');
       setActivityCost('');
+      setShowDestSuggestions(false);
       await refreshData();
     } catch (err) {
       console.error('Failed to create activity:', err);
+      setActError('Failed to create activity. Please verify inputs.');
+    } finally {
+      setIsSavingAct(false);
     }
   };
 
@@ -1214,7 +1225,10 @@ function CategoriesActivitiesTab() {
           <button
             type="button"
             className="btn-admin-pill-gradient"
-            onClick={() => setActModalOpen(true)}
+            onClick={() => {
+              setActError(null);
+              setActModalOpen(true);
+            }}
           >
             <Plus size={13} /> Create Activity
           </button>
@@ -1299,7 +1313,9 @@ function CategoriesActivitiesTab() {
       {isCatModalOpen && (
         <div className="admin-modal-overlay" role="dialog" aria-modal="true">
           <form onSubmit={handleSaveCategory} className="admin-modal-box">
-            <h3 className="admin-modal-title">Add New Category</h3>
+            <h3 className="admin-modal-title">
+              {editingCategory ? 'Edit Category' : 'Add New Category'}
+            </h3>
 
             {catError && (
               <div
@@ -1322,7 +1338,7 @@ function CategoriesActivitiesTab() {
                 htmlFor="cat-name-input"
                 className="block text-xs font-semibold mb-1 text-stone-700"
               >
-                Category Name
+                Category Name *
               </label>
               <input
                 id="cat-name-input"
@@ -1342,11 +1358,13 @@ function CategoriesActivitiesTab() {
                 htmlFor="cat-type-input"
                 className="block text-xs font-semibold mb-1 text-stone-700"
               >
-                Category Tag / Slug
+                Category Tag / Slug *
               </label>
               <input
                 id="cat-type-input"
                 type="text"
+                list="category-tag-presets"
+                required
                 placeholder="e.g. outdoor"
                 value={categoryType}
                 onChange={(e) => {
@@ -1355,13 +1373,24 @@ function CategoriesActivitiesTab() {
                 }}
                 className="admin-modal-input-field"
               />
+              <datalist id="category-tag-presets">
+                <option value="outdoor" />
+                <option value="cultural" />
+                <option value="culinary" />
+                <option value="adventure" />
+                <option value="relaxation" />
+                <option value="shopping" />
+                <option value="sightseeing" />
+                <option value="general" />
+              </datalist>
             </div>
             <div className="flex justify-end gap-2 mt-4">
               <button
                 type="button"
-                className="px-4 py-1.5 text-xs text-stone-600 font-semibold"
+                className="px-4 py-1.5 text-xs text-stone-600 font-semibold cursor-pointer"
                 onClick={() => {
                   setCatModalOpen(false);
+                  setEditingCategory(null);
                   setCatError(null);
                 }}
               >
@@ -1369,7 +1398,7 @@ function CategoriesActivitiesTab() {
               </button>
               <button
                 type="submit"
-                disabled={isSavingCat || !categoryName.trim()}
+                disabled={isSavingCat || !categoryName.trim() || !categoryType.trim()}
                 className="btn-admin-pill-gradient disabled:opacity-50"
               >
                 {isSavingCat ? 'Saving...' : 'Save Category'}
@@ -1388,57 +1417,103 @@ function CategoriesActivitiesTab() {
             style={{ width: '480px' }}
           >
             <h3 className="admin-modal-title">Create Master Activity</h3>
+
+            {actError && (
+              <div
+                style={{
+                  backgroundColor: '#FEF2F2',
+                  border: '1px solid #FCA5A5',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  color: '#991B1B',
+                  marginBottom: '12px',
+                }}
+              >
+                {actError}
+              </div>
+            )}
+
             <div>
               <label
                 htmlFor="act-title-input"
                 className="block text-xs font-semibold mb-1 text-stone-700"
               >
-                Activity Title
+                Activity Title *
               </label>
               <input
                 id="act-title-input"
                 type="text"
                 required
-                placeholder="Activity Title"
+                placeholder="e.g. Island Hopping Adventure"
                 value={activityName}
-                onChange={(e) => setActivityName(e.target.value)}
+                onChange={(e) => {
+                  setActivityName(e.target.value);
+                  if (actError) setActError(null);
+                }}
                 className="admin-modal-input-field"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
+              <div className="relative">
                 <label
                   htmlFor="act-dest-input"
                   className="block text-xs font-semibold mb-1 text-stone-700"
                 >
-                  Destination
+                  Destination *
                 </label>
                 <input
                   id="act-dest-input"
                   type="text"
-                  placeholder="e.g. Boracay"
+                  required
+                  placeholder="e.g. Boracay, Tarlac"
                   value={activityDest}
-                  onChange={(e) => setActivityDest(e.target.value)}
+                  onChange={(e) => {
+                    setActivityDest(e.target.value);
+                    setShowDestSuggestions(true);
+                    if (actError) setActError(null);
+                  }}
+                  onFocus={() => setShowDestSuggestions(true)}
                   className="admin-modal-input-field"
+                  autoComplete="off"
                 />
+                {showDestSuggestions && destSuggestions.length > 0 && (
+                  <ul className="absolute left-0 right-0 top-full mt-1 bg-white border border-stone-200 rounded-lg shadow-lg z-50 max-h-44 overflow-y-auto py-1">
+                    {destSuggestions.map((dest, idx) => (
+                      <li
+                        key={`${dest.name}-${dest.country}-${idx}`}
+                        className="px-3 py-1.5 text-xs text-stone-700 hover:bg-stone-100 cursor-pointer flex items-center justify-between"
+                        onMouseDown={() => {
+                          setActivityDest(dest.name);
+                          setShowDestSuggestions(false);
+                        }}
+                      >
+                        <span className="font-semibold text-stone-900">{dest.name}</span>
+                        <span className="text-[10px] text-stone-400">{dest.country}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
               <div>
                 <label
                   htmlFor="act-cat-select"
                   className="block text-xs font-semibold mb-1 text-stone-700"
                 >
-                  Category
+                  Category *
                 </label>
                 <select
                   id="act-cat-select"
+                  required
                   value={activityCatId}
-                  onChange={(e) =>
-                    setActivityCatId(e.target.value ? Number(e.target.value) : '')
-                  }
+                  onChange={(e) => {
+                    setActivityCatId(e.target.value ? Number(e.target.value) : '');
+                    if (actError) setActError(null);
+                  }}
                   className="admin-modal-input-field text-stone-700"
                 >
-                  <option value="">Select Category</option>
+                  <option value="">Select Category *</option>
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -1469,13 +1544,26 @@ function CategoriesActivitiesTab() {
             <div className="flex justify-end gap-2 mt-4">
               <button
                 type="button"
-                className="px-4 py-1.5 text-xs text-stone-600 font-semibold"
-                onClick={() => setActModalOpen(false)}
+                className="px-4 py-1.5 text-xs text-stone-600 font-semibold cursor-pointer"
+                onClick={() => {
+                  setActModalOpen(false);
+                  setShowDestSuggestions(false);
+                  setActError(null);
+                }}
               >
                 Cancel
               </button>
-              <button type="submit" className="btn-admin-pill-gradient">
-                Save Activity
+              <button
+                type="submit"
+                disabled={
+                  isSavingAct ||
+                  !activityName.trim() ||
+                  !activityDest.trim() ||
+                  !activityCatId
+                }
+                className="btn-admin-pill-gradient disabled:opacity-50"
+              >
+                {isSavingAct ? 'Saving...' : 'Save Activity'}
               </button>
             </div>
           </form>
@@ -1490,11 +1578,22 @@ function MasterRecordsTab() {
   const [tripSearch, setTripSearch] = useState('');
   const [userSearch, setUserSearch] = useState('');
 
+  const [allTrips, setAllTrips] = useState<Trip[]>([]);
+  const [allUsers, setAllUsers] = useState<AdminUser[]>([]);
+
   const [foundTrip, setFoundTrip] = useState<Trip | null>(null);
   const [foundUser, setFoundUser] = useState<AdminUser | null>(null);
 
+  const [showTripSuggestions, setShowTripSuggestions] = useState(false);
+  const [showUserSuggestions, setShowUserSuggestions] = useState(false);
+
   const [deleteReason, setDeleteReason] = useState('');
   const [isDeletingTrip, setIsDeletingTrip] = useState(false);
+  const [isExecutingTripDelete, setIsExecutingTripDelete] = useState(false);
+
+  const [userDeleteReason, setUserDeleteReason] = useState('');
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
+  const [isExecutingUserDelete, setIsExecutingUserDelete] = useState(false);
 
   const [auditLogs, setAuditLogs] = useState<SystemAuditLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(true);
@@ -1508,80 +1607,100 @@ function MasterRecordsTab() {
     }
   };
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchInitialLogs = async () => {
-      try {
-        const logs = await adminApi.getAuditLogs();
-        if (isMounted) {
-          setAuditLogs(logs || []);
-        }
-      } catch (err) {
-        console.error('Failed to load system audit logs:', err);
-      } finally {
-        if (isMounted) {
-          setLoadingLogs(false);
-        }
-      }
-    };
+  const loadAllRecords = async () => {
+    try {
+      const [trips, users, logs] = await Promise.all([
+        tripsApi.getTrips().catch(() => [] as Trip[]),
+        adminApi.getUsers().catch(() => [] as AdminUser[]),
+        adminApi.getAuditLogs().catch(() => [] as SystemAuditLog[]),
+      ]);
+      setAllTrips(trips || []);
+      setAllUsers(users || []);
+      setAuditLogs(logs || []);
+    } catch (err) {
+      console.error('Failed to load master records:', err);
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
 
-    fetchInitialLogs();
-    return () => {
-      isMounted = false;
-    };
+  useEffect(() => {
+    loadAllRecords();
   }, []);
 
-  const handleSearchTrip = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!tripSearch.trim()) return;
-    try {
-      const usersList = await adminApi.getUsers();
-      console.log('Searching trips via API context:', usersList.length);
-    } catch {
-      setFoundTrip(null);
-    }
+  const filteredTrips = useMemo(() => {
+    const q = tripSearch.trim().toLowerCase();
+    if (!q) return [];
+    return allTrips
+      .filter((t) => {
+        const idMatch =
+          String(t.id).includes(q) || `trp-${String(t.id).padStart(3, '0')}`.includes(q);
+        const nameMatch = (t.name || '').toLowerCase().includes(q);
+        const destMatch = (t.destination || '').toLowerCase().includes(q);
+        return idMatch || nameMatch || destMatch;
+      })
+      .slice(0, 6);
+  }, [tripSearch, allTrips]);
+
+  const filteredUsers = useMemo(() => {
+    const q = userSearch.trim().toLowerCase();
+    if (!q) return [];
+    return allUsers
+      .filter((u) => {
+        const idMatch =
+          String(u.id).includes(q) || `usr-${String(u.id).padStart(3, '0')}`.includes(q);
+        const nameMatch = (u.full_name || u.name || '').toLowerCase().includes(q);
+        const emailMatch = (u.email || '').toLowerCase().includes(q);
+        return idMatch || nameMatch || emailMatch;
+      })
+      .slice(0, 6);
+  }, [userSearch, allUsers]);
+
+  const handleSelectTrip = (trip: Trip) => {
+    setFoundTrip(trip);
+    setTripSearch(trip.name || `TRP-${String(trip.id).padStart(3, '0')}`);
+    setShowTripSuggestions(false);
   };
 
-  const handleSearchUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userSearch.trim()) return;
-    try {
-      const usersList = await adminApi.getUsers();
-      const match = usersList.find((u) => {
-        const displayName = (u.full_name || u.name || '').toLowerCase();
-        return (
-          String(u.id) === userSearch.trim() ||
-          u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
-          displayName.includes(userSearch.toLowerCase())
-        );
-      });
-      setFoundUser(match || null);
-    } catch {
-      setFoundUser(null);
-    }
-  };
-
-  const handleDeactivateFoundUser = async () => {
-    if (!foundUser) return;
-    try {
-      await adminApi.toggleUserStatus(foundUser.id, false);
-      setFoundUser({ ...foundUser, is_active: false });
-      await refreshAuditLogs();
-    } catch (err) {
-      console.error('Failed to deactivate user override:', err);
-    }
+  const handleSelectUser = (u: AdminUser) => {
+    setFoundUser(u);
+    setUserSearch(u.full_name || u.name || u.email);
+    setShowUserSuggestions(false);
   };
 
   const handleForceDeleteTrip = async () => {
     if (!foundTrip || !deleteReason.trim()) return;
+    setIsExecutingTripDelete(true);
     try {
       await adminApi.overrideDeleteTrip(Number(foundTrip.id), deleteReason);
       setFoundTrip(null);
       setIsDeletingTrip(false);
       setDeleteReason('');
-      await refreshAuditLogs();
+      setTripSearch('');
+      await loadAllRecords();
     } catch (err) {
       console.error('Failed to override delete trip:', err);
+      alert('Failed to override delete trip.');
+    } finally {
+      setIsExecutingTripDelete(false);
+    }
+  };
+
+  const handleForceDeleteUser = async () => {
+    if (!foundUser) return;
+    setIsExecutingUserDelete(true);
+    try {
+      await adminApi.deleteUser(foundUser.id);
+      setFoundUser(null);
+      setIsDeletingUser(false);
+      setUserDeleteReason('');
+      setUserSearch('');
+      await loadAllRecords();
+    } catch (err) {
+      console.error('Failed to force delete user:', err);
+      alert('Failed to delete user account.');
+    } finally {
+      setIsExecutingUserDelete(false);
     }
   };
 
@@ -1593,17 +1712,44 @@ function MasterRecordsTab() {
 
       <div className="master-forms-grid">
         {/* Trip Override Card */}
-        <div className="admin-card-panel">
+        <div className="admin-card-panel relative">
           <h2 className="text-sm font-bold mb-3">Trip Records Override</h2>
-          <form onSubmit={handleSearchTrip} className="admin-pill-search w-full mb-4">
-            <Search size={14} className="text-stone-400" />
-            <input
-              type="text"
-              placeholder="Search Trip ID..."
-              value={tripSearch}
-              onChange={(e) => setTripSearch(e.target.value)}
-            />
-          </form>
+          <div className="relative mb-4">
+            <div className="admin-pill-search w-full">
+              <Search size={14} className="text-stone-400" />
+              <input
+                type="text"
+                placeholder="Search trip by Name, Destination, or ID..."
+                value={tripSearch}
+                onChange={(e) => {
+                  setTripSearch(e.target.value);
+                  setShowTripSuggestions(true);
+                }}
+                onFocus={() => setShowTripSuggestions(true)}
+              />
+            </div>
+            {showTripSuggestions && filteredTrips.length > 0 && (
+              <ul className="absolute left-0 right-0 top-full mt-1 bg-white border border-stone-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto py-1">
+                {filteredTrips.map((t) => (
+                  <li
+                    key={t.id}
+                    className="px-3 py-2 text-xs hover:bg-stone-100 cursor-pointer flex items-center justify-between border-b border-stone-50 last:border-0"
+                    onMouseDown={() => handleSelectTrip(t)}
+                  >
+                    <div>
+                      <span className="font-bold text-stone-900">{t.name}</span>
+                      <span className="text-[10px] text-stone-500 ml-2">
+                        {t.destination || 'Destination'}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-mono text-stone-400">
+                      TRP-{String(t.id).padStart(3, '0')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
           <div className="master-field-row">
             <span className="master-field-label">Trip ID:</span>
@@ -1614,7 +1760,7 @@ function MasterRecordsTab() {
               value={
                 foundTrip
                   ? `TRP-${String(foundTrip.id).padStart(3, '0')}`
-                  : 'No search query'
+                  : 'Select a trip from search'
               }
             />
           </div>
@@ -1628,12 +1774,21 @@ function MasterRecordsTab() {
             />
           </div>
           <div className="master-field-row">
+            <span className="master-field-label">Destination:</span>
+            <input
+              type="text"
+              className="master-field-input"
+              readOnly
+              value={foundTrip ? foundTrip.destination || 'Unassigned' : '—'}
+            />
+          </div>
+          <div className="master-field-row">
             <span className="master-field-label">Status:</span>
             <input
               type="text"
               className="master-field-input"
               readOnly
-              value={foundTrip ? foundTrip.status : '—'}
+              value={foundTrip ? foundTrip.status || 'Active' : '—'}
             />
           </div>
 
@@ -1641,7 +1796,7 @@ function MasterRecordsTab() {
             <button
               type="button"
               disabled={!foundTrip}
-              className="btn-master-danger disabled:opacity-50"
+              className="btn-master-danger disabled:opacity-50 cursor-pointer"
               onClick={() => setIsDeletingTrip(true)}
             >
               Master Force Delete Trip
@@ -1649,18 +1804,45 @@ function MasterRecordsTab() {
           </div>
         </div>
 
-        {/* User Override Card */}
-        <div className="admin-card-panel">
-          <h2 className="text-sm font-bold mb-3">User Deactivation Override</h2>
-          <form onSubmit={handleSearchUser} className="admin-pill-search w-full mb-4">
-            <Search size={14} className="text-stone-400" />
-            <input
-              type="text"
-              placeholder="Search User ID or Email..."
-              value={userSearch}
-              onChange={(e) => setUserSearch(e.target.value)}
-            />
-          </form>
+        {/* User Override Card - Force Deletion */}
+        <div className="admin-card-panel relative">
+          <h2 className="text-sm font-bold mb-3">Force Deletion of Account</h2>
+          <div className="relative mb-4">
+            <div className="admin-pill-search w-full">
+              <Search size={14} className="text-stone-400" />
+              <input
+                type="text"
+                placeholder="Search user by Name, Email, or ID..."
+                value={userSearch}
+                onChange={(e) => {
+                  setUserSearch(e.target.value);
+                  setShowUserSuggestions(true);
+                }}
+                onFocus={() => setShowUserSuggestions(true)}
+              />
+            </div>
+            {showUserSuggestions && filteredUsers.length > 0 && (
+              <ul className="absolute left-0 right-0 top-full mt-1 bg-white border border-stone-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto py-1">
+                {filteredUsers.map((u) => (
+                  <li
+                    key={u.id}
+                    className="px-3 py-2 text-xs hover:bg-stone-100 cursor-pointer flex items-center justify-between border-b border-stone-50 last:border-0"
+                    onMouseDown={() => handleSelectUser(u)}
+                  >
+                    <div>
+                      <span className="font-bold text-stone-900">
+                        {u.full_name || u.name || 'User'}
+                      </span>
+                      <span className="text-[10px] text-stone-500 ml-2">{u.email}</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-stone-400">
+                      USR-{String(u.id).padStart(3, '0')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
           <div className="master-field-row">
             <span className="master-field-label">User ID:</span>
@@ -1671,7 +1853,7 @@ function MasterRecordsTab() {
               value={
                 foundUser
                   ? `USR-${String(foundUser.id).padStart(3, '0')}`
-                  : 'No search query'
+                  : 'Select a user from search'
               }
             />
           </div>
@@ -1682,6 +1864,15 @@ function MasterRecordsTab() {
               className="master-field-input"
               readOnly
               value={foundUser ? foundUser.full_name || foundUser.name || 'User' : '—'}
+            />
+          </div>
+          <div className="master-field-row">
+            <span className="master-field-label">Email:</span>
+            <input
+              type="text"
+              className="master-field-input"
+              readOnly
+              value={foundUser ? foundUser.email : '—'}
             />
           </div>
           <div className="master-field-row">
@@ -1706,11 +1897,11 @@ function MasterRecordsTab() {
           <div className="flex justify-end mt-2">
             <button
               type="button"
-              disabled={!foundUser || !foundUser.is_active}
-              className="btn-master-danger disabled:opacity-50"
-              onClick={handleDeactivateFoundUser}
+              disabled={!foundUser}
+              className="btn-master-danger disabled:opacity-50 cursor-pointer"
+              onClick={() => setIsDeletingUser(true)}
             >
-              Master Force Deactivate
+              Force Deletion of Account
             </button>
           </div>
         </div>
@@ -1718,7 +1909,16 @@ function MasterRecordsTab() {
 
       {/* System Audit Logs Section */}
       <div className="admin-card-panel flex-1 min-h-55">
-        <h2 className="text-sm font-bold mb-3">Immutable System Audit Trail</h2>
+        <div className="admin-panel-header">
+          <h2 className="text-sm font-bold">Immutable System Audit Trail</h2>
+          <button
+            type="button"
+            className="px-3 py-1 text-xs text-stone-600 hover:text-stone-900 border border-stone-200 rounded-full font-semibold cursor-pointer"
+            onClick={refreshAuditLogs}
+          >
+            Refresh Logs
+          </button>
+        </div>
 
         <div className="overflow-x-auto flex-1">
           {loadingLogs ? (
@@ -1762,24 +1962,24 @@ function MasterRecordsTab() {
         </div>
       </div>
 
-      {/* Force Delete Confirmation Modal */}
+      {/* Force Delete Trip Confirmation Modal */}
       {isDeletingTrip && foundTrip && (
         <div className="admin-modal-overlay" role="dialog" aria-modal="true">
           <div className="admin-modal-box">
             <div className="flex items-center gap-2 text-red-600 mb-3 font-bold text-base">
               <AlertTriangle size={18} />
-              <span>Confirm Force Deletion</span>
+              <span>Confirm Force Deletion of Trip</span>
             </div>
             <p className="text-xs text-stone-600 mb-4">
               Are you sure you want to permanently delete trip{' '}
               <strong>{foundTrip.name}</strong>? This action will be logged in the
-              immutable system audit table.
+              immutable system audit table and cannot be undone.
             </p>
             <label
               htmlFor="del-reason"
               className="block text-xs font-semibold mb-1 text-stone-700"
             >
-              Reason for Deletion
+              Reason for Deletion *
             </label>
             <textarea
               id="del-reason"
@@ -1793,18 +1993,77 @@ function MasterRecordsTab() {
             <div className="flex justify-end gap-2 mt-4">
               <button
                 type="button"
-                className="px-4 py-1.5 text-xs text-stone-600 font-semibold"
-                onClick={() => setIsDeletingTrip(false)}
+                className="px-4 py-1.5 text-xs text-stone-600 font-semibold cursor-pointer"
+                disabled={isExecutingTripDelete}
+                onClick={() => {
+                  setIsDeletingTrip(false);
+                  setDeleteReason('');
+                }}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                disabled={!deleteReason.trim()}
-                className="btn-master-danger mt-0! disabled:opacity-50"
+                disabled={!deleteReason.trim() || isExecutingTripDelete}
+                className="btn-master-danger mt-0! disabled:opacity-50 cursor-pointer"
                 onClick={handleForceDeleteTrip}
               >
-                Confirm Delete
+                {isExecutingTripDelete ? 'Deleting...' : 'Confirm Force Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Force Delete User Confirmation Modal */}
+      {isDeletingUser && foundUser && (
+        <div className="admin-modal-overlay" role="dialog" aria-modal="true">
+          <div className="admin-modal-box">
+            <div className="flex items-center gap-2 text-red-600 mb-3 font-bold text-base">
+              <AlertTriangle size={18} />
+              <span>Confirm Force Deletion of Account</span>
+            </div>
+            <p className="text-xs text-stone-600 mb-4">
+              Are you sure you want to permanently delete the account for{' '}
+              <strong>
+                {foundUser.full_name || foundUser.name || 'User'} ({foundUser.email})
+              </strong>
+              ? This action is irreversible and will permanently delete the user and their
+              associated records from the database.
+            </p>
+            <label
+              htmlFor="user-del-reason"
+              className="block text-xs font-semibold mb-1 text-stone-700"
+            >
+              Reason for Deletion (Logged in Audit Trail)
+            </label>
+            <textarea
+              id="user-del-reason"
+              rows={3}
+              placeholder="e.g. Requested permanent GDPR deletion, severe policy violation..."
+              value={userDeleteReason}
+              onChange={(e) => setUserDeleteReason(e.target.value)}
+              className="admin-modal-input-field"
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                type="button"
+                className="px-4 py-1.5 text-xs text-stone-600 font-semibold cursor-pointer"
+                disabled={isExecutingUserDelete}
+                onClick={() => {
+                  setIsDeletingUser(false);
+                  setUserDeleteReason('');
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isExecutingUserDelete}
+                className="btn-master-danger mt-0! disabled:opacity-50 cursor-pointer"
+                onClick={handleForceDeleteUser}
+              >
+                {isExecutingUserDelete ? 'Deleting...' : 'Confirm Permanent Deletion'}
               </button>
             </div>
           </div>

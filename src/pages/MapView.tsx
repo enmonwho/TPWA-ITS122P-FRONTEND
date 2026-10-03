@@ -620,14 +620,14 @@ export default function MapView() {
 
                 {/* Sub-mode Toggle: Search Autocomplete vs Manual Input */}
                 <div className="flex justify-center mb-4">
-                  <div className="inline-flex bg-stone-100 p-1 rounded-full border border-stone-200">
+                  <div className="inline-flex bg-stone-100 p-1 rounded-full border border-stone-200 max-w-full">
                     <button
                       type="button"
                       onClick={() => setAddPlaceMode('search')}
-                      className={`px-6 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                      className={`px-4 sm:px-6 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                         addPlaceMode === 'search'
                           ? 'bg-white text-stone-900 shadow-sm border border-stone-200'
-                          : 'text-stone-500'
+                          : 'text-stone-500 hover:text-stone-800'
                       }`}
                     >
                       Search Location
@@ -635,10 +635,10 @@ export default function MapView() {
                     <button
                       type="button"
                       onClick={() => setAddPlaceMode('manual')}
-                      className={`px-6 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                      className={`px-4 sm:px-6 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                         addPlaceMode === 'manual'
                           ? 'bg-white text-stone-900 shadow-sm border border-stone-200'
-                          : 'text-stone-500'
+                          : 'text-stone-500 hover:text-stone-800'
                       }`}
                     >
                       Add Manually
@@ -1101,12 +1101,12 @@ export default function MapView() {
 
                 {/* Destinations List */}
                 {!activeTrip.destinations || activeTrip.destinations.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center p-12 text-center my-4">
+                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-center my-auto min-h-64">
                     <MapPin size={32} className="text-stone-300 mb-2" />
                     <p className="font-bold text-stone-800 mb-1">
                       No places in this trip yet
                     </p>
-                    <p className="text-xs text-stone-500 mb-3">
+                    <p className="text-xs text-stone-500 mb-3 max-w-xs">
                       Add your first destination to place markers on the globe!
                     </p>
                     <button

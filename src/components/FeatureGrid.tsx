@@ -31,6 +31,10 @@ const FeatureGrid: React.FC = () => {
         >
           <img src={budgetIcon} alt="Budget Tracker" className="feature-card-icon" />
           <h3>Budget Tracker</h3>
+          <p className="feature-card-desc">
+            Track expenses, manage travel funds, and stay comfortably within your budget
+            limits.
+          </p>
         </div>
 
         <div
@@ -39,6 +43,10 @@ const FeatureGrid: React.FC = () => {
         >
           <img src={builderIcon} alt="Itinerary Builder" className="feature-card-icon" />
           <h3>Itinerary Builder</h3>
+          <p className="feature-card-desc">
+            Organize daily routes, schedules, and must-visit spots seamlessly in one
+            place.
+          </p>
         </div>
 
         <div
@@ -47,6 +55,10 @@ const FeatureGrid: React.FC = () => {
         >
           <img src={journalIcon} alt="Trip Journal" className="feature-card-icon" />
           <h3>Trip Journal</h3>
+          <p className="feature-card-desc">
+            Document your travel memories, milestones, and personal experiences along the
+            way.
+          </p>
         </div>
 
         <div
@@ -55,6 +67,10 @@ const FeatureGrid: React.FC = () => {
         >
           <img src={mapIcon} alt="Interactive Travel Map" className="feature-card-icon" />
           <h3>Interactive Travel Map</h3>
+          <p className="feature-card-desc">
+            Visualize destinations, pinned places, and custom travel routes across the
+            globe.
+          </p>
         </div>
       </div>
     </section>
