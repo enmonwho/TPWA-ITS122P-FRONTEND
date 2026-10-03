@@ -18,9 +18,9 @@ import AnchoredPopover from './AnchoredPopover';
 import {
   createLatestRequestGuard,
   dedupeTravelerResults,
-  getPublicProfilePath,
   type TravelerSearchResult,
 } from '../lib/travelerSearch';
+import PublicProfileModal from './PublicProfileModal';
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -40,6 +40,26 @@ export default function Header() {
   const { user, logout, isLoading } = useAuth();
   const { triggerTransition } = usePageLoader();
   const navigate = useNavigate();
+
+  // Public Profile Modal State
+  const [selectedProfileUsername, setSelectedProfileUsername] = useState<string | null>(
+    null,
+  );
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenProfileEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<{ username: string }>;
+      if (customEvent.detail?.username) {
+        setSelectedProfileUsername(customEvent.detail.username.replace(/^@+/, ''));
+        setIsProfileModalOpen(true);
+      }
+    };
+    window.addEventListener('lakbye:open-profile', handleOpenProfileEvent);
+    return () => {
+      window.removeEventListener('lakbye:open-profile', handleOpenProfileEvent);
+    };
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -136,9 +156,10 @@ export default function Header() {
   const handleUserSelect = (username?: string | null) => {
     if (!username) return;
     const cleanUsername = username.replace(/^@+/, '');
-    navigate(getPublicProfilePath(cleanUsername), {
-      state: { returnTo: ROUTES.HOME, fromTravelerSearch: true },
-    });
+    setSelectedProfileUsername(cleanUsername);
+    setIsProfileModalOpen(true);
+    setShowSearchResults(false);
+    setSearchQuery('');
     handleLinkClick();
   };
 
@@ -420,6 +441,16 @@ export default function Header() {
           )}
         </div>
       </nav>
+
+      {/* Public Profile Modal */}
+      <PublicProfileModal
+        username={selectedProfileUsername}
+        isOpen={isProfileModalOpen}
+        onClose={() => {
+          setIsProfileModalOpen(false);
+          setSelectedProfileUsername(null);
+        }}
+      />
     </header>
   );
 }

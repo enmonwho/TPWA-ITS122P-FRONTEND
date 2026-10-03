@@ -10,5 +10,16 @@ export function sanitizePublicProfile(
     bio: profile.bio,
     avatar_url: profile.avatar_url,
     trips: (profile.trips || []).filter((trip) => trip.visibility === 'public'),
+    journals: (profile.journals || []).filter((j) => j.visibility === 'public'),
   };
+}
+
+export function openPublicProfile(username: string) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('lakbye:open-profile', {
+        detail: { username: username.replace(/^@+/, '') },
+      }),
+    );
+  }
 }

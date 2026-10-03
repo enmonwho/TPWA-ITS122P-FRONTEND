@@ -21,4 +21,5 @@ export { default as ExportItineraryModal } from './ExportItineraryModal';
 export { default as DestinationDetailModal } from './DestinationDetailModal';
 export { default as AuthPromptModal } from './AuthPromptModal';
 export { default as FeedbackModal } from './FeedbackModal';
+export { default as PublicProfileModal } from './PublicProfileModal';
 export { TripDateRangePicker } from './DateRangePicker';

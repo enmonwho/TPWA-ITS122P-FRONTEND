@@ -1151,6 +1151,20 @@ export interface UpdateUserProfilePayload {
   role?: string;
   preferences?: UserPreferences;
 }
+export interface JournalEntry {
+  id: string | number;
+  user_id?: string | number;
+  title: string;
+  content: string;
+  createdAt: string;
+  trip_id?: string | number;
+  country?: string;
+  travel_type?: string;
+  travelType?: string;
+  images?: string[];
+  visibility?: 'public' | 'private';
+}
+
 export interface PublicProfileResponse {
   id: number;
   full_name: string;
@@ -1158,6 +1172,7 @@ export interface PublicProfileResponse {
   bio?: string;
   avatar_url?: string;
   trips?: Trip[];
+  journals?: JournalEntry[];
 }
 
 export const userApi = {
@@ -1181,7 +1196,23 @@ export const userApi = {
   getUserByUsername: async (username: string): Promise<PublicProfileResponse | null> => {
     try {
       const res = await api.get<PublicProfileResponse>(`/users/profile/${username}`);
-      return sanitizePublicProfile(res.data);
+      const sanitized = sanitizePublicProfile(res.data);
+      if (!sanitized.journals || sanitized.journals.length === 0) {
+        try {
+          const raw = localStorage.getItem(`lakbye_journals_${sanitized.id}`);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+              sanitized.journals = parsed.filter(
+                (j: JournalEntry) => j.visibility === 'public',
+              );
+            }
+          }
+        } catch {
+          // ignore cache read errors
+        }
+      }
+      return sanitized;
     } catch {
       return null;
     }
@@ -1331,15 +1362,6 @@ export const preferencesApi = {
 /* ------------------------------------------------------------------ */
 /*  Journals API Module                                               */
 /* ------------------------------------------------------------------ */
-
-export interface JournalEntry {
-  id: string | number;
-  user_id?: string | number;
-  title: string;
-  content: string;
-  createdAt: string;
-  trip_id?: string | number;
-}
 
 export const journalsApi = {
   /**
