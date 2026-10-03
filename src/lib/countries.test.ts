@@ -84,4 +84,25 @@ describe('multi-country ordering', () => {
       ),
     ).toEqual(['Tokyo', 'Manila']);
   });
+
+  it('formats country route cleanly for header display without object string coercion', () => {
+    // Regression check for [object Object] bug
+    const entries = normalizeCountryRoute(['Spain', 'Bahamas']);
+    const formattedHeader = entries
+      .map((country) => country.name)
+      .filter(Boolean)
+      .join(' • ');
+
+    expect(formattedHeader).toBe('Spain • Bahamas');
+    expect(formattedHeader).not.toContain('[object Object]');
+
+    const formattedSummary =
+      entries
+        .map((country) => country.name)
+        .filter(Boolean)
+        .join(' + ') || 'TRIP';
+
+    expect(formattedSummary).toBe('Spain + Bahamas');
+    expect(formattedSummary).not.toContain('[object Object]');
+  });
 });

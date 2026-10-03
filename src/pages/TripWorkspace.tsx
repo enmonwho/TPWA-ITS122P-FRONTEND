@@ -55,12 +55,11 @@ export interface WorkspaceDestination {
   longitude?: number;
 }
 
-// Rigid inline css grid enforces clean un-smudgeable column arrays globally
-const workspaceGridStyle = {
+const workspaceGridStyle: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns:
-    '44px minmax(110px, 1.4fr) 52px minmax(105px, 1.2fr) minmax(100px, 1.1fr) minmax(105px, 1.2fr) 28px',
-  gap: '0.5rem',
+    '36px minmax(110px, 1.3fr) 46px minmax(105px, 1.1fr) minmax(100px, 1fr) minmax(105px, 1.1fr) 26px',
+  gap: '0.4rem',
   alignItems: 'center',
 };
 
@@ -94,6 +93,13 @@ export default function TripWorkspace() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const dayScheduleListRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (activeTab === 'day' && dayScheduleListRef.current) {
+      dayScheduleListRef.current.scrollTop = 0;
+    }
+  }, [activeTab]);
 
   const { inCountrySuggestions, outOfCountrySuggestions } = useMemo(() => {
     if (!newDestInput.trim() || newDestInput.trim().length < 1) {
@@ -555,10 +561,7 @@ export default function TripWorkspace() {
     }
 
     return (
-      <div
-        className="flex items-center gap-1 w-full"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="w-full min-w-0" onClick={(e) => e.stopPropagation()}>
         <select
           value={currentValue || ''}
           onChange={(e) => {
@@ -572,7 +575,7 @@ export default function TripWorkspace() {
               handleUpdateDestination(destId, field, val);
             }
           }}
-          className="flex-1 min-w-0 px-2 py-1 text-xs text-slate-800 bg-white hover:bg-slate-50 border border-slate-200/80 hover:border-slate-300 rounded-md focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500/20 transition-all cursor-pointer truncate shadow-xs font-normal"
+          className="w-full min-w-0 h-8 px-2 py-1 text-xs text-[#2F1B0C] bg-white hover:bg-slate-50 border border-[rgba(72,42,19,0.14)] hover:border-slate-300 rounded-lg focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500/20 transition-all cursor-pointer truncate shadow-xs font-normal"
           title={currentValue || placeholder}
         >
           <option value="">{currentValue ? '-- Clear / None --' : placeholder}</option>
@@ -586,20 +589,6 @@ export default function TripWorkspace() {
             + Enter custom...
           </option>
         </select>
-        <button
-          type="button"
-          onClick={() =>
-            setCustomInputActive((prev) => ({
-              ...prev,
-              [`${destId}-${field}`]: true,
-            }))
-          }
-          className="shrink-0 p-1 text-slate-400 hover:text-amber-700 hover:bg-amber-50 rounded border border-slate-200 hover:border-amber-300 transition-colors"
-          title={`Add or type custom ${field}`}
-          aria-label={`Add or type custom ${field}`}
-        >
-          <Plus size={13} />
-        </button>
       </div>
     );
   };
@@ -766,7 +755,10 @@ export default function TripWorkspace() {
               <>
                 <span className="text-xs text-stone-300">•</span>
                 <span className="text-xs text-slate-500">
-                  {availableCountries.join(' • ')}
+                  {availableCountries
+                    .map((country) => country.name)
+                    .filter(Boolean)
+                    .join(' • ')}
                 </span>
               </>
             )}
@@ -786,11 +778,6 @@ export default function TripWorkspace() {
               <button
                 className={`pill-tab ${activeTab === 'route' ? 'pill-tab--active' : ''}`}
                 onClick={() => setActiveTab('route')}
-                style={
-                  activeTab === 'route'
-                    ? { borderColor: '#255F85', borderWidth: '1.5px', color: '#2F1B0C' }
-                    : undefined
-                }
               >
                 <img src={routeIcon} alt="" className="workspace-tab-icon" />
                 Route Planner
@@ -798,14 +785,9 @@ export default function TripWorkspace() {
               <button
                 className={`pill-tab ${activeTab === 'day' ? 'pill-tab--active' : ''}`}
                 onClick={() => setActiveTab('day')}
-                style={
-                  activeTab === 'day'
-                    ? { borderColor: '#255F85', borderWidth: '1.5px', color: '#2F1B0C' }
-                    : undefined
-                }
               >
                 <img src={dayByDayIcon} alt="" className="workspace-tab-icon" />
-                Day by Day ({tripDurationDays} Days)
+                Day by Day
               </button>
             </div>
 
@@ -820,6 +802,7 @@ export default function TripWorkspace() {
                 gap: '6px',
                 marginLeft: 'auto',
                 fontWeight: 600,
+                fontSize: '11px',
               }}
               title="Add another country to this trip"
             >
@@ -829,28 +812,28 @@ export default function TripWorkspace() {
           </div>
 
           {activeTab === 'route' ? (
-            <div className="workspace-itinerary-table">
+            <div className="workspace-itinerary-table flex-1 min-h-0 overflow-y-auto pr-1">
               {/* Table Column Headers */}
               <div
                 className="workspace-table-header-row bg-[#FFFBEB]/40 border-b border-[rgba(72,42,19,0.18)] py-2 px-3"
                 style={workspaceGridStyle}
               >
-                <div className="text-center font-semibold text-[#74675D] text-[9px]">
+                <div className="text-center font-semibold text-[#74675D] text-[9.5px]">
                   Order
                 </div>
-                <div className="workspace-col-destination font-semibold text-[#74675D] text-[9px]">
+                <div className="workspace-col-destination font-semibold text-[#74675D] text-[9.5px]">
                   City / Destination
                 </div>
-                <div className="workspace-col-nights text-center font-semibold text-[#74675D] text-[9px]">
+                <div className="workspace-col-nights text-center font-semibold text-[#74675D] text-[9.5px]">
                   Days
                 </div>
-                <div className="workspace-col-accommodation font-semibold text-[#74675D] text-[9px]">
+                <div className="workspace-col-accommodation font-semibold text-[#74675D] text-[9.5px]">
                   Accommodation
                 </div>
-                <div className="workspace-col-activities font-semibold text-[#74675D] text-[9px]">
+                <div className="workspace-col-activities font-semibold text-[#74675D] text-[9.5px]">
                   Activities
                 </div>
-                <div className="workspace-col-transportation font-semibold text-[#74675D] text-[9px]">
+                <div className="workspace-col-transportation font-semibold text-[#74675D] text-[9.5px]">
                   Transportation
                 </div>
                 <div className="workspace-col-actions" />
@@ -876,7 +859,7 @@ export default function TripWorkspace() {
                           ) : (
                             <ChevronDown size={16} className="text-[#8C4D00]" />
                           )}
-                          <span className="font-bold text-[#2F1B0C] text-sm">
+                          <span className="font-bold text-[#2F1B0C] text-[13px]">
                             {group.country}
                           </span>
                           <span className="text-[10px] font-semibold text-[#E9724C]">
@@ -887,7 +870,7 @@ export default function TripWorkspace() {
                         <button
                           type="button"
                           onClick={(e) => handleRemoveCountry(group.countryId, e)}
-                          className="text-[9px] text-[#74675D] hover:text-[#C5283D] px-2 py-1 rounded transition-colors flex items-center gap-1 cursor-pointer font-medium"
+                          className="text-[9.5px] text-[#74675D] hover:text-[#C5283D] px-2 py-1 rounded transition-colors flex items-center gap-1 cursor-pointer font-medium"
                           title={`Remove ${group.country} from trip`}
                           aria-label={`Remove ${group.country}`}
                         >
@@ -900,34 +883,33 @@ export default function TripWorkspace() {
                       {!isCollapsed && (
                         <div className="bg-white">
                           {group.items.length === 0 ? (
-                            <div
-                              role="button"
-                              tabIndex={0}
-                              onClick={() => {
-                                setSelectedCountryForNew(group.countryId);
-                                const el =
-                                  document.getElementById('workspace-dest-input');
-                                if (el) el.focus();
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault();
+                            <div className="mx-3 my-2.5 p-4 bg-[#FEFCF9] border border-dashed border-[rgba(72,42,19,0.18)] rounded-xl flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-[#FFF5C2] flex items-center justify-center shrink-0">
+                                  <MapPin size={16} className="text-[#994D00]" />
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-xs text-[#2F1B0C]">
+                                    No destinations in {group.country} yet
+                                  </div>
+                                  <div className="text-[10px] text-[#74675D]">
+                                    Use the search bar below to add a city, island, or
+                                    place to {group.country}.
+                                  </div>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
                                   setSelectedCountryForNew(group.countryId);
                                   const el =
                                     document.getElementById('workspace-dest-input');
                                   if (el) el.focus();
-                                }
-                              }}
-                              className="px-6 py-4 text-center text-xs text-[#74675D] border-t border-amber-100/60 flex flex-col items-center justify-center gap-1 bg-[#FEFCF9] hover:bg-amber-50/50 cursor-pointer transition-colors group"
-                              title={`Click to add a destination to ${group.country}`}
-                            >
-                              <span className="font-semibold text-[#2F1B0C] text-xs group-hover:text-amber-800 transition-colors">
-                                + Add a destination to {group.country}
-                              </span>
-                              <span className="text-[10px] text-[#74675D]">
-                                Click here or use the search bar below to add cities,
-                                islands, or places
-                              </span>
+                                }}
+                                className="px-3 py-1.5 bg-[#FFF7DB] hover:bg-[#ffefc2] border border-[rgba(72,42,19,0.14)] text-[#8C4D00] text-[10px] font-semibold rounded-full transition-colors shrink-0 cursor-pointer"
+                              >
+                                + Add to {group.country}
+                              </button>
                             </div>
                           ) : (
                             group.items.map((dest) => {
@@ -956,7 +938,7 @@ export default function TripWorkspace() {
                                       setActiveDestinationId(dest.id);
                                     }
                                   }}
-                                  className={`workspace-destination-row pl-2 pr-2 py-1.5 border-b border-[rgba(72,42,19,0.08)] relative ${activeDestinationId === dest.id ? 'active bg-[#FFF9F9]' : 'bg-white hover:bg-[#FFF9F9]/50'}`}
+                                  className={`workspace-destination-row pl-2 pr-2 py-2 border-b border-[rgba(72,42,19,0.08)] relative ${activeDestinationId === dest.id ? 'active bg-[#FFF9F9]' : 'bg-white hover:bg-[#FFF9F9]/50'}`}
                                   style={{
                                     ...workspaceGridStyle,
                                     borderLeft:
@@ -1025,7 +1007,7 @@ export default function TripWorkspace() {
                                           parseInt(e.target.value) || 1,
                                         )
                                       }
-                                      className="w-12 text-center font-bold text-xs text-[#2F1B0C] bg-stone-50 border border-[rgba(72,42,19,0.14)] rounded py-1"
+                                      className="w-10 text-center font-bold text-xs text-[#2F1B0C] bg-stone-50 border border-[rgba(72,42,19,0.14)] rounded py-1"
                                       title={`Days (Max ${maxDaysForThisDest} based on trip date picker)`}
                                     />
                                   </div>
@@ -1092,13 +1074,13 @@ export default function TripWorkspace() {
                 className="workspace-add-destination-row mt-3 p-2 bg-white border border-[rgba(72,42,19,0.14)] rounded-xl flex flex-nowrap items-center gap-2 overflow-visible shadow-xs"
               >
                 <div className="flex items-center gap-1.5 pl-1 shrink-0">
-                  <span className="text-[9px] font-semibold text-[#255F85]">
+                  <span className="text-[9.5px] font-semibold text-[#255F85]">
                     Country:
                   </span>
                   <select
                     value={selectedCountryForNew}
                     onChange={(e) => setSelectedCountryForNew(e.target.value)}
-                    className="text-xs font-medium bg-white border border-[rgba(72,42,19,0.14)] rounded-lg px-2 py-1 text-[#2F1B0C] outline-none"
+                    className="text-xs font-medium bg-white border border-[rgba(72,42,19,0.14)] rounded-lg px-2.5 py-1 text-[#2F1B0C] outline-none cursor-pointer"
                   >
                     {availableCountries.map((country) => (
                       <option key={country.countryId} value={country.countryId}>
@@ -1153,7 +1135,7 @@ export default function TripWorkspace() {
                         setShowSuggestions(false);
                       }
                     }}
-                    placeholder={`Search city or destination in ${getCountryName(selectedCountryForNew) || 'selected country'}...`}
+                    placeholder={`Search city or destination in ${getCountryName(selectedCountryForNew) || 'selected country'}`}
                     className="workspace-add-input flex-1 bg-transparent text-xs text-[#2F1B0C] outline-none placeholder:text-[#74675D]/60"
                     autoComplete="off"
                   />
@@ -1204,8 +1186,9 @@ export default function TripWorkspace() {
                                 {outOfCountrySuggestions[0].country}, so it is not shown
                                 while {getCountryName(selectedCountryForNew)} is selected.
                               </div>
-                              <div
-                                className="text-[10px] font-semibold text-[#255F85] cursor-pointer hover:underline mb-2"
+                              <button
+                                type="button"
+                                className="text-[10px] font-semibold text-brand-blue cursor-pointer hover:underline mb-2 bg-transparent border-0 p-0 inline-block text-left"
                                 onMouseDown={(e) => {
                                   e.preventDefault();
                                   const matchCountry = getCountryId(
@@ -1220,7 +1203,7 @@ export default function TripWorkspace() {
                                 }}
                               >
                                 Change the selected country to search elsewhere.
-                              </div>
+                              </button>
                             </>
                           )}
                           <div className="text-[9px] text-[#74675D] border-t border-[rgba(72,42,19,0.1)] pt-1.5 mt-1.5">
@@ -1232,8 +1215,8 @@ export default function TripWorkspace() {
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0 ml-auto">
-                  <span className="text-[9px] font-semibold text-[#994F00] whitespace-nowrap shrink-0">
+                <div className="flex items-center gap-2.5 shrink-0 ml-auto pr-1">
+                  <span className="text-[9.5px] font-semibold text-[#994F00] whitespace-nowrap shrink-0">
                     {tripDurationDays - totalAllocatedDays > 0
                       ? `${tripDurationDays - totalAllocatedDays} of ${tripDurationDays} Days Available`
                       : `All ${tripDurationDays} Days Allocated`}
@@ -1244,7 +1227,7 @@ export default function TripWorkspace() {
                     disabled={
                       totalAllocatedDays >= tripDurationDays && destinations.length > 0
                     }
-                    className="workspace-add-btn text-[9px] font-bold bg-[#C5283D] hover:bg-[#a82234] disabled:opacity-50 disabled:cursor-not-allowed text-white px-3.5 py-1.5 rounded-full shadow-xs transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                    className="workspace-add-btn text-[10px] font-bold bg-[#C5283D] hover:bg-[#a82234] disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-1.5 rounded-full shadow-xs transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                     title="Add Destination"
                   >
                     Add +
@@ -1254,11 +1237,14 @@ export default function TripWorkspace() {
             </div>
           ) : (
             /* Day by Day View */
-            <div className="workspace-day-schedule p-3 flex flex-col gap-2.5">
-              <div className="flex items-center justify-between px-1 mb-1">
+            <div className="workspace-day-schedule flex-1 min-h-0 flex flex-col gap-2.5 overflow-hidden p-1">
+              <div className="flex items-center justify-between px-1 mb-1 shrink-0">
                 <span className="text-[10px] font-semibold tracking-wider text-[#74675D] uppercase">
                   {(
-                    availableCountries.map((c) => c.name).join(' + ') || 'TRIP'
+                    availableCountries
+                      .map((c) => c.name)
+                      .filter(Boolean)
+                      .join(' + ') || 'TRIP'
                   ).toUpperCase()}{' '}
                   · DAYS 1–{tripDurationDays}
                 </span>
@@ -1268,16 +1254,19 @@ export default function TripWorkspace() {
                 </span>
               </div>
 
-              <div className="flex flex-col gap-2.5 overflow-y-auto max-h-[560px] pr-1">
+              <div
+                ref={dayScheduleListRef}
+                className="flex-1 min-h-0 flex flex-col gap-2.5 overflow-y-auto pr-1"
+              >
                 {daySchedule.map((item) => {
                   if (item.destination) {
                     return (
                       <div
                         key={`day-${item.dayNumber}`}
-                        className="flex items-center h-16 bg-white rounded-xl border border-[rgba(72,42,19,0.14)] shadow-xs overflow-hidden"
+                        className="flex items-center h-16 bg-white rounded-xl border border-[rgba(72,42,19,0.14)] shadow-xs overflow-hidden shrink-0"
                       >
-                        {/* Day Badge */}
-                        <div className="w-[54px] self-stretch bg-[rgba(233,114,76,0.12)] flex flex-col items-center justify-center shrink-0">
+                        {/* Day Badge matching Figma #FFF5C2 and #994D00 */}
+                        <div className="w-[54px] self-stretch bg-[#FFF5C2] flex flex-col items-center justify-center shrink-0">
                           <span className="text-[8px] font-bold text-[#994D00] uppercase tracking-wide">
                             DAY
                           </span>
@@ -1287,11 +1276,11 @@ export default function TripWorkspace() {
                         </div>
 
                         {/* Destination info */}
-                        <div className="w-[150px] pl-3.5 pr-2 shrink-0">
+                        <div className="w-40 pl-3.5 pr-2 shrink-0">
                           <div className="font-bold text-[13px] text-[#2F1B0C] truncate">
                             {item.destination.name}
                           </div>
-                          <div className="text-[9px] text-[#74675D] truncate">
+                          <div className="text-[9.5px] text-[#74675D] truncate">
                             {item.destination.country ||
                               getCountryName(item.destination.countryId)}{' '}
                             · Day {item.dayOfDestination} of {item.destination.days || 1}
@@ -1305,7 +1294,7 @@ export default function TripWorkspace() {
                               Stay
                             </span>
                             <span
-                              className="block text-[11px] text-[#2F1B0C] truncate"
+                              className="block text-[11px] font-medium text-[#2F1B0C] truncate"
                               title={item.destination.accommodation || '—'}
                             >
                               {item.destination.accommodation || '—'}
@@ -1316,7 +1305,7 @@ export default function TripWorkspace() {
                               Activity
                             </span>
                             <span
-                              className="block text-[11px] text-[#2F1B0C] truncate"
+                              className="block text-[11px] font-medium text-[#2F1B0C] truncate"
                               title={item.destination.activities || '—'}
                             >
                               {item.destination.activities || '—'}
@@ -1327,7 +1316,7 @@ export default function TripWorkspace() {
                               Transit
                             </span>
                             <span
-                              className="block text-[11px] text-[#2F1B0C] truncate"
+                              className="block text-[11px] font-medium text-[#2F1B0C] truncate"
                               title={item.destination.transportation || '—'}
                             >
                               {item.destination.transportation || '—'}
@@ -1342,9 +1331,9 @@ export default function TripWorkspace() {
                   return (
                     <div
                       key={`day-${item.dayNumber}`}
-                      className="flex items-center min-h-[52px] bg-[#FEFCF9] rounded-xl border border-[rgba(72,42,19,0.14)] shadow-xs overflow-hidden"
+                      className="flex items-center min-h-[52px] bg-[#FEFCF9] rounded-xl border border-[rgba(72,42,19,0.14)] shadow-xs overflow-hidden shrink-0"
                     >
-                      <div className="w-[54px] self-stretch min-h-[52px] bg-[rgba(233,114,76,0.12)] flex flex-col items-center justify-center shrink-0">
+                      <div className="w-[54px] self-stretch min-h-[52px] bg-[#FFF5C2] flex flex-col items-center justify-center shrink-0">
                         <span className="text-[8px] font-bold text-[#994D00] uppercase tracking-wide">
                           DAY
                         </span>
@@ -1364,7 +1353,7 @@ export default function TripWorkspace() {
                             if (el) el.focus();
                           }, 100);
                         }}
-                        className="mr-3 px-3 py-1 bg-[#F2F7FC] border border-[rgba(72,42,19,0.14)] text-[#255F85] text-[9px] font-semibold rounded-full hover:bg-sky-50 transition-colors shrink-0 cursor-pointer"
+                        className="mr-3 px-4 py-1.5 bg-[#F2F7FC] border border-[rgba(72,42,19,0.14)] text-[#255F85] text-[9.5px] font-semibold rounded-full hover:bg-sky-50 transition-colors shrink-0 whitespace-nowrap cursor-pointer"
                       >
                         Add destination
                       </button>
@@ -1373,7 +1362,7 @@ export default function TripWorkspace() {
                 })}
 
                 {daySchedule.length > 8 && (
-                  <div className="text-center text-[8.5px] text-[#74675D] py-2">
+                  <div className="text-center text-[9px] text-[#74675D] py-2">
                     Scroll to continue to Days 9–{daySchedule.length}
                   </div>
                 )}
