@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Star, MapPin, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { feedbackApi, type FeedbackItem } from '../services/api';
@@ -21,6 +21,7 @@ export default function FeedbackModal({
   const [countryName, setCountryName] = useState('');
   const [countrySearch, setCountrySearch] = useState('');
   const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const [title, setTitle] = useState('');
   const [comment, setComment] = useState('');
   const [rating, setRating] = useState<number>(5);
@@ -29,7 +30,75 @@ export default function FeedbackModal({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
+  const inputWrapperRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
   useModalBehavior(isOpen, onClose, submitting);
+
+  useEffect(() => {
+    if (!isCountryDropdownOpen) return;
+
+    const checkPosition = () => {
+      if (!inputWrapperRef.current) return;
+      const rect = inputWrapperRef.current.getBoundingClientRect();
+      const modalShell = inputWrapperRef.current.closest('.feedback-shell');
+      const dropdownHeight = 180;
+      const gap = 4;
+
+      if (modalShell) {
+        const shellRect = modalShell.getBoundingClientRect();
+        const spaceBelow = shellRect.bottom - rect.bottom;
+        const spaceAbove = rect.top - shellRect.top;
+        if (spaceBelow < dropdownHeight + gap && spaceAbove > spaceBelow) {
+          setOpenUpward(true);
+          return;
+        }
+      } else {
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        if (spaceBelow < dropdownHeight + gap && spaceAbove > spaceBelow) {
+          setOpenUpward(true);
+          return;
+        }
+      }
+      setOpenUpward(false);
+    };
+
+    checkPosition();
+    window.addEventListener('resize', checkPosition);
+    return () => window.removeEventListener('resize', checkPosition);
+  }, [isCountryDropdownOpen]);
+
+  useEffect(() => {
+    if (!isCountryDropdownOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(target) &&
+        inputWrapperRef.current &&
+        !inputWrapperRef.current.contains(target)
+      ) {
+        setIsCountryDropdownOpen(false);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setIsCountryDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [isCountryDropdownOpen]);
 
   if (!isOpen) return null;
 
@@ -176,77 +245,77 @@ export default function FeedbackModal({
             </div>
 
             {/* Country / Place Visited (Restricted to Country level) */}
-            <div className="feedback-field relative">
+            <div
+              className={`feedback-field feedback-country-field ${isCountryDropdownOpen ? 'dropdown-open' : ''}`}
+            >
               <label htmlFor="feedback-country-input">
                 Country / Place Visited <span className="req">*</span>
               </label>
               <div
-                className="flex items-center gap-2 cursor-pointer"
-                style={{
-                  width: '100%',
-                  borderRadius: '14px',
-                  border: '1px solid rgba(72,42,19,.14)',
-                  background: 'rgba(255,255,255,.78)',
-                  padding: '11px 14px',
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,.08)',
+                ref={inputWrapperRef}
+                className="feedback-country-input-wrapper"
+                role="combobox"
+                aria-expanded={isCountryDropdownOpen}
+                aria-controls="feedback-country-dropdown-list"
+                aria-haspopup="listbox"
+                tabIndex={-1}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowDown' || e.key === 'Enter') {
+                    setIsCountryDropdownOpen(true);
+                  }
                 }}
-                onClick={() => setIsCountryDropdownOpen((prev) => !prev)}
+                onClick={() => {
+                  setIsCountryDropdownOpen((prev) => !prev);
+                  inputRef.current?.focus();
+                }}
               >
                 <MapPin className="w-4 h-4 text-[#E9724C] shrink-0" />
                 <input
+                  ref={inputRef}
                   id="feedback-country-input"
                   type="text"
                   placeholder="Select country visited..."
                   value={countryName || countrySearch}
+                  autoComplete="off"
+                  onClick={(e) => e.stopPropagation()}
+                  onFocus={() => setIsCountryDropdownOpen(true)}
                   onChange={(e) => {
                     setCountrySearch(e.target.value);
                     setCountryName('');
                     setIsCountryDropdownOpen(true);
-                  }}
-                  style={{
-                    border: 'none',
-                    background: 'transparent',
-                    padding: 0,
-                    margin: 0,
-                    boxShadow: 'none',
-                    fontSize: '13px',
-                    color: '#2F1B0C',
-                    width: '100%',
-                    outline: 'none',
                   }}
                 />
               </div>
 
               {isCountryDropdownOpen && (
                 <div
-                  className="absolute top-full mt-1.5 left-0 right-0 bg-white border border-[rgba(72,42,19,0.18)] rounded-xl shadow-xl max-h-48 overflow-y-auto z-50 py-1"
-                  style={{ zIndex: 100 }}
+                  ref={dropdownRef}
+                  id="feedback-country-dropdown-list"
+                  className={`feedback-country-dropdown ${openUpward ? 'open-upward' : 'open-downward'}`}
+                  role="listbox"
+                  aria-label="Country list"
                 >
                   {filteredCountries.length > 0 ? (
                     filteredCountries.map((c) => (
                       <button
                         key={c}
                         type="button"
+                        role="option"
+                        aria-selected={countryName === c}
                         onClick={() => {
                           setCountryName(c);
                           setCountrySearch('');
                           setIsCountryDropdownOpen(false);
                         }}
-                        className={`w-full text-left px-3.5 py-2 text-xs transition-colors cursor-pointer ${
-                          countryName === c
-                            ? 'font-bold text-[#E9724C] bg-[#FFF8F3]'
-                            : 'text-[#2F1B0C] hover:bg-stone-50'
+                        className={`feedback-country-option ${
+                          countryName === c ? 'selected' : ''
                         }`}
-                        style={{
-                          border: 'none',
-                          background: countryName === c ? '#FFF8F3' : 'transparent',
-                        }}
                       >
                         {c}
                       </button>
                     ))
                   ) : (
-                    <div className="px-3.5 py-2 text-xs text-stone-400">
+                    <div className="feedback-country-empty">
                       No matching countries found
                     </div>
                   )}
