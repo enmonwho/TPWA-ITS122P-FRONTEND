@@ -40,4 +40,16 @@ export const STORAGE_KEYS = {
    * Keyed by backend-issued user ID.
    */
   JOURNALS: (userId: string | number) => `lakbye_journals_${userId}`,
+
+  /**
+   * Side-table for booking fields not yet in backend schema (trip_id, booking_date, custom_title, custom_type, cost, notes).
+   * Keyed by backend-issued booking ID.
+   */
+  BOOKING_EXTRAS: (bookingId: string | number) => `lakbye_booking_extras_${bookingId}`,
+
+  /**
+   * Side-table for trip custom reservations (hotels/stays) not supported by backend schema.
+   * Keyed by backend-issued trip ID.
+   */
+  TRIP_BOOKINGS: (tripId: string | number) => `lakbye_trip_bookings_${tripId}`,
 };

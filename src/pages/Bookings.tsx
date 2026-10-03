@@ -6,12 +6,10 @@ import {
   Calendar,
   ArrowUpRight,
   Ticket,
+  Bed,
   CheckCircle2,
-  Clock,
-  XCircle,
   CloudOff,
   X,
-  Sparkles,
   MapPin,
 } from 'lucide-react';
 import magnifierIcon from '../assets/magnifier.png';
@@ -26,6 +24,11 @@ import {
   type ExpenseApiResponse,
 } from '../services/api';
 import { mergeTripsWithExtras } from '../lib/tripExtras';
+import {
+  reconcileTripBookings,
+  saveBookingExtra,
+  saveTripCustomBooking,
+} from '../lib/bookingExtras';
 import { formatUserDate, formatUserDateRange } from '../lib/formatters';
 import type { Trip } from '../types/trip';
 import type { Destination } from '../types/destination';
@@ -65,36 +68,52 @@ function renderStatusBadge(status: BookingStatus) {
   switch (norm) {
     case 'confirmed':
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shrink-0">
-          <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 shrink-0">
+          <span
+            className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"
+            aria-hidden="true"
+          />
           <span>Confirmed</span>
         </span>
       );
     case 'pending':
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/80 shrink-0">
-          <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-orange-600 shrink-0">
+          <span
+            className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0"
+            aria-hidden="true"
+          />
           <span>Pending</span>
         </span>
       );
     case 'completed':
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/80 shrink-0">
-          <CheckCircle2 className="w-3 h-3 text-blue-600 shrink-0" />
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-stone-500 shrink-0">
+          <span
+            className="w-1.5 h-1.5 rounded-full bg-stone-400 shrink-0"
+            aria-hidden="true"
+          />
           <span>Completed</span>
         </span>
       );
     case 'cancelled':
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/80 shrink-0">
-          <XCircle className="w-3 h-3 text-rose-600 shrink-0" />
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-rose-600 shrink-0">
+          <span
+            className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"
+            aria-hidden="true"
+          />
           <span>Cancelled</span>
         </span>
       );
     default:
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-stone-100 text-stone-700 border border-stone-200 shrink-0">
-          <span>{status}</span>
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-stone-500 shrink-0">
+          <span
+            className="w-1.5 h-1.5 rounded-full bg-stone-400 shrink-0"
+            aria-hidden="true"
+          />
+          <span className="capitalize">{status}</span>
         </span>
       );
   }
@@ -133,6 +152,7 @@ export default function Bookings() {
   const [customNotes, setCustomNotes] = useState('');
   const [selectedActivityId, setSelectedActivityId] = useState<number | ''>('');
   const [bookingDate, setBookingDate] = useState('');
+  const [bookingTime, setBookingTime] = useState('09:00 AM');
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
   const [bookingSuccessMsg, setBookingSuccessMsg] = useState<string | null>(null);
   const [bookingErrorMsg, setBookingErrorMsg] = useState<string | null>(null);
@@ -343,12 +363,16 @@ export default function Bookings() {
             bookingsApi.getAll(undefined, selectedTrip.id),
           );
           if (!cancelled) {
-            setUserBookings(bookingsData);
+            const merged = reconcileTripBookings(bookingsData, selectedTrip.id);
+            setUserBookings(merged);
             setSyncNotice(null);
           }
         } catch {
-          if (!cancelled)
+          if (!cancelled) {
+            const fallback = reconcileTripBookings([], selectedTrip.id);
+            setUserBookings(fallback);
             setSyncNotice('Unable to reach server — could not load latest bookings.');
+          }
         }
       } catch {
         /* ignore error */
@@ -482,6 +506,7 @@ export default function Bookings() {
   const handleOpenBookModal = () => {
     if (!selectedTrip) return;
     setBookingDate(selectedTrip.startDate || new Date().toISOString().split('T')[0]);
+    setBookingTime('09:00 AM');
     if (catalogActivities.length > 0 && selectedActivityId === '') {
       setSelectedActivityId(catalogActivities[0].id);
     }
@@ -525,54 +550,79 @@ export default function Bookings() {
         : 0;
 
     try {
-      const payload = isCustom
-        ? {
-            trip_id: Number(selectedTrip.id),
-            custom_title: customTitle.trim(),
-            custom_type: customType,
-            custom_location: customLocation.trim() || undefined,
-            booking_date: bookingDate || undefined,
-            cost: costNum,
-            total_price: costNum,
-            notes: customNotes.trim() || undefined,
-          }
-        : {
-            activity_id: Number(selectedActivityId),
-            trip_id: Number(selectedTrip.id),
-            booking_date: bookingDate || undefined,
-            total_price: costNum,
-            cost: costNum,
-          };
-
-      const newBooking = await withRetry(() => bookingsApi.create(payload));
-
-      setUserBookings((prev) => [
-        {
-          ...newBooking,
+      if (isCustom) {
+        const customBooking: Booking = {
+          id: Date.now(),
+          user_id: 0,
           trip_id: Number(selectedTrip.id),
-          activity_title: isCustom
-            ? customTitle.trim()
-            : activity?.title || `Activity #${selectedActivityId}`,
-          custom_title: isCustom ? customTitle.trim() : undefined,
-          custom_type: isCustom ? customType : 'activity',
-          custom_location: isCustom ? customLocation.trim() : undefined,
+          status: 'confirmed',
+          custom_title: customTitle.trim(),
+          custom_type: customType,
+          custom_location: customLocation.trim() || undefined,
           cost: costNum,
           total_price: costNum,
-        },
-        ...prev,
-      ]);
-      setSyncNotice(null);
-      setBookingErrorMsg(null);
-      setBookingSuccessMsg(
-        isCustom
-          ? `${customType === 'hotel' ? 'Stay reservation' : 'Activity'} "${customTitle}" booked successfully!`
-          : `Activity "${activity?.title || 'Selected Activity'}" booked successfully!`,
-      );
-      setTimeout(() => {
-        setIsBookActivityOpen(false);
-        setBookingSuccessMsg(null);
-      }, 1500);
-    } catch {
+          booking_date: bookingDate || undefined,
+          notes: customNotes.trim() || undefined,
+          created_at: new Date().toISOString(),
+        };
+
+        saveTripCustomBooking(selectedTrip.id, customBooking);
+
+        setUserBookings((prev) => [customBooking, ...prev]);
+        setSyncNotice(null);
+        setBookingErrorMsg(null);
+        setBookingSuccessMsg(
+          `${customType === 'hotel' ? 'Stay reservation' : 'Activity'} "${customTitle}" booked successfully!`,
+        );
+        setTimeout(() => {
+          setIsBookActivityOpen(false);
+          setBookingSuccessMsg(null);
+        }, 1500);
+      } else {
+        const payload = {
+          activity_id: Number(selectedActivityId),
+          trip_id: Number(selectedTrip.id),
+          booking_date: bookingDate || undefined,
+          total_price: costNum,
+          cost: costNum,
+        };
+
+        const newBooking = await withRetry(() => bookingsApi.create(payload));
+
+        saveBookingExtra(newBooking.id, {
+          trip_id: Number(selectedTrip.id),
+          booking_date: bookingDate || undefined,
+          booking_time: bookingTime || undefined,
+          activity_id: Number(selectedActivityId),
+          activity_title: activity?.title || `Activity #${selectedActivityId}`,
+          cost: costNum,
+          total_price: costNum,
+        });
+
+        const fullBooking: Booking = {
+          ...newBooking,
+          trip_id: Number(selectedTrip.id),
+          activity_id: Number(selectedActivityId),
+          activity_title: activity?.title || `Activity #${selectedActivityId}`,
+          custom_type: 'activity',
+          cost: costNum,
+          total_price: costNum,
+          booking_date: bookingDate || undefined,
+        };
+
+        setUserBookings((prev) => [fullBooking, ...prev]);
+        setSyncNotice(null);
+        setBookingErrorMsg(null);
+        setBookingSuccessMsg(
+          `Activity "${activity?.title || 'Selected Activity'}" booked successfully!`,
+        );
+        setTimeout(() => {
+          setIsBookActivityOpen(false);
+          setBookingSuccessMsg(null);
+        }, 1500);
+      }
+    } catch (err) {
+      console.error('[DEBUG_BOOKINGS] booking submission FAILED:', err);
       const errMsg =
         'Unable to reach server — booking submission failed. Please try again.';
       setBookingErrorMsg(errMsg);
@@ -756,50 +806,53 @@ export default function Bookings() {
                     </div>
                   </div>
 
-                  {/* Filter Tabs: All, Activities, Hotels & Stays */}
-                  <div className="flex items-center gap-2 mb-4 px-2">
-                    {(['all', 'activity', 'hotel'] as const).map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setBookingTypeFilter(t)}
-                        className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
-                          bookingTypeFilter === t
-                            ? 'bg-stone-800 text-white shadow-sm'
-                            : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-                        }`}
-                      >
-                        {t === 'all'
-                          ? `All Reservations (${bookingTypeCounts.all})`
-                          : t === 'activity'
-                            ? `Activities (${bookingTypeCounts.activity})`
-                            : `Hotels & Stays (${bookingTypeCounts.hotel})`}
-                      </button>
-                    ))}
-                  </div>
+                  {/* Filter Section: Reservation Statuses & Types */}
+                  <div className="bookings-filter-section">
+                    {/* Row 1: Reservation Statuses */}
+                    <div
+                      className="bookings-reservation-status-tabs"
+                      aria-label="Reservation status filters"
+                    >
+                      {(['all', 'pending', 'confirmed', 'completed'] as const).map(
+                        (status) => (
+                          <button
+                            key={status}
+                            type="button"
+                            onClick={() => setBookingStatusFilter(status)}
+                            className={`bookings-reservation-status-btn ${bookingStatusFilter === status ? 'active' : ''}`}
+                          >
+                            {status === 'all'
+                              ? `All statuses (${bookingStatusCounts.all})`
+                              : status === 'confirmed'
+                                ? `Confirmed / processed (${bookingStatusCounts.confirmed})`
+                                : status === 'completed'
+                                  ? `Used / completed (${bookingStatusCounts.completed})`
+                                  : `Pending (${bookingStatusCounts.pending})`}
+                          </button>
+                        ),
+                      )}
+                    </div>
 
-                  <div
-                    className="bookings-reservation-status-tabs"
-                    aria-label="Reservation status filters"
-                  >
-                    {(['all', 'pending', 'confirmed', 'completed'] as const).map(
-                      (status) => (
+                    {/* Row 2: Reservation Types */}
+                    <div
+                      className="bookings-type-tabs"
+                      aria-label="Reservation type filters"
+                    >
+                      {(['all', 'activity', 'hotel'] as const).map((t) => (
                         <button
-                          key={status}
+                          key={t}
                           type="button"
-                          onClick={() => setBookingStatusFilter(status)}
-                          className={`bookings-reservation-status-btn ${bookingStatusFilter === status ? 'active' : ''}`}
+                          onClick={() => setBookingTypeFilter(t)}
+                          className={`bookings-type-tab-btn ${bookingTypeFilter === t ? 'active' : ''}`}
                         >
-                          {status === 'all'
-                            ? `All statuses (${bookingStatusCounts.all})`
-                            : status === 'confirmed'
-                              ? `Confirmed / processed (${bookingStatusCounts.confirmed})`
-                              : status === 'completed'
-                                ? `Used / completed (${bookingStatusCounts.completed})`
-                                : `Pending (${bookingStatusCounts.pending})`}
+                          {t === 'all'
+                            ? `All Reservations (${bookingTypeCounts.all})`
+                            : t === 'activity'
+                              ? `Activities (${bookingTypeCounts.activity})`
+                              : `Hotels & Stays (${bookingTypeCounts.hotel})`}
                         </button>
-                      ),
-                    )}
+                      ))}
+                    </div>
                   </div>
 
                   <div className="bookings-table-wrapper">
@@ -831,7 +884,6 @@ export default function Bookings() {
                                 </div>
                               </td>
                               <td className="bookings-cell-destination">
-                                <span className="bookings-dest-dot" />
                                 <span>{item.destination}</span>
                               </td>
                               <td
@@ -1077,7 +1129,7 @@ export default function Bookings() {
 
       {isBookActivityOpen && selectedTrip && (
         <div
-          className="modal-overlay"
+          className="booking-modal-overlay"
           role="dialog"
           aria-modal="true"
           aria-labelledby="book-activity-title"
@@ -1088,306 +1140,321 @@ export default function Bookings() {
             onClick={() => !bookingSubmitting && setIsBookActivityOpen(false)}
             aria-label="Close modal backdrop"
           />
-          <div className="start-trip-modal-card" style={{ maxWidth: '460px' }}>
+          <div className="booking-modal-card">
+            {/* Close Button (Figma #808:177, #808:207) */}
             <button
               type="button"
-              className="modal-close-btn"
+              className="booking-modal-close-btn"
               onClick={() => !bookingSubmitting && setIsBookActivityOpen(false)}
               aria-label="Close modal"
             >
-              <X className="w-5 h-5" />
+              ×
             </button>
 
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-5 h-5 text-amber-600" />
-              <h3
-                id="book-activity-title"
-                className="font-bold text-xl text-stone-900"
-                style={{ fontFamily: 'Poppins, sans-serif' }}
-              >
+            {/* Header (Figma #808:175, #808:176 & #808:205, #808:206) */}
+            <div className="booking-modal-header">
+              <h3 id="book-activity-title" className="booking-modal-title">
                 Book an Activity
               </h3>
+              <p className="booking-modal-subtitle">
+                {bookingMode === 'catalog'
+                  ? 'Choose an activity from the catalog and reserve it for this trip.'
+                  : 'Add your own reservation or hotel stay to this trip.'}
+              </p>
             </div>
-            <p className="text-xs text-stone-600 mb-6">
-              Reserve an experience for{' '}
-              <span className="font-semibold text-stone-900">{selectedTrip.name}</span>{' '}
-              directly for your travel itinerary.
-            </p>
 
-            {bookingSuccessMsg ? (
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-center gap-2 mb-4">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            {/* Success Feedback */}
+            {bookingSuccessMsg && (
+              <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2 my-3">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>{bookingSuccessMsg}</span>
               </div>
-            ) : (
-              <>
-                {bookingErrorMsg && (
-                  <div
-                    role="status"
-                    aria-live="polite"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '10px',
-                      padding: '10px 14px',
-                      backgroundColor: '#FFF9F2',
-                      border: '1px solid rgba(233, 114, 76, 0.35)',
-                      borderRadius: '12px',
-                      color: '#78350F',
-                      fontSize: '12px',
-                      fontFamily: "'SF Pro Rounded', var(--font-sans)",
-                      fontWeight: 500,
-                      marginBottom: '16px',
-                    }}
-                    className="animate-slide-up"
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <CloudOff size={15} style={{ color: '#E9724C', flexShrink: 0 }} />
-                      <span>{bookingErrorMsg}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setBookingErrorMsg(null)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        padding: '2px',
-                        cursor: 'pointer',
-                        color: '#92400E',
-                        opacity: 0.7,
-                      }}
-                      aria-label="Dismiss error"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                )}
-
-                {/* Mode Selector Tabs */}
-                <div className="flex border-b border-stone-200 mb-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setBookingMode('catalog');
-                      setBookingErrorMsg(null);
-                    }}
-                    className={`flex-1 pb-2.5 text-xs font-semibold text-center border-b-2 transition ${
-                      bookingMode === 'catalog'
-                        ? 'border-orange-500 text-orange-600'
-                        : 'border-transparent text-stone-500 hover:text-stone-800'
-                    }`}
-                  >
-                    Catalog Activity
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setBookingMode('custom');
-                      setBookingErrorMsg(null);
-                    }}
-                    className={`flex-1 pb-2.5 text-xs font-semibold text-center border-b-2 transition ${
-                      bookingMode === 'custom'
-                        ? 'border-orange-500 text-orange-600'
-                        : 'border-transparent text-stone-500 hover:text-stone-800'
-                    }`}
-                  >
-                    Custom Reservation / Hotel
-                  </button>
-                </div>
-
-                <form onSubmit={handleBookActivitySubmit} className="flex flex-col gap-4">
-                  {bookingMode === 'catalog' ? (
-                    <>
-                      <div>
-                        <label htmlFor="activity-select" className="modal-label">
-                          Select Activity
-                        </label>
-                        <select
-                          id="activity-select"
-                          className="modal-input-gradient"
-                          value={selectedActivityId}
-                          onChange={(e) => setSelectedActivityId(Number(e.target.value))}
-                          required={bookingMode === 'catalog'}
-                        >
-                          <option value="" disabled>
-                            Choose an activity...
-                          </option>
-                          {catalogActivities.map((act) => (
-                            <option key={act.id} value={act.id}>
-                              {act.title} — ₱{Number(act.cost).toLocaleString()}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label htmlFor="booking-date" className="modal-label">
-                          Booking Date
-                        </label>
-                        <input
-                          id="booking-date"
-                          type="date"
-                          className="modal-input-gradient"
-                          value={bookingDate}
-                          onChange={(e) => setBookingDate(e.target.value)}
-                          required
-                        />
-                        {bookingDate && (
-                          <span className="booking-date-preference">
-                            Display date: {formatUserDate(bookingDate)}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 flex items-center justify-between text-xs mt-1">
-                        <span className="text-stone-600 font-medium">
-                          Estimated Cost:
-                        </span>
-                        <span className="text-base font-bold text-emerald-700 font-mono">
-                          {(() => {
-                            const act = catalogActivities.find(
-                              (a) => a.id === Number(selectedActivityId),
-                            );
-                            return act ? `₱${Number(act.cost).toLocaleString()}` : '—';
-                          })()}
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="booking-modal-two-column">
-                        <div>
-                          <label htmlFor="custom-type" className="modal-label">
-                            Reservation Type
-                          </label>
-                          <select
-                            id="custom-type"
-                            className="modal-input-gradient"
-                            value={customType}
-                            onChange={(e) =>
-                              setCustomType(e.target.value as 'activity' | 'hotel')
-                            }
-                          >
-                            <option value="hotel">Hotel / Accommodation</option>
-                            <option value="activity">Activity / Tour</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label htmlFor="custom-date" className="modal-label">
-                            Date
-                          </label>
-                          <input
-                            id="custom-date"
-                            type="date"
-                            className="modal-input-gradient"
-                            value={bookingDate}
-                            onChange={(e) => setBookingDate(e.target.value)}
-                            required
-                          />
-                          {bookingDate && (
-                            <span className="booking-date-preference">
-                              Display date: {formatUserDate(bookingDate)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div>
-                        <label htmlFor="custom-title" className="modal-label">
-                          {customType === 'hotel'
-                            ? 'Hotel / Property Name'
-                            : 'Activity / Service Name'}
-                        </label>
-                        <input
-                          id="custom-title"
-                          type="text"
-                          placeholder={
-                            customType === 'hotel'
-                              ? 'e.g. Shangri-La Boracay Resort'
-                              : 'e.g. Private Island Hopping Boat'
-                          }
-                          className="modal-input-gradient"
-                          value={customTitle}
-                          onChange={(e) => setCustomTitle(e.target.value)}
-                          required
-                        />
-                      </div>
-
-                      <div className="booking-modal-two-column">
-                        <div>
-                          <label htmlFor="custom-location" className="modal-label">
-                            Destination / Location
-                          </label>
-                          <input
-                            id="custom-location"
-                            type="text"
-                            placeholder="e.g. Station 1, Boracay"
-                            className="modal-input-gradient"
-                            value={customLocation}
-                            onChange={(e) => setCustomLocation(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="custom-cost" className="modal-label">
-                            Estimated Cost (₱ PHP)
-                          </label>
-                          <input
-                            id="custom-cost"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="e.g. 4500"
-                            className="modal-input-gradient"
-                            value={customCost}
-                            onChange={(e) => setCustomCost(e.target.value)}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label htmlFor="custom-notes" className="modal-label">
-                          Special Requests / Details
-                        </label>
-                        <textarea
-                          id="custom-notes"
-                          rows={2}
-                          placeholder="e.g. Ocean view, early check-in, 4 guests"
-                          className="modal-input-gradient resize-none text-xs"
-                          value={customNotes}
-                          onChange={(e) => setCustomNotes(e.target.value)}
-                        />
-                      </div>
-                    </>
-                  )}
-
-                  <div className="flex justify-end gap-3 mt-4">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsBookActivityOpen(false);
-                        setBookingErrorMsg(null);
-                      }}
-                      className="px-5 py-2.5 rounded-full text-stone-600 text-sm font-semibold hover:bg-stone-100 transition"
-                      disabled={bookingSubmitting}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={
-                        bookingSubmitting ||
-                        (bookingMode === 'catalog' && !selectedActivityId) ||
-                        (bookingMode === 'custom' && !customTitle.trim())
-                      }
-                      className="btn-start-planning-modal"
-                    >
-                      {bookingSubmitting ? 'Confirming...' : 'Submit Reservation'}
-                    </button>
-                  </div>
-                </form>
-              </>
             )}
+
+            {/* Error Feedback */}
+            {bookingErrorMsg && (
+              <div
+                role="status"
+                aria-live="polite"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '10px',
+                  padding: '10px 14px',
+                  backgroundColor: '#FFF9F2',
+                  border: '1px solid rgba(233, 114, 76, 0.35)',
+                  borderRadius: '12px',
+                  color: '#78350F',
+                  fontSize: '11px',
+                  fontFamily: "'Poppins', sans-serif",
+                  fontWeight: 500,
+                  margin: '12px 0',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <CloudOff size={14} style={{ color: '#E9724C', flexShrink: 0 }} />
+                  <span>{bookingErrorMsg}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBookingErrorMsg(null)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    padding: '2px',
+                    cursor: 'pointer',
+                    color: '#92400E',
+                    opacity: 0.7,
+                  }}
+                  aria-label="Dismiss error"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            )}
+
+            {/* Tabs Switcher (Figma #808:179 - #808:183 & #808:209 - #808:213) */}
+            <div className="booking-modal-tabs-wrapper">
+              <div
+                className="booking-modal-tabs"
+                role="tablist"
+                aria-label="Booking mode tabs"
+              >
+                <div
+                  className={`booking-modal-slider-pill ${bookingMode === 'custom' ? 'slide-right' : 'slide-left'}`}
+                  aria-hidden="true"
+                />
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={bookingMode === 'catalog'}
+                  onClick={() => {
+                    setBookingMode('catalog');
+                    setBookingErrorMsg(null);
+                  }}
+                  className={`booking-modal-tab-btn ${bookingMode === 'catalog' ? 'active' : ''}`}
+                >
+                  <Ticket size={14} className="shrink-0" />
+                  <span>Catalog Activity</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={bookingMode === 'custom'}
+                  onClick={() => {
+                    setBookingMode('custom');
+                    setBookingErrorMsg(null);
+                  }}
+                  className={`booking-modal-tab-btn ${bookingMode === 'custom' ? 'active' : ''}`}
+                >
+                  <Bed size={14} className="shrink-0" />
+                  <span>Custom Reservation / Hotel</span>
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleBookActivitySubmit} className="booking-modal-form">
+              {bookingMode === 'catalog' ? (
+                <>
+                  {/* Select Activity (Figma #808:184, #808:185, #808:186) */}
+                  <div className="booking-modal-field">
+                    <label htmlFor="activity-select" className="booking-modal-label">
+                      Select Activity
+                    </label>
+                    <select
+                      id="activity-select"
+                      className="booking-modal-select"
+                      value={selectedActivityId}
+                      onChange={(e) => setSelectedActivityId(Number(e.target.value))}
+                      required={bookingMode === 'catalog'}
+                    >
+                      <option value="" disabled>
+                        Select activity...
+                      </option>
+                      {catalogActivities.map((act) => (
+                        <option key={act.id} value={act.id}>
+                          {act.title} — ₱{Number(act.cost).toLocaleString()}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Booking Date (Figma #808:187, #808:188, #808:189) */}
+                  <div className="booking-modal-field">
+                    <label htmlFor="booking-date" className="booking-modal-label">
+                      Booking Date
+                    </label>
+                    <input
+                      id="booking-date"
+                      type="date"
+                      className="booking-modal-input"
+                      value={bookingDate}
+                      onChange={(e) => setBookingDate(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  {/* Booking Time (Figma #808:190, #808:191, #808:192) */}
+                  <div className="booking-modal-field">
+                    <label htmlFor="booking-time" className="booking-modal-label">
+                      Booking Time
+                    </label>
+                    <select
+                      id="booking-time"
+                      className="booking-modal-select"
+                      value={bookingTime}
+                      onChange={(e) => setBookingTime(e.target.value)}
+                    >
+                      <option value="" disabled>
+                        Select time
+                      </option>
+                      <option value="09:00 AM">09:00 AM (Morning)</option>
+                      <option value="10:30 AM">10:30 AM (Morning)</option>
+                      <option value="01:30 PM">01:30 PM (Afternoon)</option>
+                      <option value="03:00 PM">03:00 PM (Afternoon)</option>
+                      <option value="06:00 PM">06:00 PM (Evening)</option>
+                      <option value="Flexible / Anytime">Flexible / Anytime</option>
+                    </select>
+                  </div>
+
+                  {/* Helper text (Figma #808:193) */}
+                  <p className="booking-modal-helper-text">
+                    Reservation details will be added to the selected trip.
+                  </p>
+
+                  {/* Selected Trip Info Card (Figma #808:194 - #808:197) */}
+                  <div className="booking-modal-trip-card">
+                    <span className="booking-modal-trip-tag">Selected trip</span>
+                    <span className="booking-modal-trip-name">{selectedTrip.name}</span>
+                    <span className="booking-modal-trip-meta">
+                      {selectedTrip.countries && selectedTrip.countries.length > 0
+                        ? selectedTrip.countries.join(', ')
+                        : selectedTrip.name}{' '}
+                      · booking dates follow your preferred display format
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Reservation / Hotel Name (Figma #808:214, #808:215, #808:216) */}
+                  <div className="booking-modal-field">
+                    <label htmlFor="custom-title" className="booking-modal-label">
+                      Reservation / Hotel Name
+                    </label>
+                    <input
+                      id="custom-title"
+                      type="text"
+                      placeholder="Enter reservation or hotel name"
+                      className="booking-modal-input"
+                      value={customTitle}
+                      onChange={(e) => setCustomTitle(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  {/* Location (Figma #808:217, #808:218, #808:219) */}
+                  <div className="booking-modal-field">
+                    <label htmlFor="custom-location" className="booking-modal-label">
+                      Location
+                    </label>
+                    <input
+                      id="custom-location"
+                      type="text"
+                      placeholder="Enter city or place"
+                      className="booking-modal-input"
+                      value={customLocation}
+                      onChange={(e) => setCustomLocation(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Booking Date (Figma #808:220, #808:221, #808:222) */}
+                  <div className="booking-modal-field">
+                    <label htmlFor="custom-date" className="booking-modal-label">
+                      Booking Date
+                    </label>
+                    <input
+                      id="custom-date"
+                      type="date"
+                      className="booking-modal-input"
+                      value={bookingDate}
+                      onChange={(e) => setBookingDate(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  {/* Type (Figma #808:223 - #808:227) */}
+                  <div className="booking-modal-field">
+                    <span id="custom-type-label" className="booking-modal-label">
+                      Type
+                    </span>
+                    <div
+                      className="booking-modal-type-group"
+                      role="group"
+                      aria-labelledby="custom-type-label"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setCustomType('activity')}
+                        className={`booking-modal-type-pill ${customType === 'activity' ? 'active' : ''}`}
+                      >
+                        <Ticket size={13} className="shrink-0" />
+                        <span>Reservation</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCustomType('hotel')}
+                        className={`booking-modal-type-pill ${customType === 'hotel' ? 'active' : ''}`}
+                      >
+                        <Bed size={13} className="shrink-0" />
+                        <span>Hotel / Stay</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Notes (Figma #808:228, #808:229, #808:230) */}
+                  <div className="booking-modal-field">
+                    <label htmlFor="custom-notes" className="booking-modal-label">
+                      Notes
+                    </label>
+                    <input
+                      id="custom-notes"
+                      type="text"
+                      placeholder="Optional details"
+                      className="booking-modal-input"
+                      value={customNotes}
+                      onChange={(e) => setCustomNotes(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Action Buttons (Figma #808:198 - #808:201 & #808:231 - #808:234) */}
+              <div className="booking-modal-actions">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsBookActivityOpen(false);
+                    setBookingErrorMsg(null);
+                  }}
+                  className="booking-modal-cancel-btn"
+                  disabled={bookingSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={
+                    bookingSubmitting ||
+                    (bookingMode === 'catalog' && !selectedActivityId) ||
+                    (bookingMode === 'custom' && !customTitle.trim())
+                  }
+                  className="booking-modal-submit-btn"
+                >
+                  {bookingSubmitting ? 'Confirming...' : 'Submit Reservation'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

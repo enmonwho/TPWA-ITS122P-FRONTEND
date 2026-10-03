@@ -6963,8 +6963,8 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 /* Donut Chart Container */
 .budget-donut-container {
   position: relative;
-  width: 150px;
-  height: 150px;
+  width: 184px;
+  height: 184px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -10037,11 +10037,60 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   padding: 0 28px;
 }
 
+.bookings-filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 28px 12px 28px;
+  flex-shrink: 0;
+}
+
+.bookings-type-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.bookings-type-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.bookings-type-tab-btn {
+  flex: 0 0 auto;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  border: 1px solid #e7e5e4;
+  background: #f5f5f4;
+  color: #57534e;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bookings-type-tab-btn:hover {
+  background: #e7e5e4;
+  color: #1c1917;
+  border-color: #d6d3d1;
+}
+
+.bookings-type-tab-btn.active {
+  background: #292524;
+  border-color: #292524;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
 .bookings-reservation-status-tabs {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 8px 12px;
+  padding: 0;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -10052,28 +10101,417 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 
 .bookings-reservation-status-btn {
   flex: 0 0 auto;
-  max-width: 230px;
-  padding: 5px 10px;
+  padding: 5px 12px;
   border: 1px solid #e7e5e4;
   border-radius: 9999px;
   background: #fafaf9;
   color: #57534e;
-  font-size: 11px;
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-size: 11.5px;
   font-weight: 600;
   line-height: 1.25;
-  white-space: normal;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bookings-reservation-status-btn:hover {
+  background: #f5f5f4;
+  color: #1c1917;
+  border-color: #d6d3d1;
 }
 
 .bookings-reservation-status-btn.active {
   background: #292524;
   border-color: #292524;
   color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
-.booking-modal-two-column {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+/* ==========================================================================
+   BOOKING MODAL (FIGMA: 808:172 & 808:202)
+   ========================================================================== */
+
+.booking-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background-color: rgba(72, 42, 19, 0.2);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.booking-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  background-color: #ffffff;
+  border: 1px solid rgba(72, 42, 19, 0.14);
+  border-radius: 22px;
+  box-shadow: 0px 18px 40px 0px rgba(47, 27, 12, 0.18);
+  padding: 32px 32px 28px 32px;
+  box-sizing: border-box;
+  animation: bookingModalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  max-height: 92vh;
+  overflow-y: auto;
+}
+
+@keyframes bookingModalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.booking-modal-header {
+  position: relative;
+  padding-right: 36px;
+}
+
+.booking-modal-title {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 23px;
+  line-height: 1.25;
+  color: #2f1b0c;
+  margin: 0;
+}
+
+.booking-modal-subtitle {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 400;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #74675d;
+  margin: 4px 0 0 0;
+}
+
+.booking-modal-close-btn {
+  position: absolute;
+  top: 24px;
+  right: 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: #fbf9f5;
+  border: 1px solid rgba(72, 42, 19, 0.14);
+  color: #2f1b0c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s ease;
+}
+
+.booking-modal-close-btn:hover {
+  background-color: #f3ede2;
+  color: #1a0f07;
+  transform: scale(1.05);
+}
+
+/* Tabs switcher - Shared segmented container with sliding active pill */
+.booking-modal-tabs-wrapper {
+  margin-top: 18px;
+  margin-bottom: 22px;
+}
+
+.booking-modal-tabs {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background-color: #fbf9f5;
+  border: 1px solid rgba(72, 42, 19, 0.12);
+  border-radius: 9999px;
+  height: 44px;
+  padding: 4px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.booking-modal-slider-pill {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  border-radius: 9999px;
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    linear-gradient(90deg, #255f85 0%, #e9724c 50%, #c5283d 75%, #ffc245 100%) border-box;
+  border: 1.5px solid transparent;
+  box-shadow: 0 2px 8px rgba(47, 27, 12, 0.08);
+  pointer-events: none;
+  transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+  will-change: transform;
+  z-index: 1;
+}
+
+.booking-modal-slider-pill.slide-right {
+  transform: translateX(100%);
+}
+
+.booking-modal-slider-pill.slide-left {
+  transform: translateX(0%);
+}
+
+.booking-modal-tab-btn {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  height: 100%;
+  border-radius: 9999px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  font-size: 11px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: #74675d;
+  transition: color 200ms ease;
+  box-sizing: border-box;
+  white-space: nowrap;
+  padding: 0 14px;
+}
+
+.booking-modal-tab-btn:hover:not(.active) {
+  color: #2f1b0c;
+}
+
+.booking-modal-tab-btn.active {
+  color: #2f1b0c;
+  font-weight: 700;
+}
+
+/* Form layout */
+.booking-modal-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.booking-modal-field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 12px;
+}
+
+.booking-modal-label {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  font-size: 10px;
+  color: #2f1b0c;
+  margin-bottom: 6px;
+  text-align: left;
+}
+
+.booking-modal-input,
+.booking-modal-select {
+  width: 100%;
+  height: 42px;
+  background-color: #ffffff;
+  border: 1px solid rgba(72, 42, 19, 0.14);
+  border-radius: 10px;
+  padding: 0 14px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  color: #2f1b0c;
+  outline: none;
+  box-sizing: border-box;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.booking-modal-input::placeholder {
+  color: #74675d;
+  opacity: 1;
+}
+
+.booking-modal-input:focus,
+.booking-modal-select:focus {
+  border-color: #255f85;
+  box-shadow: 0 0 0 3px rgba(37, 95, 133, 0.12);
+}
+
+/* Helper text */
+.booking-modal-helper-text {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 400;
+  font-size: 9.5px;
+  color: #74675d;
+  margin-top: -2px;
+  margin-bottom: 12px;
+}
+
+/* Selected Trip Info Card (Figma #808:194) */
+.booking-modal-trip-card {
+  width: 100%;
+  background-color: #fbf9f5;
+  border: 1px solid rgba(72, 42, 19, 0.12);
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.booking-modal-trip-tag {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  font-size: 9px;
+  color: #e9724c;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 3px;
+}
+
+.booking-modal-trip-name {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 11.5px;
+  color: #2f1b0c;
+  margin-bottom: 2px;
+}
+
+.booking-modal-trip-meta {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 400;
+  font-size: 9.5px;
+  color: #74675d;
+  line-height: 1.4;
+}
+
+/* Custom Type Selector (Figma #808:223 - #808:227) */
+.booking-modal-type-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.booking-modal-type-pill {
+  flex: 1;
+  max-width: 160px;
+  height: 36px;
+  border-radius: 9999px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  font-size: 10px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+  white-space: nowrap;
+  padding: 0 14px;
+  background-color: #ffffff;
+  border: 1.5px solid rgba(72, 42, 19, 0.14);
+  color: #74675d;
+}
+
+.booking-modal-type-pill:hover:not(.active) {
+  border-color: rgba(72, 42, 19, 0.28);
+  color: #2f1b0c;
+  background-color: #fbf9f5;
+}
+
+.booking-modal-type-pill.active {
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    linear-gradient(90deg, #255f85 0%, #e9724c 50%, #c5283d 75%, #ffc245 100%) border-box;
+  border: 1.5px solid transparent;
+  color: #2f1b0c;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(47, 27, 12, 0.08);
+}
+
+/* Action Buttons Footer (Figma #808:198 - #808:201) */
+.booking-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.booking-modal-cancel-btn {
+  width: 112px;
+  height: 40px;
+  background-color: #ffffff;
+  border: 1.5px solid rgba(72, 42, 19, 0.14);
+  border-radius: 9999px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  color: #2f1b0c;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.booking-modal-cancel-btn:hover {
+  background-color: #fbf9f5;
+  border-color: rgba(72, 42, 19, 0.28);
+  color: #1a0f07;
+}
+
+.booking-modal-submit-btn {
+  min-width: 136px;
+  height: 40px;
+  padding: 0 18px;
+  background: linear-gradient(
+    90deg,
+    rgba(37, 95, 133, 1) 0%,
+    rgba(233, 114, 76, 1) 52%,
+    rgba(197, 40, 61, 1) 100%
+  );
+  border: none;
+  border-radius: 9999px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 10.5px;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(233, 114, 76, 0.25);
+  transition: all 0.15s ease;
+}
+
+.booking-modal-submit-btn:hover:not(:disabled) {
+  opacity: 0.95;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(233, 114, 76, 0.35);
+}
+
+.booking-modal-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .booking-date-preference {
@@ -10084,9 +10522,55 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   overflow-wrap: anywhere;
 }
 
-@media (max-width: 480px) {
-  .booking-modal-two-column {
-    grid-template-columns: 1fr;
+@media (max-width: 520px) {
+  .booking-modal-card {
+    padding: 24px 18px 20px 18px;
+    border-radius: 18px;
+  }
+
+  .booking-modal-close-btn {
+    top: 18px;
+    right: 18px;
+  }
+
+  .booking-modal-title {
+    font-size: 20px;
+  }
+
+  .booking-modal-tabs {
+    height: 40px;
+    padding: 3px;
+    gap: 0;
+  }
+
+  .booking-modal-slider-pill {
+    top: 3px;
+    bottom: 3px;
+    left: 3px;
+    width: calc(50% - 3px);
+  }
+
+  .booking-modal-tab-btn {
+    height: 100%;
+    font-size: 9.5px;
+    padding: 0 4px;
+    gap: 5px;
+  }
+
+  .booking-modal-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .booking-modal-cancel-btn,
+  .booking-modal-submit-btn {
+    width: 100%;
+  }
+
+  .booking-modal-type-pill {
+    flex: 1;
+    max-width: 100%;
+    height: 36px;
   }
 
   .start-trip-modal-card {
@@ -10142,17 +10626,6 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 .bookings-cell-destination {
   font-weight: 600;
   color: #0f172a;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.bookings-dest-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: #e9724c;
-  flex-shrink: 0;
 }
 
 .bookings-cell-activities,
@@ -10246,6 +10719,10 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
     font-size: 18px;
   }
 
+  .bookings-filter-section {
+    padding: 10px 18px 8px 18px;
+  }
+
   .bookings-table-wrapper {
     padding: 0 16px;
   }
@@ -10316,6 +10793,10 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 
   .bookings-ledger-title {
     font-size: 22px;
+  }
+
+  .bookings-filter-section {
+    padding: 16px 38px 12px 38px;
   }
 
   .bookings-table-wrapper {
@@ -11912,25 +12393,54 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   animation: fadeInDown 0.15s ease-out;
 }
 
-.date-range-popover {
-  box-sizing: border-box;
+/* Native Date Input styling for modals */
+.native-date-input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: #1c1917;
+  font-family: 'Poppins', var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
 }
 
-@media (max-width: 640px) {
-  .date-range-popover {
-    padding: 16px;
-  }
+.native-date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+  padding: 4px;
+  transition: opacity 0.15s ease;
 }
 
-@keyframes fadeInDown {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.native-date-input::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* Country Multi-Select Chips Scroll Area */
+.country-chips-scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(72, 42, 19, 0.16) transparent;
+}
+
+.country-chips-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.country-chips-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.country-chips-scroll::-webkit-scrollbar-thumb {
+  background: rgba(72, 42, 19, 0.16);
+  border-radius: 4px;
+}
+
+.country-chips-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(72, 42, 19, 0.28);
 }
 
 .trip-options-menu-item {

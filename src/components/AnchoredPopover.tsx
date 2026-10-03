@@ -13,6 +13,10 @@ import { computePopoverPosition } from '../lib/popover';
 
 interface AnchoredPopoverProps {
   anchorRef: RefObject<HTMLElement | null>;
+  horizontalAnchorRef?: RefObject<HTMLElement | null> | HTMLElement | null;
+  horizontalAlign?: 'left' | 'center' | 'right';
+  gap?: number;
+  margin?: number;
   children: ReactNode;
   className?: string;
   onClose: () => void;
@@ -25,6 +29,10 @@ interface AnchoredPopoverProps {
 
 export default function AnchoredPopover({
   anchorRef,
+  horizontalAnchorRef,
+  horizontalAlign = 'left',
+  gap = 8,
+  margin = 8,
   children,
   className,
   onClose,
@@ -49,10 +57,32 @@ export default function AnchoredPopover({
       Math.max(0, window.innerWidth - 16),
     );
     const targetHeight = measured?.height || estimatedHeight;
+
+    let hAnchorEl: HTMLElement | null = null;
+    if (horizontalAnchorRef) {
+      if ('current' in horizontalAnchorRef) {
+        hAnchorEl = horizontalAnchorRef.current;
+      } else {
+        hAnchorEl = horizontalAnchorRef;
+      }
+    }
+    if (!hAnchorEl) {
+      const modalParent = anchor.closest<HTMLElement>('.modal-content');
+      if (modalParent) {
+        hAnchorEl = modalParent;
+      }
+    }
+    const hAnchorRect = hAnchorEl ? hAnchorEl.getBoundingClientRect() : undefined;
+    const effectiveAlign = hAnchorEl ? horizontalAlign : 'left';
+
     const position = computePopoverPosition(
       anchorRect,
       { width: targetWidth, height: targetHeight },
       { width: window.innerWidth, height: window.innerHeight },
+      gap,
+      margin,
+      effectiveAlign,
+      hAnchorRect,
     );
 
     setStyle({
@@ -64,7 +94,17 @@ export default function AnchoredPopover({
       zIndex,
       visibility: 'visible',
     });
-  }, [anchorRef, estimatedHeight, matchAnchorWidth, width, zIndex]);
+  }, [
+    anchorRef,
+    horizontalAnchorRef,
+    horizontalAlign,
+    gap,
+    margin,
+    estimatedHeight,
+    matchAnchorWidth,
+    width,
+    zIndex,
+  ]);
 
   useLayoutEffect(() => {
     reposition();

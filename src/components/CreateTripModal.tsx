@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { CountryAutocomplete, DateRangePicker } from './';
@@ -25,6 +25,7 @@ export default function CreateTripModal({
 }: CreateTripModalProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const modalRef = useRef<HTMLDivElement>(null);
 
   const [tripName, setTripName] = useState('');
   const [selectedCountries, setSelectedCountries] = useState<CountryId[]>([]);
@@ -120,7 +121,7 @@ export default function CreateTripModal({
         aria-label="Close create trip modal"
         onClick={() => !submitting && onClose()}
       />
-      <div className="modal-content">
+      <div ref={modalRef} className="modal-content">
         <h2 id="modal-create-trip-title" className="sr-only">
           Create Trip
         </h2>
@@ -175,6 +176,7 @@ export default function CreateTripModal({
             Travel Dates
           </label>
           <DateRangePicker
+            modalRef={modalRef}
             startDate={startDate}
             endDate={endDate}
             onStartDateChange={(date) => {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useOutletContext } from 'react-router-dom';
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, matchByDataKey } from 'recharts';
 import { Trash2, X, CirclePlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import type { Trip } from '../types/trip';
@@ -88,6 +88,102 @@ function getDonutFontSize(len: number): string {
   return '13px';
 }
 
+const getPrefersReducedMotion = (): boolean => {
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+};
+
+const matchByName = matchByDataKey('name');
+
+const interpolateAngle = (a: number, b: number, t: number) => a + (b - a) * t;
+
+interface SectorItem {
+  startAngle?: number;
+  endAngle?: number;
+  fill?: string;
+  color?: string;
+  payload?: {
+    name?: string;
+    value?: number;
+    color?: string;
+    fill?: string;
+  };
+  [key: string]: unknown;
+}
+
+interface TaggedPieItem {
+  status: 'matched' | 'added' | 'removed';
+  prev?: SectorItem;
+  next?: SectorItem;
+}
+
+function customPieAnimateItems(
+  items: ReadonlyArray<TaggedPieItem> | null,
+  animationElapsedTime: number,
+): ReadonlyArray<SectorItem> {
+  if (items == null) return [];
+  if (animationElapsedTime >= 1) {
+    return items
+      .filter((item) => item.status !== 'removed')
+      .map((item) => item.next as SectorItem);
+  }
+
+  const activeItems = items.map((item, index) => {
+    let angleSpan = 0;
+    const baseSector = (item.next || item.prev) as SectorItem;
+    const orderKey =
+      item.prev?.startAngle != null
+        ? item.prev.startAngle
+        : item.next?.startAngle != null
+          ? item.next.startAngle
+          : 0;
+
+    if (item.status === 'matched' && item.prev && item.next) {
+      const prevSpan = (item.prev.endAngle ?? 0) - (item.prev.startAngle ?? 0);
+      const nextSpan = (item.next.endAngle ?? 0) - (item.next.startAngle ?? 0);
+      angleSpan = interpolateAngle(prevSpan, nextSpan, animationElapsedTime);
+    } else if (item.status === 'added' && item.next) {
+      const nextSpan = (item.next.endAngle ?? 0) - (item.next.startAngle ?? 0);
+      angleSpan = interpolateAngle(0, nextSpan, animationElapsedTime);
+    } else if (item.status === 'removed' && item.prev) {
+      const prevSpan = (item.prev.endAngle ?? 0) - (item.prev.startAngle ?? 0);
+      angleSpan = interpolateAngle(prevSpan, 0, animationElapsedTime);
+    }
+
+    return {
+      item,
+      baseSector,
+      angleSpan,
+      orderKey,
+      index,
+    };
+  });
+
+  // Sort descending by startAngle (90 -> 0 -> -90 -> -180 -> -270) to maintain angular order around the circle
+  activeItems.sort((a, b) => {
+    if (b.orderKey !== a.orderKey) return b.orderKey - a.orderKey;
+    return a.index - b.index;
+  });
+
+  let curAngle = 90;
+  const stepData: SectorItem[] = [];
+  for (const entry of activeItems) {
+    if (entry.item.status === 'removed' && Math.abs(entry.angleSpan) < 0.001) continue;
+    const sector: SectorItem = {
+      ...entry.baseSector,
+      fill:
+        entry.baseSector?.fill ||
+        (entry.baseSector?.payload && entry.baseSector.payload.color) ||
+        entry.baseSector?.color,
+      startAngle: curAngle,
+      endAngle: curAngle + entry.angleSpan,
+    };
+    stepData.push(sector);
+    curAngle = sector.endAngle ?? curAngle;
+  }
+  return stepData;
+}
+
 export function Budget() {
   const { tripId } = useParams<{ tripId: string }>();
   const outlet = useOutletContext<TripWorkspaceOutletContext | undefined>();
@@ -95,6 +191,31 @@ export function Budget() {
   const cached = outlet?.trip || (tripId ? getCachedTrip(tripId) : null);
   const budgetKey = `lakbye_budget_${tripId}`;
   const { user } = useAuth();
+
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(
+    getPrefersReducedMotion,
+  );
+  const [animTrigger, setAnimTrigger] = useState(0);
+  const [isAnimationActive, setIsAnimationActive] = useState(
+    () => !getPrefersReducedMotion(),
+  );
+
+  const triggerDonutAnimation = () => {
+    if (prefersReducedMotion) return;
+    setIsAnimationActive(true);
+    setAnimTrigger((t) => t + 1);
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const handler = (e: MediaQueryListEvent) => {
+      setPrefersReducedMotion(e.matches);
+      if (e.matches) setIsAnimationActive(false);
+    };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   const [trip, setTrip] = useState<Trip | null>(() => cached);
   const [budget, setBudget] = useState<BudgetData>(() => {
@@ -421,6 +542,8 @@ export function Budget() {
       expenses: [...budget.expenses, newExpense],
     });
 
+    triggerDonutAnimation();
+
     setExpenseName('');
     setExpenseItemRows([{ name: '', quantity: '1' }]);
     setExpenseCategory(BUDGET_CATEGORIES[0].name);
@@ -491,6 +614,8 @@ export function Budget() {
       expenses: budget.expenses.filter((e) => e.id !== id),
     });
 
+    triggerDonutAnimation();
+
     if (tripId && !id.startsWith('temp-')) {
       try {
         const res = await budgetApi.deleteExpense(tripId, id);
@@ -521,6 +646,7 @@ export function Budget() {
         name: cat.name,
         value: convert(val, 'PHP', displayCurrency, fxRates),
         color: cat.color,
+        fill: cat.color,
       };
     }).filter((c) => c.value > 0);
   }, [budget.expenses, displayCurrency, fxRates]);
@@ -558,10 +684,20 @@ export function Budget() {
   const chartData = useMemo(() => {
     return categoryTotals.length > 0
       ? categoryTotals
-      : [{ name: 'Empty', value: 1, color: '#E5E5EA' }];
+      : [{ name: 'Empty', value: 1, color: '#E5E5EA', fill: '#E5E5EA' }];
   }, [categoryTotals]);
 
   const currentTrip = trip || cached;
+
+  useEffect(() => {
+    if (!currentTrip || prefersReducedMotion || !isAnimationActive) return;
+
+    const timer = setTimeout(() => {
+      setIsAnimationActive(false);
+    }, 850);
+
+    return () => clearTimeout(timer);
+  }, [currentTrip, prefersReducedMotion, isAnimationActive, animTrigger]);
 
   if (!currentTrip) {
     return (
@@ -645,14 +781,24 @@ export function Budget() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
+                  key="budget-pie"
                   data={chartData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={62}
-                  outerRadius={75}
+                  innerRadius={65}
+                  outerRadius={88}
                   stroke="none"
                   dataKey="value"
-                  isAnimationActive={false}
+                  isAnimationActive={isAnimationActive}
+                  animationBegin={0}
+                  animationDuration={800}
+                  animationEasing="ease-out"
+                  animationInterpolateFn={
+                    customPieAnimateItems as unknown as NonNullable<
+                      React.ComponentProps<typeof Pie>['animationInterpolateFn']
+                    >
+                  }
+                  animationMatchBy={matchByName}
                   startAngle={90}
                   endAngle={-270}
                 >

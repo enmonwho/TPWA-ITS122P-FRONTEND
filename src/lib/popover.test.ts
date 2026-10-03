@@ -21,4 +21,21 @@ describe('anchored popover positioning', () => {
     expect(result.left).toBe(47);
     expect(result.placement).toBe('bottom');
   });
+
+  it('centers the popover horizontally against a horizontal anchor', () => {
+    const result = computePopoverPosition(
+      { top: 360, right: 945, bottom: 404, left: 495, width: 450, height: 44 },
+      { width: 590, height: 360 },
+      { width: 1440, height: 900 },
+      8,
+      8,
+      'center',
+      { top: 160, right: 983, bottom: 650, left: 457, width: 526, height: 490 },
+    );
+    // Modal center is 457 + 526/2 = 720.
+    // Popover left should be 720 - 590/2 = 425.
+    expect(result.left).toBe(425);
+    expect(result.top).toBe(412);
+    expect(result.placement).toBe('bottom');
+  });
 });

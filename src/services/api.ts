@@ -402,17 +402,29 @@ export const bookingsApi = {
     const params: Record<string, string | number> = {};
     if (status) params.status = status;
     if (tripId !== undefined && tripId !== null) params.trip_id = tripId;
-    const response = await api.get<{ bookings?: Booking[] } | Booking[]>('/bookings', {
+    const response = await api.get<
+      { bookings?: Booking[]; data?: Booking[] } | Booking[]
+    >('/bookings', {
       params: Object.keys(params).length > 0 ? params : undefined,
     });
-    return Array.isArray(response.data) ? response.data : response.data.bookings || [];
+    const resData = response.data;
+    if (Array.isArray(resData)) {
+      return resData;
+    }
+    return resData.bookings || resData.data || [];
   },
   create: async (payload: BookingCreatePayload): Promise<Booking> => {
-    const response = await api.post<{ message: string; booking: Booking }>(
-      '/bookings',
-      payload,
-    );
-    return response.data.booking;
+    const response = await api.post<
+      { message?: string; booking?: Booking; data?: Booking } | Booking
+    >('/bookings', payload);
+    const resData = response.data;
+    if ('booking' in resData && resData.booking) {
+      return resData.booking;
+    }
+    if ('data' in resData && resData.data) {
+      return resData.data;
+    }
+    return resData as Booking;
   },
   updateStatus: async (
     id: number | string,

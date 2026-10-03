@@ -56,61 +56,106 @@ export function CountryAutocomplete({
         borderColor: error ? 'red' : undefined,
         position: 'relative',
         display: 'flex',
-        flexWrap: 'wrap',
-        gap: '6px',
         alignItems: 'center',
-        padding: '6px 12px',
-        minHeight: '44px',
+        padding: '4px 8px 4px 12px',
+        minHeight: '48px',
+        maxHeight: '88px',
+        height: 'auto',
+        boxSizing: 'border-box',
+        gap: '4px',
       }}
       ref={dropdownRef}
-      onClick={() => inputRef.current?.focus()}
-    >
-      {/* Selected Country Badges with Deselect (x) buttons */}
-      {value.map((countryId) => {
-        const countryName = getCountryName(countryId);
-        return (
-          <span
-            key={countryId}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-900 border border-amber-200/80 rounded-full text-xs font-semibold shrink-0 animate-fade-in"
-          >
-            <span>{countryName}</span>
-            <button
-              type="button"
-              onClick={(e) => handleDeselect(countryId, e)}
-              className="w-3.5 h-3.5 rounded-full hover:bg-amber-200/70 flex items-center justify-center transition-colors text-amber-700"
-              aria-label={`Deselect ${countryName}`}
-            >
-              <X size={11} strokeWidth={2.5} />
-            </button>
-          </span>
-        );
-      })}
-
-      {/* Search Input */}
-      <input
-        ref={inputRef}
-        type="text"
-        className="modal-input"
-        placeholder={
-          value.length > 0
-            ? 'Add more...'
-            : 'Search and select countries (e.g. Philippines, Japan)...'
+      onMouseDown={(e) => {
+        const target = e.target as HTMLElement;
+        if (!target.closest('button') && target !== inputRef.current) {
+          e.preventDefault();
+          inputRef.current?.focus();
         }
-        value={search}
-        onFocus={() => setIsOpen(true)}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          setIsOpen(true);
-        }}
+      }}
+    >
+      {/* Scrollable Chip + Input Area (up to ~2 rows before scrolling) */}
+      <div
+        className="country-chips-scroll"
         style={{
           flex: 1,
-          minWidth: '120px',
-          border: 'none',
-          outline: 'none',
-          padding: '4px 0',
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: '6px',
+          maxHeight: '76px',
+          overflowY: 'auto',
+          minWidth: 0,
+          padding: '2px 0',
         }}
-      />
+      >
+        {/* Selected Country Badges with Deselect (x) buttons */}
+        {value.map((countryId) => {
+          const countryName = getCountryName(countryId);
+          return (
+            <span
+              key={countryId}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-900 border border-amber-200/80 rounded-full text-xs font-semibold shrink-0 max-w-full animate-fade-in"
+            >
+              <span
+                className="truncate max-w-[140px] sm:max-w-[180px]"
+                title={countryName}
+              >
+                {countryName}
+              </span>
+              <button
+                type="button"
+                onClick={(e) => handleDeselect(countryId, e)}
+                className="w-3.5 h-3.5 rounded-full hover:bg-amber-200/70 flex items-center justify-center transition-colors text-amber-700 shrink-0 cursor-pointer"
+                aria-label={`Deselect ${countryName}`}
+              >
+                <X size={11} strokeWidth={2.5} />
+              </button>
+            </span>
+          );
+        })}
 
+        {/* Search Input */}
+        <input
+          ref={inputRef}
+          type="text"
+          className="modal-input"
+          placeholder={
+            value.length > 0
+              ? 'Add more...'
+              : 'Search and select countries (e.g. Philippines, Japan)...'
+          }
+          value={search}
+          onFocus={() => setIsOpen(true)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setIsOpen(true);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Backspace' && search === '' && value.length > 0) {
+              handleDeselect(value[value.length - 1]);
+            }
+            if (e.key === 'Escape') {
+              setIsOpen(false);
+            }
+            if (e.key === 'Enter' && isOpen && filteredCountries.length > 0) {
+              e.preventDefault();
+              handleSelect(filteredCountries[0].id);
+            }
+          }}
+          style={{
+            flex: '1 1 80px',
+            minWidth: '70px',
+            border: 'none',
+            outline: 'none',
+            padding: '2px 0',
+            fontSize: '13px',
+            background: 'transparent',
+            color: '#1c1917',
+          }}
+        />
+      </div>
+
+      {/* Dropdown Arrow: Always visible, aligned, and usable on the right */}
       <button
         type="button"
         style={{
@@ -118,8 +163,11 @@ export function CountryAutocomplete({
           border: 'none',
           cursor: 'pointer',
           display: 'flex',
-          padding: '4px',
-          marginLeft: 'auto',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '6px',
+          flexShrink: 0,
+          alignSelf: 'center',
         }}
         onClick={(e) => {
           e.stopPropagation();
