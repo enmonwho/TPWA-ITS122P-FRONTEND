@@ -5573,23 +5573,17 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 }
 
 .workspace-day-schedule {
-  padding: 8px 4px;
-  gap: 8px;
+  padding: 4px 0 0 2px;
 }
 
-.workspace-day-schedule > div:nth-child(2) {
-  gap: 8px;
-}
-
-.workspace-day-schedule [class*='min-h-[52px]'] {
-  min-height: 52px;
+.workspace-planned-day-card {
+  min-height: 76px;
   flex-shrink: 0;
 }
 
-@media (min-width: 641px) {
-  .workspace-day-schedule [class*='min-h-[52px]'] {
-    height: 52px;
-  }
+.workspace-unplanned-day-card {
+  min-height: 58px;
+  flex-shrink: 0;
 }
 
 /* ============================== */

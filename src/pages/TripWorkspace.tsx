@@ -1238,8 +1238,8 @@ export default function TripWorkspace() {
           ) : (
             /* Day by Day View */
             <div className="workspace-day-schedule flex-1 min-h-0 flex flex-col gap-2.5 overflow-hidden p-1">
-              <div className="flex items-center justify-between px-1 mb-1 shrink-0">
-                <span className="text-[10px] font-semibold tracking-wider text-[#74675D] uppercase">
+              <div className="flex items-center justify-between px-1 pt-1.5 pb-2 mb-1 shrink-0 border-b border-[rgba(72,42,19,0.08)]">
+                <span className="text-[11px] font-bold tracking-wider text-[#5A381E] uppercase">
                   {(
                     availableCountries
                       .map((c) => c.name)
@@ -1248,7 +1248,7 @@ export default function TripWorkspace() {
                   ).toUpperCase()}{' '}
                   · DAYS 1–{tripDurationDays}
                 </span>
-                <span className="text-[10px] font-semibold text-[#E9724C]">
+                <span className="text-[10.5px] font-semibold text-[#E9724C] tracking-tight">
                   {daySchedule.filter((d) => d.destination !== null).length} planned ·{' '}
                   {daySchedule.filter((d) => d.destination === null).length} unplanned
                 </span>
@@ -1256,71 +1256,83 @@ export default function TripWorkspace() {
 
               <div
                 ref={dayScheduleListRef}
-                className="flex-1 min-h-0 flex flex-col gap-2.5 overflow-y-auto pr-1"
+                className="flex-1 min-h-0 flex flex-col gap-2.5 overflow-y-auto pr-[14px]"
               >
                 {daySchedule.map((item) => {
                   if (item.destination) {
                     return (
                       <div
                         key={`day-${item.dayNumber}`}
-                        className="flex items-center h-16 bg-white rounded-xl border border-[rgba(72,42,19,0.14)] shadow-xs overflow-hidden shrink-0"
+                        className="workspace-planned-day-card flex items-center min-h-[76px] bg-white rounded-xl border border-[rgba(72,42,19,0.14)] shadow-xs overflow-hidden shrink-0 transition-shadow hover:shadow-sm"
                       >
                         {/* Day Badge matching Figma #FFF5C2 and #994D00 */}
-                        <div className="w-[54px] self-stretch bg-[#FFF5C2] flex flex-col items-center justify-center shrink-0">
-                          <span className="text-[8px] font-bold text-[#994D00] uppercase tracking-wide">
+                        <div className="w-[72px] self-stretch bg-[#FFF5C2] flex flex-col items-center justify-center shrink-0 border-r border-[rgba(72,42,19,0.06)] py-2 select-none">
+                          <span className="text-[8.5px] font-bold text-[#994D00] uppercase tracking-wider">
                             DAY
                           </span>
-                          <span className="text-lg font-bold text-[#994D00] leading-tight">
+                          <span className="text-xl font-bold text-[#994D00] leading-none mt-1">
                             {item.dayNumber}
                           </span>
                         </div>
 
-                        {/* Destination info */}
-                        <div className="w-40 pl-3.5 pr-2 shrink-0">
-                          <div className="font-bold text-[13px] text-[#2F1B0C] truncate">
-                            {item.destination.name}
+                        {/* Content grid: Desktop 5-part layout (Destination 1.2fr | Stay 1fr | Activity 1.15fr | Transit 1fr) with 24px column gap */}
+                        <div className="flex-1 min-w-0 px-4 py-3 flex flex-col lg:grid lg:grid-cols-[1.2fr_1fr_1.15fr_1fr] lg:gap-x-6 lg:items-center gap-y-2.5">
+                          {/* Destination info */}
+                          <div className="min-w-0 pr-1 flex flex-col justify-center">
+                            <div
+                              className="font-bold text-[13px] text-[#2F1B0C] leading-snug truncate"
+                              title={item.destination.name}
+                            >
+                              {item.destination.name}
+                            </div>
+                            <div className="text-[10px] text-[#74675D] font-medium leading-normal mt-0.5 truncate">
+                              {item.destination.country ||
+                                getCountryName(item.destination.countryId)}{' '}
+                              · Day {item.dayOfDestination} of{' '}
+                              {item.destination.days || 1}
+                            </div>
                           </div>
-                          <div className="text-[9.5px] text-[#74675D] truncate">
-                            {item.destination.country ||
-                              getCountryName(item.destination.countryId)}{' '}
-                            · Day {item.dayOfDestination} of {item.destination.days || 1}
-                          </div>
-                        </div>
 
-                        {/* Columns: Stay, Activity, Transit */}
-                        <div className="flex-1 grid grid-cols-3 gap-2 px-2 text-left">
-                          <div className="min-w-0">
-                            <span className="block text-[8px] font-bold text-[#74675D] uppercase">
-                              Stay
-                            </span>
-                            <span
-                              className="block text-[11px] font-medium text-[#2F1B0C] truncate"
-                              title={item.destination.accommodation || '—'}
-                            >
-                              {item.destination.accommodation || '—'}
-                            </span>
-                          </div>
-                          <div className="min-w-0">
-                            <span className="block text-[8px] font-bold text-[#74675D] uppercase">
-                              Activity
-                            </span>
-                            <span
-                              className="block text-[11px] font-medium text-[#2F1B0C] truncate"
-                              title={item.destination.activities || '—'}
-                            >
-                              {item.destination.activities || '—'}
-                            </span>
-                          </div>
-                          <div className="min-w-0">
-                            <span className="block text-[8px] font-bold text-[#74675D] uppercase">
-                              Transit
-                            </span>
-                            <span
-                              className="block text-[11px] font-medium text-[#2F1B0C] truncate"
-                              title={item.destination.transportation || '—'}
-                            >
-                              {item.destination.transportation || '—'}
-                            </span>
+                          {/* Metadata: Stay, Activity, Transit (3-col on tablet, stacked on mobile, contents on desktop) */}
+                          <div className="grid grid-cols-1 sm:grid-cols-3 lg:contents gap-2 sm:gap-4 lg:gap-0">
+                            {/* Stay */}
+                            <div className="min-w-0 flex flex-col justify-center">
+                              <span className="text-[8.5px] font-bold text-[#8C7E74] uppercase tracking-wider mb-1">
+                                Stay
+                              </span>
+                              <span
+                                className="text-[11px] font-semibold text-[#2F1B0C] leading-snug line-clamp-2 break-words"
+                                title={item.destination.accommodation || '—'}
+                              >
+                                {item.destination.accommodation || '—'}
+                              </span>
+                            </div>
+
+                            {/* Activity */}
+                            <div className="min-w-0 flex flex-col justify-center">
+                              <span className="text-[8.5px] font-bold text-[#8C7E74] uppercase tracking-wider mb-1">
+                                Activity
+                              </span>
+                              <span
+                                className="text-[11px] font-semibold text-[#2F1B0C] leading-snug line-clamp-2 break-words"
+                                title={item.destination.activities || '—'}
+                              >
+                                {item.destination.activities || '—'}
+                              </span>
+                            </div>
+
+                            {/* Transit */}
+                            <div className="min-w-0 flex flex-col justify-center">
+                              <span className="text-[8.5px] font-bold text-[#8C7E74] uppercase tracking-wider mb-1">
+                                Transit
+                              </span>
+                              <span
+                                className="text-[11px] font-semibold text-[#2F1B0C] leading-snug line-clamp-2 break-words"
+                                title={item.destination.transportation || '—'}
+                              >
+                                {item.destination.transportation || '—'}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1331,18 +1343,18 @@ export default function TripWorkspace() {
                   return (
                     <div
                       key={`day-${item.dayNumber}`}
-                      className="flex items-center min-h-[52px] bg-[#FEFCF9] rounded-xl border border-[rgba(72,42,19,0.14)] shadow-xs overflow-hidden shrink-0"
+                      className="workspace-unplanned-day-card flex items-center min-h-[58px] bg-[#FEFCF9] rounded-xl border border-[rgba(72,42,19,0.14)] shadow-xs overflow-hidden shrink-0"
                     >
-                      <div className="w-[54px] self-stretch min-h-[52px] bg-[#FFF5C2] flex flex-col items-center justify-center shrink-0">
-                        <span className="text-[8px] font-bold text-[#994D00] uppercase tracking-wide">
+                      <div className="w-[72px] self-stretch bg-[#FFF5C2] flex flex-col items-center justify-center shrink-0 border-r border-[rgba(72,42,19,0.06)] py-2 select-none">
+                        <span className="text-[8.5px] font-bold text-[#994D00] uppercase tracking-wider">
                           DAY
                         </span>
-                        <span className="text-base font-bold text-[#994D00] leading-tight">
+                        <span className="text-xl font-bold text-[#994D00] leading-none mt-1">
                           {item.dayNumber}
                         </span>
                       </div>
-                      <div className="flex-1 min-w-0 px-3.5 py-1.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-3">
-                        <span className="text-[9.5px] text-[#8091AB] font-normal">
+                      <div className="flex-1 min-w-0 px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-4">
+                        <span className="text-[10px] text-[#8091AB] font-normal leading-normal">
                           Unplanned / Free Day — add a destination to schedule this day.
                         </span>
                         <button
@@ -1354,10 +1366,10 @@ export default function TripWorkspace() {
                               if (el) el.focus();
                             }, 100);
                           }}
-                          className="inline-flex items-center text-[10px] font-semibold text-[#255F85] hover:text-[#1A4562] hover:underline focus:outline-none focus-visible:underline transition-colors shrink-0 whitespace-nowrap cursor-pointer self-start sm:self-auto pr-1"
+                          className="inline-flex items-center text-[10.5px] font-semibold text-[#255F85] hover:text-[#1A4562] hover:underline focus:outline-none focus-visible:underline transition-colors shrink-0 whitespace-nowrap cursor-pointer self-start sm:self-auto py-1 pr-1"
                         >
                           <span
-                            className="text-xs font-bold leading-none mr-1"
+                            className="text-xs font-bold leading-none mr-1.5"
                             aria-hidden="true"
                           >
                             +
