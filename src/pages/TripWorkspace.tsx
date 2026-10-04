@@ -1256,7 +1256,7 @@ export default function TripWorkspace() {
 
               <div
                 ref={dayScheduleListRef}
-                className="flex-1 min-h-0 flex flex-col gap-2.5 overflow-y-auto pr-[14px]"
+                className="flex-1 min-h-0 flex flex-col gap-2.5 overflow-y-auto pr-4"
               >
                 {daySchedule.map((item) => {
                   if (item.destination) {
@@ -1343,7 +1343,7 @@ export default function TripWorkspace() {
                   return (
                     <div
                       key={`day-${item.dayNumber}`}
-                      className="workspace-unplanned-day-card flex items-center min-h-[58px] bg-[#FEFCF9] rounded-xl border border-[rgba(72,42,19,0.14)] shadow-xs overflow-hidden shrink-0"
+                      className="workspace-unplanned-day-card flex items-stretch min-h-[58px] bg-[#FEFCF9] rounded-xl border border-[rgba(72,42,19,0.14)] shadow-xs overflow-hidden shrink-0"
                     >
                       <div className="w-[72px] self-stretch bg-[#FFF5C2] flex flex-col items-center justify-center shrink-0 border-r border-[rgba(72,42,19,0.06)] py-2 select-none">
                         <span className="text-[8.5px] font-bold text-[#994D00] uppercase tracking-wider">
@@ -1353,29 +1353,31 @@ export default function TripWorkspace() {
                           {item.dayNumber}
                         </span>
                       </div>
-                      <div className="flex-1 min-w-0 px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-4">
+                      <div className="flex-1 min-w-0 pl-4 pr-6 py-2.5 flex flex-col sm:grid sm:grid-cols-[minmax(0,1fr)_auto] items-start sm:items-center gap-2 sm:gap-6">
                         <span className="text-[10px] text-[#8091AB] font-normal leading-normal">
                           Unplanned / Free Day — add a destination to schedule this day.
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveTab('route');
-                            setTimeout(() => {
-                              const el = document.getElementById('workspace-dest-input');
-                              if (el) el.focus();
-                            }, 100);
-                          }}
-                          className="inline-flex items-center text-[10.5px] font-semibold text-[#255F85] hover:text-[#1A4562] hover:underline focus:outline-none focus-visible:underline transition-colors shrink-0 whitespace-nowrap cursor-pointer self-start sm:self-auto py-1 pr-1"
-                        >
-                          <span
-                            className="text-xs font-bold leading-none mr-1.5"
-                            aria-hidden="true"
+                        <div className="flex items-center justify-end w-full sm:w-auto shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveTab('route');
+                              setTimeout(() => {
+                                const el =
+                                  document.getElementById('workspace-dest-input');
+                                if (el) el.focus();
+                              }, 100);
+                            }}
+                            className="group inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#255F85] hover:text-[#1A4562] transition-colors shrink-0 whitespace-nowrap cursor-pointer py-1 focus:outline-none focus-visible:underline"
                           >
-                            +
-                          </span>
-                          Add destination
-                        </button>
+                            <Plus
+                              size={13}
+                              strokeWidth={2.5}
+                              className="shrink-0 text-[#255F85] group-hover:text-[#1A4562] transition-colors"
+                            />
+                            <span className="group-hover:underline">Add destination</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
