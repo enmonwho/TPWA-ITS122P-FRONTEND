@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
-import { Pencil, Camera, Users, Lock, Globe } from 'lucide-react';
+import { Pencil, Camera, Lock, Globe } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../lib/constants';
 import type { Trip } from '../types/trip';
@@ -350,8 +350,9 @@ export function Settings() {
 
           <div className="form-group">
             <div className="form-label">Privacy & Visibility</div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               <button
+                type="button"
                 onClick={() => {
                   setVisibility('private');
                   saveChanges({ visibility: 'private' });
@@ -362,16 +363,7 @@ export function Settings() {
                 <span className="text-xs font-semibold">Private</span>
               </button>
               <button
-                onClick={() => {
-                  setVisibility('friends');
-                  saveChanges({ visibility: 'friends' });
-                }}
-                className={`px-3 py-3 rounded-xl flex flex-col items-center gap-1 border transition-all ${visibility === 'friends' ? 'bg-amber-50 border-amber-600 text-amber-700 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
-              >
-                <Users size={18} />
-                <span className="text-xs font-semibold">Friends</span>
-              </button>
-              <button
+                type="button"
                 onClick={() => {
                   setVisibility('public');
                   saveChanges({ visibility: 'public' });
@@ -383,11 +375,9 @@ export function Settings() {
               </button>
             </div>
             <p className="text-xs text-slate-500 mt-2">
-              {visibility === 'private' && 'Only you can see this trip.'}
-              {visibility === 'friends' &&
-                'People with the link can view your itinerary.'}
-              {visibility === 'public' &&
-                'Anyone browsing destinations can see your public itinerary.'}
+              {visibility === 'private'
+                ? 'Only you can see this trip.'
+                : 'Anyone browsing destinations can see your public itinerary.'}
             </p>
           </div>
 

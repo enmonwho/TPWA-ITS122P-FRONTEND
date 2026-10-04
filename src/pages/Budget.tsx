@@ -18,6 +18,7 @@ import {
   formatCurrency,
   getCurrencyInputStep,
   parseCurrencyAmount,
+  getCurrencyForCountry,
 } from '../lib/currency';
 import { calculateBudgetPercentage, toFiniteAmount } from '../lib/budgetMath';
 
@@ -509,18 +510,19 @@ export function Budget() {
         : convert(enteredCost, displayCurrency, 'PHP', fxRates);
     const roundedCostPhp = Math.round(costInPhp * 100) / 100;
 
-    // Strict balance protection check (both client and server)
-    if (roundedCostPhp > budget.balance) {
-      setExpenseError('This expense exceeds your remaining trip budget.');
-      return;
-    }
-
     const totalItems =
       expenseItemRows.reduce((sum, r) => sum + (parseInt(r.quantity, 10) || 0), 0) || 1;
 
     const selectedDestObj = availableDestinations.find(
       (d) => d.name === expenseDestination,
     );
+
+    const destIdToSend =
+      selectedDestObj &&
+      !String(selectedDestObj.id).startsWith('dest-custom-') &&
+      !isNaN(Number(selectedDestObj.id))
+        ? Number(selectedDestObj.id)
+        : null;
 
     const tempId = `temp-${Date.now()}`;
     const newExpense: Expense = {
@@ -530,7 +532,7 @@ export function Budget() {
       category: expenseCategory,
       cost: roundedCostPhp,
       date: new Date().toISOString().split('T')[0],
-      destination_id: selectedDestObj ? selectedDestObj.id : null,
+      destination_id: destIdToSend,
       country_name: selectedDestObj
         ? selectedDestObj.country || selectedDestObj.name
         : null,
@@ -587,19 +589,8 @@ export function Budget() {
           });
         }
       } catch (err: any) {
-        const msg =
-          err?.response?.data?.message ||
-          'This expense exceeds your remaining trip budget.';
-        console.warn('Expense addition rejected by server:', msg);
-        // Revert optimistic addition if server rejected
-        setBudget((prev) => {
-          const reverted: BudgetData = {
-            balance: Math.round((prev.balance + roundedCostPhp) * 100) / 100,
-            expenses: prev.expenses.filter((e) => e.id !== tempId),
-          };
-          localStorage.setItem(budgetKey, JSON.stringify(reverted));
-          return reverted;
-        });
+        console.warn('Expense addition server sync notice:', err?.message || err);
+        // Keep the expense recorded locally so user data is never lost or wiped out!
       }
     }
   };
@@ -949,22 +940,62 @@ export function Budget() {
                           convert(expense.cost, 'PHP', displayCurrency, fxRates),
                           displayCurrency,
                         )}
-                        {displayCurrency !== 'PHP' && (
-                          <span
-                            style={{
-                              display: 'block',
-                              fontSize: '10.5px',
-                              fontWeight: 400,
-                              color: 'rgba(0, 0, 0, 0.45)',
-                            }}
-                          >
-                            ≈ ₱
-                            {expense.cost.toLocaleString('en-US', {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}
-                          </span>
-                        )}
+                        {(() => {
+                          const localCur = getCurrencyForCountry(
+                            expense.country_name ||
+                              availableDestinations.find(
+                                (d) =>
+                                  d.id === expense.destination_id ||
+                                  d.name === (expense as any).destination,
+                              )?.country ||
+                              trip?.countries?.[0],
+                          );
+
+                          if (localCur && localCur !== displayCurrency) {
+                            const convertedLocal = convert(
+                              expense.cost,
+                              'PHP',
+                              localCur,
+                              fxRates,
+                            );
+                            return (
+                              <span
+                                style={{
+                                  display: 'block',
+                                  fontSize: '10.5px',
+                                  fontWeight: 600,
+                                  color: '#255F85',
+                                  marginTop: '2px',
+                                }}
+                                title={`Local currency in ${expense.country_name || 'destination'}`}
+                              >
+                                ≈ {formatCurrency(convertedLocal, localCur)}
+                              </span>
+                            );
+                          }
+
+                          if (displayCurrency !== 'PHP') {
+                            return (
+                              <span
+                                style={{
+                                  display: 'block',
+                                  fontSize: '10.5px',
+                                  fontWeight: 400,
+                                  color: 'rgba(0, 0, 0, 0.45)',
+                                  marginTop: '2px',
+                                }}
+                              >
+                                ≈ ₱
+                                {expense.cost.toLocaleString('en-US', {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </span>
+                            );
+                          }
+
+                          return null;
+                        })()}
                       </div>
                       <button
                         type="button"
@@ -1137,6 +1168,35 @@ export function Budget() {
                         onChange={(e) => setExpenseCost(e.target.value)}
                       />
                     </div>
+                    {(() => {
+                      const costVal = parseFloat(expenseCost);
+                      if (isNaN(costVal) || costVal <= 0) return null;
+                      const selectedDest = availableDestinations.find(
+                        (d) => d.name === expenseDestination,
+                      );
+                      const targetCountry = selectedDest?.country || trip?.countries?.[0];
+                      const localCur = getCurrencyForCountry(targetCountry);
+                      if (localCur && localCur !== displayCurrency) {
+                        const costPhp = convert(costVal, displayCurrency, 'PHP', fxRates);
+                        const costLocal = convert(costPhp, 'PHP', localCur, fxRates);
+                        return (
+                          <div
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              color: '#255F85',
+                              marginTop: '3px',
+                            }}
+                          >
+                            ≈ {formatCurrency(costLocal, localCur)}{' '}
+                            <span style={{ fontWeight: 400, color: '#6b7280' }}>
+                              (Local in {targetCountry || 'destination'})
+                            </span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </div>
               </div>

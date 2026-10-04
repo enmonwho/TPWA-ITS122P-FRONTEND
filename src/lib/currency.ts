@@ -22,6 +22,7 @@ export const SUPPORTED_CURRENCIES: CurrencyOption[] = [
   { code: 'EUR', symbol: '€', label: 'EUR (€)', name: 'Euro' },
   { code: 'GBP', symbol: '£', label: 'GBP (£)', name: 'British Pound' },
   { code: 'JPY', symbol: '¥', label: 'JPY (¥)', name: 'Japanese Yen' },
+  { code: 'KRW', symbol: '₩', label: 'KRW (₩)', name: 'South Korean Won' },
 ];
 
 const CURRENCY_MINOR_UNITS: Record<string, number> = {
@@ -30,6 +31,7 @@ const CURRENCY_MINOR_UNITS: Record<string, number> = {
   EUR: 2,
   GBP: 2,
   JPY: 0,
+  KRW: 0,
 };
 
 export function getCurrencyMinorUnits(currencyCode: string): number {
@@ -65,6 +67,7 @@ const EMERGENCY_PHP_RATES: Record<string, number> = {
   EUR: 0.0161,
   GBP: 0.0135,
   JPY: 2.65,
+  KRW: 24.2,
 };
 
 /** Get today's local date string in YYYY-MM-DD format. */
@@ -214,12 +217,55 @@ export function convert(
     converted = inPhp * toRate;
   }
 
-  // JPY typically has no fractional currency subunits
-  if (to === 'JPY') {
+  // JPY and KRW typically have no fractional currency subunits
+  if (to === 'JPY' || to === 'KRW') {
     return Math.round(converted);
   }
 
   return Math.round(converted * 100) / 100;
+}
+
+/**
+ * Country-to-currency code mapping.
+ */
+const COUNTRY_CURRENCY_MAP: Record<string, string> = {
+  korea: 'KRW',
+  'south korea': 'KRW',
+  'south-korea': 'KRW',
+  japan: 'JPY',
+  philippines: 'PHP',
+  'united states': 'USD',
+  'united-states': 'USD',
+  usa: 'USD',
+  us: 'USD',
+  'united kingdom': 'GBP',
+  'united-kingdom': 'GBP',
+  uk: 'GBP',
+  france: 'EUR',
+  italy: 'EUR',
+  germany: 'EUR',
+  spain: 'EUR',
+  netherlands: 'EUR',
+  portugal: 'EUR',
+  greece: 'EUR',
+  austria: 'EUR',
+  ireland: 'EUR',
+  belgium: 'EUR',
+  finland: 'EUR',
+};
+
+/**
+ * Determine local currency for a given country name or ID.
+ */
+export function getCurrencyForCountry(countryNameOrId?: string | null): string {
+  if (!countryNameOrId) return 'PHP';
+  const clean = countryNameOrId.trim().toLowerCase();
+  for (const [key, cur] of Object.entries(COUNTRY_CURRENCY_MAP)) {
+    if (clean === key || clean.includes(key)) {
+      return cur;
+    }
+  }
+  return 'PHP';
 }
 
 /**

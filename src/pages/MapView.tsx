@@ -1144,8 +1144,10 @@ export default function MapView() {
                               </h4>
                               <p className="text-[11px] font-mono text-stone-400 mt-1">
                                 {dest.latitude !== undefined &&
-                                dest.longitude !== undefined
-                                  ? `${dest.latitude.toFixed(4)}, ${dest.longitude.toFixed(4)}`
+                                dest.longitude !== undefined &&
+                                !isNaN(Number(dest.latitude)) &&
+                                !isNaN(Number(dest.longitude))
+                                  ? `${Number(dest.latitude).toFixed(4)}, ${Number(dest.longitude).toFixed(4)}`
                                   : 'Coordinates pending'}
                               </p>
                             </div>

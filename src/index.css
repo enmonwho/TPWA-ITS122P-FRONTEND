@@ -12520,12 +12520,24 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   max-width: 440px;
   background: #ffffff;
   border-radius: 20px;
-  padding: 28px;
+  padding: 32px 28px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
+  box-sizing: border-box;
+}
+
+.delete-trip-modal-card p {
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
+  line-height: 1.6;
+  margin: 0 auto 20px auto;
 }
 
 /* ==========================================================================

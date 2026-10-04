@@ -37,6 +37,7 @@ docs/
 *.pdf
 *.md
 !README.md
+!*HANDOFF*.md
 QA_REMEDIATION_V2_PROGRESS.md
 QA_REMEDIATION*.md
 *REMEDIATION*.md

@@ -953,18 +953,20 @@ export default function Dashboard() {
               Delete Trip?
             </h3>
 
-            <p className="text-xs text-stone-500 leading-relaxed mb-5 max-w-sm">
-              Are you sure you want to delete &ldquo;
-              <span className="font-semibold text-stone-800">{deletingTrip.name}</span>
-              &rdquo;? All associated itineraries, budget expenses, and packing checklists
-              will be permanently removed.
+            <p className="text-xs text-stone-500 leading-relaxed mb-5 w-full max-w-[360px] text-center">
+              Are you sure you want to delete{' '}
+              <span className="font-semibold text-stone-800">
+                &ldquo;{deletingTrip.name}&rdquo;
+              </span>
+              ? All associated itineraries, budget expenses, and packing checklists will
+              be permanently removed.
             </p>
 
             <div className="flex items-center gap-3 w-full justify-center">
               <button
                 type="button"
                 onClick={() => setDeletingTrip(null)}
-                className="flex-1 max-w-35 py-2.5 px-4 rounded-xl border border-stone-300 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors cursor-pointer"
+                className="flex-1 max-w-[140px] py-2.5 px-4 rounded-xl border border-stone-300 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -972,7 +974,7 @@ export default function Dashboard() {
                 type="button"
                 disabled={isDeleting}
                 onClick={handleConfirmDelete}
-                className="flex-1 max-w-35 py-2.5 px-4 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+                className="flex-1 max-w-[140px] py-2.5 px-4 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-colors shadow-sm cursor-pointer disabled:opacity-50"
               >
                 {isDeleting ? 'Deleting...' : 'Delete'}
               </button>
