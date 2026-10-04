@@ -5582,8 +5582,14 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 }
 
 .workspace-day-schedule [class*='min-h-[52px]'] {
-  height: 52px;
+  min-height: 52px;
   flex-shrink: 0;
+}
+
+@media (min-width: 641px) {
+  .workspace-day-schedule [class*='min-h-[52px]'] {
+    height: 52px;
+  }
 }
 
 /* ============================== */

@@ -1341,22 +1341,30 @@ export default function TripWorkspace() {
                           {item.dayNumber}
                         </span>
                       </div>
-                      <div className="flex-1 px-3 text-[9.5px] text-[#8091AB] font-normal">
-                        Unplanned / Free Day — add a destination to schedule this day.
+                      <div className="flex-1 min-w-0 px-3.5 py-1.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-3">
+                        <span className="text-[9.5px] text-[#8091AB] font-normal">
+                          Unplanned / Free Day — add a destination to schedule this day.
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveTab('route');
+                            setTimeout(() => {
+                              const el = document.getElementById('workspace-dest-input');
+                              if (el) el.focus();
+                            }, 100);
+                          }}
+                          className="inline-flex items-center text-[10px] font-semibold text-[#255F85] hover:text-[#1A4562] hover:underline focus:outline-none focus-visible:underline transition-colors shrink-0 whitespace-nowrap cursor-pointer self-start sm:self-auto pr-1"
+                        >
+                          <span
+                            className="text-xs font-bold leading-none mr-1"
+                            aria-hidden="true"
+                          >
+                            +
+                          </span>
+                          Add destination
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveTab('route');
-                          setTimeout(() => {
-                            const el = document.getElementById('workspace-dest-input');
-                            if (el) el.focus();
-                          }, 100);
-                        }}
-                        className="mr-3 px-4 py-1.5 bg-[#F2F7FC] border border-[rgba(72,42,19,0.14)] text-[#255F85] text-[9.5px] font-semibold rounded-full hover:bg-sky-50 transition-colors shrink-0 whitespace-nowrap cursor-pointer"
-                      >
-                        Add destination
-                      </button>
                     </div>
                   );
                 })}
