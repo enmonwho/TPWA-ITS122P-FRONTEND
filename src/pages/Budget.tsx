@@ -723,7 +723,7 @@ export function Budget() {
         </div>
       </header>
 
-      <div className="budget-main-card animate-slide-up">
+      <div className="budget-main-card animate-slide-up hidden md:flex">
         <div className="budget-left-zone">
           <div className="budget-left-header">
             <h2 className="budget-title">Budget</h2>
@@ -979,6 +979,150 @@ export function Budget() {
                 })
               )}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Approved Mobile Budget View (Figma 829:280) */}
+      <div className="budget-mobile-view md:hidden flex flex-col gap-4 p-4 pb-24 bg-[#FAF7F2]">
+        {/* Section 1: Trip Budget */}
+        <div className="flex flex-col gap-2">
+          <h2 className="font-bold text-[#2F1B0C] text-lg">Trip Budget</h2>
+          <div className="bg-white rounded-2xl p-5 shadow-xs border border-stone-200/70 flex items-center justify-between gap-3">
+            {/* Donut progress ring */}
+            <div className="relative w-[110px] h-[110px] flex items-center justify-center shrink-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={chartData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={38}
+                    outerRadius={50}
+                    dataKey="value"
+                    startAngle={90}
+                    endAngle={-270}
+                    stroke="none"
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={entry.color || entry.fill || '#255F85'}
+                      />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="font-bold text-[#2F1B0C] text-lg leading-none">
+                  {budgetPercentage}%
+                </span>
+                <span className="text-[11px] text-stone-500 font-medium mt-0.5">
+                  spent
+                </span>
+              </div>
+            </div>
+
+            {/* Spent info and buttons */}
+            <div className="flex flex-col flex-1 min-w-0">
+              <span className="font-bold text-[#2F1B0C] text-xl leading-tight truncate">
+                {formattedSpent}
+              </span>
+              <span className="text-xs text-stone-500 font-medium mb-3">
+                of{' '}
+                {formatCurrency(convertedTotalSpent + convertedBalance, displayCurrency)}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddBalanceOpen(true)}
+                  className="mobile-secondary-pill-btn px-3 py-1.5 text-xs shadow-xs"
+                >
+                  + Balance
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsAddExpenseOpen(true)}
+                  className="mobile-primary-pill-btn px-3.5 py-1.5 text-xs shadow-xs ml-2"
+                >
+                  + Expense
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 2: Categories */}
+        <div className="flex flex-col gap-2">
+          <h2 className="font-bold text-[#2F1B0C] text-lg">Categories</h2>
+          <div className="bg-white rounded-2xl p-4 shadow-xs border border-stone-200/70 flex flex-col divide-y divide-stone-100">
+            {categoryTotals.length > 0 ? (
+              categoryTotals.map((cat) => (
+                <div
+                  key={cat.name}
+                  className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0"
+                >
+                  <span className="text-sm font-semibold text-[#2F1B0C]">{cat.name}</span>
+                  <span className="text-sm font-bold text-[#2F1B0C]">
+                    {formatCurrency(cat.value, displayCurrency)}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="text-xs text-stone-400 py-2 text-center">
+                No category spending recorded yet.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Section 3: Recent Expenses */}
+        <div className="flex flex-col gap-2">
+          <h2 className="font-bold text-[#2F1B0C] text-lg">Recent Expenses</h2>
+          <div className="bg-white rounded-2xl p-4 shadow-xs border border-stone-200/70 flex flex-col divide-y divide-stone-100">
+            {budget.expenses.length > 0 ? (
+              budget.expenses.map((expense) => {
+                const costDisplay = convert(
+                  expense.cost,
+                  'PHP',
+                  displayCurrency,
+                  fxRates,
+                );
+                return (
+                  <div
+                    key={expense.id}
+                    className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0"
+                  >
+                    <div className="flex flex-col min-w-0 pr-2">
+                      <span className="text-sm font-bold text-[#2F1B0C] truncate">
+                        {expense.name}
+                      </span>
+                      <span className="text-xs text-stone-400 font-medium">
+                        {expense.category}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-sm font-bold text-[#2F1B0C]">
+                        {formatCurrency(costDisplay, displayCurrency)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => deleteExpense(expense.id)}
+                        className="text-stone-400 hover:text-rose-600 p-1"
+                        title="Delete Expense"
+                        aria-label={`Delete ${expense.name}`}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-xs text-stone-400 py-3 text-center">
+                No expenses added yet. Tap + Expense to add one.
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -5661,70 +5661,41 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 }
 
 @media (max-width: 768px) {
-  /* Mobile Hamburger Drawer */
+  /* Mobile Hamburger Drawer replaced by mobile shell */
   .workspace-mobile-header {
-    display: flex;
+    display: none !important;
   }
 
   .workspace-layout-root {
-    padding-top: 65px;
-    /* space for mobile header */
+    flex-direction: column !important;
+    padding-top: 0;
+    min-height: 100dvh;
+    background-color: #faf7f2;
   }
 
   .workspace-page {
     border: none;
     border-radius: 0;
     box-shadow: none;
-    padding: 16px;
+    padding: 0;
+    background-color: #faf7f2;
   }
 
-  .workspace-sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100vh;
-    width: 240px;
-    transform: translateX(-100%);
-    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
-    z-index: 50;
-    padding-top: 24px;
+  /* Desktop sidebar, overlay, and desktop header card are hidden on mobile */
+  .workspace-sidebar,
+  .workspace-sidebar-overlay,
+  .workspace-header-card,
+  .workspace-main-card,
+  .budget-main-card {
+    display: none !important;
   }
 
-  .workspace-sidebar.open {
-    transform: translateX(0);
-  }
-
-  .workspace-sidebar-overlay {
-    display: block;
-  }
-
-  /* Restore sidebar text in drawer */
-  .workspace-nav-text,
-  .workspace-back-text-group,
-  .workspace-sidebar-top-divider,
-  .workspace-sidebar-mid-divider,
-  .workspace-sidebar-bottom-divider {
-    display: flex;
-  }
-
-  .workspace-nav-item,
-  .workspace-back-link {
-    justify-content: flex-start;
-    padding: 10px 20px;
-  }
-
-  .workspace-logo {
-    width: 70px;
-  }
-
-  /* Mobile UI Adjustments */
-  .workspace-header-card {
-    flex-direction: column;
-    height: auto;
-    min-height: auto;
-    gap: 12px;
-    align-items: flex-start;
-    padding: 16px;
+  .workspace-main-content {
+    padding: 0 !important;
+    padding-bottom: 84px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
   }
 
   .workspace-trip-title {
@@ -5746,13 +5717,11 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 
   .workspace-table-header-row {
     display: none;
-    /* Hide grid headers on mobile */
   }
 
   /* Map toggle on mobile */
   .workspace-map-zone {
     display: none;
-    /* Hidden by default */
   }
 
   .workspace-map-zone.show {
@@ -5760,16 +5729,77 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   }
 
   .workspace-mobile-map-toggle {
-    display: flex;
-    margin: 16px auto;
-    background: var(--color-brand-red);
-    color: white;
-    padding: 8px 16px;
-    border-radius: 20px;
-    border: none;
-    font-weight: bold;
-    cursor: pointer;
+    display: none;
   }
+
+  /* Mobile Modals */
+  .modal-overlay,
+  .budget-modal-overlay,
+  .packing-modal-overlay {
+    padding: 12px !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .modal-content,
+  .budget-modal-card,
+  .packing-category-modal-card {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 20px 16px !important;
+    border-radius: 16px !important;
+    max-height: calc(100dvh - 32px) !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* LakBye Mobile Active Pill Treatments (Figma Source of Truth) */
+.mobile-nav-active-pill {
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    linear-gradient(135deg, #255f85 0%, #e9724c 35%, #c5283d 70%, #ffc857 100%) border-box !important;
+  border: 1.5px solid transparent !important;
+  border-radius: 9999px !important;
+}
+
+.mobile-nav-inactive-pill {
+  background: transparent !important;
+  border: 1.5px solid transparent !important;
+  border-radius: 9999px !important;
+}
+
+.mobile-active-pill-btn {
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    linear-gradient(135deg, #255f85 0%, #e9724c 35%, #c5283d 70%, #ffc857 100%) border-box !important;
+  border: 1.5px solid transparent !important;
+  border-radius: 9999px !important;
+  color: #2f1b0c !important;
+  font-weight: 600 !important;
+}
+
+.mobile-inactive-pill-btn {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 9999px !important;
+  color: #6b7280 !important;
+  font-weight: 500 !important;
+}
+
+.mobile-secondary-pill-btn {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 9999px !important;
+  color: #2f1b0c !important;
+  font-weight: 600 !important;
+}
+
+.mobile-primary-pill-btn {
+  background: #255f85 !important;
+  border: 1px solid #255f85 !important;
+  border-radius: 9999px !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
 }
 
 /* Animations */

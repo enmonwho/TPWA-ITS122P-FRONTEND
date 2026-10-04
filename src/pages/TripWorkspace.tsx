@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ChevronDown,
   ChevronRight,
@@ -8,6 +8,7 @@ import {
   Plus,
   X,
   MapPin,
+  Trash2,
 } from 'lucide-react';
 import routeIcon from '../assets/route.png';
 import dayByDayIcon from '../assets/day-by-day.png';
@@ -63,15 +64,95 @@ const workspaceGridStyle: React.CSSProperties = {
   alignItems: 'center',
 };
 
+function generateCustomDestId(): string {
+  return `dest-custom-${Date.now()}`;
+}
+
 export default function TripWorkspace() {
   const { tripId } = useParams<{ tripId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'route' | 'day'>('route');
+  const tabQuery = searchParams.get('tab');
+  const activeTab = tabQuery === 'day' ? 'day' : 'route';
+
+  const handleTabChange = (tab: 'route' | 'day') => {
+    if (tab === 'day') {
+      setSearchParams({ tab: 'day' });
+    } else {
+      setSearchParams({});
+    }
+  };
+
   const [trip, setTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+
+  const [isMobileAddDestOpen, setIsMobileAddDestOpen] = useState(false);
+  const [mobileAddDestCountryId, setMobileAddDestCountryId] =
+    useState<CountryId>('philippines');
+  const [mobileDestName, setMobileDestName] = useState('');
+
+  const getDayDateString = (dayNum: number) => {
+    if (!trip?.startDate) return '';
+    const d = new Date(trip.startDate);
+    d.setDate(d.getDate() + (dayNum - 1));
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const handleOpenAddDestForCountry = (countryId: CountryId) => {
+    setMobileAddDestCountryId(countryId);
+    setMobileDestName('');
+    setIsMobileAddDestOpen(true);
+  };
+
+  const handleMobileAddDestination = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mobileDestName.trim()) return;
+
+    const name = mobileDestName.trim();
+    const finalCountryId =
+      mobileAddDestCountryId || availableCountries[0]?.countryId || 'philippines';
+    const finalCountry = getCountryName(finalCountryId) || 'Philippines';
+
+    if (totalAllocatedDays >= tripDurationDays && destinations.length > 0) {
+      alert(
+        `All ${tripDurationDays} days from your trip date picker are already allocated. Please reduce days on an existing destination before adding another.`,
+      );
+      return;
+    }
+
+    const coords = getCoordinatesForName(name) || getCoordinatesForName(finalCountry);
+    const remainingDays = Math.max(1, tripDurationDays - totalAllocatedDays);
+    const initialDays = Math.min(1, remainingDays);
+
+    const newDest: WorkspaceDestination = {
+      id: generateCustomDestId(),
+      name,
+      countryId: finalCountryId,
+      country: finalCountry,
+      order: destinations.length,
+      days: initialDays,
+      accommodation: '',
+      activities: '',
+      transportation: '',
+      latitude: coords ? coords[1] : undefined,
+      longitude: coords ? coords[0] : undefined,
+    };
+
+    const updatedRoute = mergeCountryRoute(countryRoute, [finalCountryId]);
+    const updated = orderDestinationsByCountryRoute(
+      [...destinations, newDest],
+      updatedRoute,
+    ).map((destination, order) => ({ ...destination, order }));
+    setCountryRoute(updatedRoute);
+    setDestinations(updated);
+    persistDestinations(updated, updatedRoute);
+    setActiveDestinationId(newDest.id);
+    setIsMobileAddDestOpen(false);
+    setMobileDestName('');
+  };
 
   const [destinations, setDestinations] = useState<WorkspaceDestination[]>([]);
   const [countryRoute, setCountryRoute] = useState<CountryRouteEntry[]>([]);
@@ -408,7 +489,7 @@ export default function TripWorkspace() {
     const initialDays = Math.min(1, remainingDays);
 
     const newDest: WorkspaceDestination = {
-      id: `dest-custom-${Date.now()}`,
+      id: generateCustomDestId(),
       name,
       countryId: finalCountryId,
       country: finalCountry,
@@ -771,20 +852,20 @@ export default function TripWorkspace() {
         </div>
       </header>
 
-      <div className="workspace-main-card">
+      <div className="workspace-main-card hidden md:flex">
         <div className="workspace-itinerary-zone animate-slide-up delay-150">
           <div className="workspace-tabs-container flex items-center justify-between flex-wrap gap-2 mb-3">
             <div className="flex items-center gap-2.5">
               <button
                 className={`pill-tab ${activeTab === 'route' ? 'pill-tab--active' : ''}`}
-                onClick={() => setActiveTab('route')}
+                onClick={() => handleTabChange('route')}
               >
                 <img src={routeIcon} alt="" className="workspace-tab-icon" />
                 Route Planner
               </button>
               <button
                 className={`pill-tab ${activeTab === 'day' ? 'pill-tab--active' : ''}`}
-                onClick={() => setActiveTab('day')}
+                onClick={() => handleTabChange('day')}
               >
                 <img src={dayByDayIcon} alt="" className="workspace-tab-icon" />
                 Day by Day
@@ -1361,19 +1442,19 @@ export default function TripWorkspace() {
                           <button
                             type="button"
                             onClick={() => {
-                              setActiveTab('route');
+                              handleTabChange('route');
                               setTimeout(() => {
                                 const el =
                                   document.getElementById('workspace-dest-input');
                                 if (el) el.focus();
                               }, 100);
                             }}
-                            className="group inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#255F85] hover:text-[#1A4562] transition-colors shrink-0 whitespace-nowrap cursor-pointer py-1 focus:outline-none focus-visible:underline"
+                            className="group inline-flex items-center gap-1.5 text-[11px] font-semibold text-brand-blue hover:text-[#1A4562] transition-colors shrink-0 whitespace-nowrap cursor-pointer py-1 focus:outline-none focus-visible:underline"
                           >
                             <Plus
                               size={13}
                               strokeWidth={2.5}
-                              className="shrink-0 text-[#255F85] group-hover:text-[#1A4562] transition-colors"
+                              className="shrink-0 text-brand-blue group-hover:text-[#1A4562] transition-colors"
                             />
                             <span className="group-hover:underline">Add destination</span>
                           </button>
@@ -1404,6 +1485,414 @@ export default function TripWorkspace() {
           />
         </div>
       </div>
+
+      {/* Approved Mobile Workspace (Figma 829:172 and 829:226) */}
+      <div className="workspace-mobile-view md:hidden flex flex-col gap-4 p-4 pb-24 bg-[#FAF7F2]">
+        {/* Route / Day Mode Selector Row */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {activeTab === 'route' ? (
+            <>
+              <button
+                type="button"
+                className="mobile-active-pill-btn px-4 py-1.5 text-xs shadow-xs"
+              >
+                Route Planner
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTabChange('day')}
+                className="mobile-inactive-pill-btn px-4 py-1.5 text-xs shadow-xs"
+              >
+                Day by Day
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsAddCountryModalOpen(true)}
+                className="mobile-secondary-pill-btn px-3 py-1.5 text-xs shadow-xs flex items-center gap-1 ml-auto"
+              >
+                <Plus size={13} />
+                <span>Add Country</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => handleTabChange('route')}
+                className="mobile-inactive-pill-btn px-4 py-1.5 text-xs shadow-xs"
+              >
+                Route Planner
+              </button>
+              <button
+                type="button"
+                className="mobile-active-pill-btn px-4 py-1.5 text-xs shadow-xs"
+              >
+                Day by Day
+              </button>
+              <span className="text-xs text-stone-600 font-medium ml-auto">
+                {groupedByCountry[0]?.country || 'Spain'} • Days 1–{tripDurationDays}
+              </span>
+            </>
+          )}
+        </div>
+
+        {/* Mode Content */}
+        {activeTab === 'route' ? (
+          /* Route Planner Mobile (Figma 829:172) */
+          <div className="flex flex-col gap-4">
+            {groupedByCountry.map((countryGroup) => (
+              <div
+                key={countryGroup.countryId}
+                className="bg-white rounded-2xl p-4 shadow-xs border border-stone-200/70 flex flex-col gap-3.5"
+              >
+                {/* Country Header */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-[#2F1B0C] text-lg">
+                      {countryGroup.country}
+                    </h3>
+                    {availableCountries.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleRemoveCountry(countryGroup.countryId, e)}
+                        className="text-stone-400 hover:text-rose-600 p-1"
+                        title={`Remove ${countryGroup.country}`}
+                        aria-label={`Remove ${countryGroup.country}`}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                  <span className="text-sm font-semibold text-[#E9724C]">
+                    Days 1–{countryGroup.totalDays || tripDurationDays}
+                  </span>
+                </div>
+
+                {/* Destination Cards */}
+                {countryGroup.items.map((dest, idx) => (
+                  <div
+                    key={dest.id}
+                    className="flex flex-col gap-2.5 pt-2 border-t border-stone-100"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-[#2F1B0C] text-base">
+                        {dest.name}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-stone-500 font-medium">
+                          Day {idx + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteDestination(dest.id, e)}
+                          className="text-stone-400 hover:text-rose-600 p-1"
+                          title={`Delete ${dest.name}`}
+                          aria-label={`Delete ${dest.name}`}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Stay Field */}
+                    <div className="flex flex-col gap-1">
+                      <label
+                        htmlFor={`mobile-stay-${dest.id}`}
+                        className="text-[11px] font-semibold text-stone-500 uppercase tracking-wide"
+                      >
+                        Stay
+                      </label>
+                      <select
+                        id={`mobile-stay-${dest.id}`}
+                        value={dest.accommodation || ''}
+                        onChange={(e) =>
+                          handleUpdateDestination(
+                            dest.id,
+                            'accommodation',
+                            e.target.value,
+                          )
+                        }
+                        className="w-full bg-[#FAF7F2] border border-stone-200/70 rounded-xl px-3 py-2 text-xs text-[#2F1B0C] font-medium appearance-none focus:outline-none focus:border-stone-400"
+                      >
+                        <option value="">Select accommodation</option>
+                        {ACCOMMODATION_OPTIONS.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                        {dest.accommodation &&
+                          !ACCOMMODATION_OPTIONS.includes(dest.accommodation) && (
+                            <option value={dest.accommodation}>
+                              {dest.accommodation}
+                            </option>
+                          )}
+                      </select>
+                    </div>
+
+                    {/* Activity Field */}
+                    <div className="flex flex-col gap-1">
+                      <label
+                        htmlFor={`mobile-act-${dest.id}`}
+                        className="text-[11px] font-semibold text-stone-500 uppercase tracking-wide"
+                      >
+                        Activity
+                      </label>
+                      <select
+                        id={`mobile-act-${dest.id}`}
+                        value={dest.activities || ''}
+                        onChange={(e) =>
+                          handleUpdateDestination(dest.id, 'activities', e.target.value)
+                        }
+                        className="w-full bg-[#FAF7F2] border border-stone-200/70 rounded-xl px-3 py-2 text-xs text-[#2F1B0C] font-medium appearance-none focus:outline-none focus:border-stone-400"
+                      >
+                        <option value="">Select activity</option>
+                        {ACTIVITIES_OPTIONS.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                        {dest.activities &&
+                          !ACTIVITIES_OPTIONS.includes(dest.activities) && (
+                            <option value={dest.activities}>{dest.activities}</option>
+                          )}
+                      </select>
+                    </div>
+
+                    {/* Transit Field */}
+                    <div className="flex flex-col gap-1">
+                      <label
+                        htmlFor={`mobile-transit-${dest.id}`}
+                        className="text-[11px] font-semibold text-stone-500 uppercase tracking-wide"
+                      >
+                        Transit
+                      </label>
+                      <select
+                        id={`mobile-transit-${dest.id}`}
+                        value={dest.transportation || ''}
+                        onChange={(e) =>
+                          handleUpdateDestination(
+                            dest.id,
+                            'transportation',
+                            e.target.value,
+                          )
+                        }
+                        className="w-full bg-[#FAF7F2] border border-stone-200/70 rounded-xl px-3 py-2 text-xs text-[#2F1B0C] font-medium appearance-none focus:outline-none focus:border-stone-400"
+                      >
+                        <option value="">Select transit</option>
+                        {TRANSPORTATION_OPTIONS.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                        {dest.transportation &&
+                          !TRANSPORTATION_OPTIONS.includes(dest.transportation) && (
+                            <option value={dest.transportation}>
+                              {dest.transportation}
+                            </option>
+                          )}
+                      </select>
+                    </div>
+                  </div>
+                ))}
+
+                {/* + Add Destination Button */}
+                <button
+                  type="button"
+                  onClick={() => handleOpenAddDestForCountry(countryGroup.countryId)}
+                  className="w-full mt-2 py-2.5 px-4 rounded-full border border-stone-200 bg-white font-semibold text-sm text-[#2F1B0C] shadow-xs text-center hover:bg-stone-50 transition-colors"
+                >
+                  + Add Destination
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* Day by Day Mobile (Figma 829:226) */
+          <div className="flex flex-col gap-3">
+            {daySchedule.map((entry) =>
+              entry.destination ? (
+                /* Planned Day Card */
+                <div
+                  key={entry.dayNumber}
+                  className="bg-white rounded-2xl p-4 shadow-xs border border-stone-200/70 flex gap-3.5 items-start"
+                >
+                  {/* Badge */}
+                  <div className="w-12 h-12 rounded-xl bg-[#FFC857] flex items-center justify-center font-bold text-lg text-[#2F1B0C] flex-shrink-0 shadow-xs">
+                    {entry.dayNumber}
+                  </div>
+
+                  {/* Details */}
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="font-bold text-[#2F1B0C] text-base truncate">
+                        {entry.destination.name}
+                      </span>
+                      <span className="text-xs text-stone-500 font-medium flex-shrink-0">
+                        {getDayDateString(entry.dayNumber)}
+                      </span>
+                    </div>
+                    {entry.destination.country && (
+                      <span className="text-xs text-stone-400 font-medium mb-2">
+                        {entry.destination.country}
+                      </span>
+                    )}
+                    <div className="flex flex-col gap-1 text-xs mt-1">
+                      <div className="flex items-center">
+                        <span className="w-16 text-stone-400 font-semibold uppercase text-[10px]">
+                          Stay
+                        </span>
+                        <span className="text-[#2F1B0C] font-medium truncate flex-1">
+                          {entry.destination.accommodation || '—'}
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        <span className="w-16 text-stone-400 font-semibold uppercase text-[10px]">
+                          Activity
+                        </span>
+                        <span className="text-[#2F1B0C] font-medium truncate flex-1">
+                          {entry.destination.activities || '—'}
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        <span className="w-16 text-stone-400 font-semibold uppercase text-[10px]">
+                          Transit
+                        </span>
+                        <span className="text-[#2F1B0C] font-medium truncate flex-1">
+                          {entry.destination.transportation || '—'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Unplanned / Free Day Card */
+                <div
+                  key={entry.dayNumber}
+                  className="bg-white rounded-2xl p-4 shadow-xs border border-stone-200/70 flex gap-3.5 items-center"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-[#F3F4F6] flex items-center justify-center font-bold text-lg text-stone-500 flex-shrink-0">
+                    {entry.dayNumber}
+                  </div>
+                  <div className="flex flex-col gap-1 flex-1">
+                    <span className="font-bold text-[#2F1B0C] text-base">Free day</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleOpenAddDestForCountry(
+                          availableCountries[0]?.countryId || 'philippines',
+                        )
+                      }
+                      className="text-sm font-semibold text-brand-blue hover:underline flex items-center gap-1.5 p-0 bg-transparent border-0 cursor-pointer text-left w-fit"
+                    >
+                      + Add destination
+                    </button>
+                  </div>
+                </div>
+              ),
+            )}
+          </div>
+        )}
+
+        {/* Mobile Map Section (Figma 829:172 and 829:226) */}
+        <div className="flex flex-col gap-2 mt-2">
+          <h3 className="font-bold text-[#2F1B0C] text-lg">Map</h3>
+          <div className="w-full h-[280px] rounded-2xl overflow-hidden border border-stone-200/80 shadow-xs relative bg-stone-100">
+            <GlobeMap
+              markers={globeMarkers}
+              activeMarkerId={activeDestinationId}
+              onMarkerClick={(id) => setActiveDestinationId(id)}
+              showRouteLines={activeTab === 'route'}
+              className="w-full h-full"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Add Destination Modal */}
+      {isMobileAddDestOpen && (
+        <div className="staff-modal-backdrop" style={{ zIndex: 100 }}>
+          <button
+            type="button"
+            className="staff-modal-backdrop-dismiss"
+            aria-label="Close modal overlay"
+            onClick={() => setIsMobileAddDestOpen(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mobile-add-dest-title"
+            className="staff-modal-card"
+            style={{ maxWidth: '400px' }}
+          >
+            <div className="flex justify-between items-center mb-3">
+              <h2 id="mobile-add-dest-title" className="staff-modal-title">
+                Add Destination
+              </h2>
+              <button
+                type="button"
+                onClick={() => setIsMobileAddDestOpen(false)}
+                className="text-stone-500 hover:text-stone-800 p-1"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleMobileAddDestination} className="flex flex-col gap-3">
+              <div>
+                <label
+                  htmlFor="mobile-dest-country-select"
+                  className="block text-xs font-semibold text-[#401C02] mb-1"
+                >
+                  Country
+                </label>
+                <select
+                  id="mobile-dest-country-select"
+                  value={mobileAddDestCountryId}
+                  onChange={(e) => setMobileAddDestCountryId(e.target.value as CountryId)}
+                  className="w-full border border-stone-300 rounded-lg p-2 text-xs font-medium text-[#2F1B0C] bg-white"
+                >
+                  {availableCountries.map((c) => (
+                    <option key={c.countryId} value={c.countryId}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label
+                  htmlFor="mobile-dest-name-input"
+                  className="block text-xs font-semibold text-[#401C02] mb-1"
+                >
+                  Destination Name
+                </label>
+                <input
+                  id="mobile-dest-name-input"
+                  type="text"
+                  value={mobileDestName}
+                  onChange={(e) => setMobileDestName(e.target.value)}
+                  placeholder="e.g. Barcelona, Sagrada Família"
+                  className="w-full border border-stone-300 rounded-lg p-2 text-xs text-[#2F1B0C] font-medium focus:outline-none focus:border-stone-500"
+                />
+              </div>
+              <div className="flex justify-end gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsMobileAddDestOpen(false)}
+                  className="px-3 py-1.5 rounded-lg border border-stone-300 text-xs font-semibold text-[#2F1B0C] bg-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!mobileDestName.trim()}
+                  className="px-4 py-1.5 rounded-lg bg-[#E9724C] text-xs font-semibold text-white disabled:opacity-50"
+                >
+                  Add Destination
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Add Country Modal */}
       {isAddCountryModalOpen && (

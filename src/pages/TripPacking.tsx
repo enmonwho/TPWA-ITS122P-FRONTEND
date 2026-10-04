@@ -317,6 +317,28 @@ export default function TripPacking() {
     return data;
   }, [totalItemsCount, packedItemsCount, remainingCount]);
 
+  const mobilePackingChartData = useMemo(() => {
+    if (totalItemsCount === 0) {
+      return [{ name: 'Empty', value: 1, color: '#E2E8F0' }];
+    }
+    const data = [];
+    if (packedItemsCount > 0) {
+      data.push({ name: 'Packed', value: packedItemsCount, color: '#E9724C' });
+    }
+    if (remainingCount > 0) {
+      data.push({ name: 'Remaining', value: remainingCount, color: '#F3F4F6' });
+    }
+    return data;
+  }, [totalItemsCount, packedItemsCount, remainingCount]);
+
+  const categorySummaryText = useMemo(() => {
+    return CATEGORY_CONFIGS.filter(
+      (c) => c.name !== 'All Items' && (categoryCounts[c.name] || 0) > 0,
+    )
+      .map((c) => `${c.name} ${categoryCounts[c.name]}`)
+      .join(' · ');
+  }, [categoryCounts]);
+
   // Export PDF functionality
   const handleExportPdf = () => {
     if (!trip) return;
@@ -456,7 +478,7 @@ export default function TripPacking() {
       </header>
 
       {/* Main Card (2-Zone layout normalized to Budget page) */}
-      <div className="budget-main-card animate-slide-up delay-150">
+      <div className="budget-main-card animate-slide-up delay-150 hidden md:flex">
         {/* Left Zone: Analytics, Donut Chart, and Category Badges */}
         <div className="budget-left-zone">
           <div className="budget-left-header flex items-center justify-between gap-2 flex-wrap">
@@ -832,6 +854,197 @@ export default function TripPacking() {
                 })
               )}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Approved Mobile Packing View (Figma 829:338) */}
+      <div className="packing-mobile-view md:hidden flex flex-col gap-4 p-4 pb-24 bg-[#FAF7F2]">
+        {/* Top Header & Filter Controls */}
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="font-bold text-[#2F1B0C] text-lg">Packing List</h2>
+          <div className="flex items-center gap-2">
+            {/* All filter button with active pill */}
+            <button
+              type="button"
+              onClick={() =>
+                setStatusFilter(
+                  statusFilter === 'All'
+                    ? 'Unpacked'
+                    : statusFilter === 'Unpacked'
+                      ? 'Packed'
+                      : 'All',
+                )
+              }
+              className={`px-3.5 py-1.5 text-xs shadow-xs ${
+                statusFilter === 'All'
+                  ? 'mobile-active-pill-btn'
+                  : 'mobile-secondary-pill-btn'
+              }`}
+            >
+              {statusFilter === 'All'
+                ? 'All'
+                : statusFilter === 'Unpacked'
+                  ? 'To Pack'
+                  : 'Packed'}
+            </button>
+            {/* Scope filter dropdown */}
+            <div className="relative">
+              <select
+                value={effectiveScopeFilter}
+                onChange={(e) => setScopeFilter(e.target.value)}
+                className="mobile-secondary-pill-btn px-3 py-1.5 text-xs shadow-xs appearance-none pr-6 bg-white"
+              >
+                {packingScopeOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt === 'All' ? 'Scope: All' : opt}
+                  </option>
+                ))}
+              </select>
+              <img
+                src={arrowDownIcon}
+                alt=""
+                className="w-2.5 h-2.5 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Progress Ring Summary Card */}
+        <div className="bg-white rounded-2xl p-5 shadow-xs border border-stone-200/70 flex items-center justify-between gap-3">
+          {/* Ring */}
+          <div className="relative w-[110px] h-[110px] flex items-center justify-center shrink-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={mobilePackingChartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={38}
+                  outerRadius={50}
+                  dataKey="value"
+                  startAngle={90}
+                  endAngle={-270}
+                  stroke="none"
+                >
+                  {mobilePackingChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <span className="font-bold text-[#2F1B0C] text-xl leading-none">
+                {progressPercent}%
+              </span>
+            </div>
+          </div>
+
+          {/* Counts */}
+          <div className="flex flex-col flex-1 min-w-0">
+            <span className="font-bold text-[#2F1B0C] text-lg leading-tight truncate">
+              {packedItemsCount} of {totalItemsCount} packed
+            </span>
+            <span className="text-xs text-stone-500 font-medium">
+              {remainingCount} items remaining
+            </span>
+            {categorySummaryText && (
+              <span className="text-[11px] text-stone-400 font-medium mt-2 line-clamp-2">
+                {categorySummaryText}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Action Buttons Row */}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsAddItemOpen(true)}
+            className="mobile-primary-pill-btn flex-1 py-2.5 px-4 text-xs shadow-xs text-center flex items-center justify-center gap-1.5"
+          >
+            <Plus size={14} />
+            <span>Add Item</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleExportPdf}
+            disabled={isExportingPdf || items.length === 0}
+            className="mobile-secondary-pill-btn flex-1 py-2.5 px-4 text-xs shadow-xs text-center flex items-center justify-center gap-1.5 disabled:opacity-50"
+          >
+            <Download size={14} />
+            <span>Export PDF</span>
+          </button>
+        </div>
+
+        {/* Items Section */}
+        <div className="flex flex-col gap-2">
+          <h2 className="font-bold text-[#2F1B0C] text-lg">Items</h2>
+          <div className="bg-white rounded-2xl p-4 shadow-xs border border-stone-200/70 flex flex-col divide-y divide-stone-100">
+            {filteredItems.length > 0 ? (
+              filteredItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between py-3 first:pt-0 last:pb-0 gap-3"
+                >
+                  {/* Checkbox button */}
+                  <button
+                    type="button"
+                    onClick={() => togglePacked(item.id)}
+                    className={`w-6 h-6 rounded-lg flex items-center justify-center border transition-colors shrink-0 ${
+                      item.packed
+                        ? 'bg-[#255F85] border-[#255F85] text-white'
+                        : 'bg-white border-stone-300 hover:border-stone-400'
+                    }`}
+                    aria-label={item.packed ? 'Mark as unpacked' : 'Mark as packed'}
+                  >
+                    {item.packed && <Check size={14} strokeWidth={3} />}
+                  </button>
+
+                  {/* Item details */}
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <span
+                      className={`text-sm font-bold truncate ${
+                        item.packed
+                          ? 'line-through text-stone-400 font-medium'
+                          : 'text-[#2F1B0C]'
+                      }`}
+                    >
+                      {item.name}
+                    </span>
+                    <span className="text-xs text-stone-400 font-medium truncate">
+                      {item.destination || 'Overall Trip'}
+                    </span>
+                  </div>
+
+                  {/* Category & quantity */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span
+                      className="text-xs font-semibold"
+                      style={{ color: getCategoryColor(item.category) }}
+                    >
+                      {item.category}
+                    </span>
+                    <span className="text-xs font-bold text-stone-700 min-w-8 text-right">
+                      × {item.qty}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => deleteItem(item.id)}
+                      className="text-stone-400 hover:text-rose-600 p-1 ml-1"
+                      title="Remove item"
+                      aria-label={`Remove ${item.name}`}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-xs text-stone-400 py-3 text-center">
+                No packing items found. Tap + Add Item to create one.
+              </div>
+            )}
           </div>
         </div>
       </div>
