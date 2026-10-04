@@ -859,10 +859,12 @@ export default function TripPacking() {
       </div>
 
       {/* Approved Mobile Packing View (Figma 829:338) */}
-      <div className="packing-mobile-view md:hidden flex flex-col gap-4 p-4 pb-24 bg-[#FAF7F2]">
-        {/* Top Header & Filter Controls */}
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <h2 className="font-bold text-[#2F1B0C] text-lg">Packing List</h2>
+      <div className="packing-mobile-view md:hidden flex flex-col gap-3 px-[18px] py-4 pb-20 bg-[#F9F4EE]">
+        {/* Top Header & Filter Controls (Figma: y: 94) */}
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-['Poppins'] font-bold text-[14px] text-[#2F1B0C]">
+            Packing List
+          </h2>
           <div className="flex items-center gap-2">
             {/* All filter button with active pill */}
             <button
@@ -876,10 +878,10 @@ export default function TripPacking() {
                       : 'All',
                 )
               }
-              className={`px-3.5 py-1.5 text-xs shadow-xs ${
+              className={`w-[70px] h-[32px] rounded-[16px] font-['Poppins'] font-semibold text-[10px] flex items-center justify-center transition-all ${
                 statusFilter === 'All'
                   ? 'mobile-active-pill-btn'
-                  : 'mobile-secondary-pill-btn'
+                  : 'bg-white border border-[rgba(71,43,20,0.14)] text-[#2F1B0C]'
               }`}
             >
               {statusFilter === 'All'
@@ -893,7 +895,7 @@ export default function TripPacking() {
               <select
                 value={effectiveScopeFilter}
                 onChange={(e) => setScopeFilter(e.target.value)}
-                className="mobile-secondary-pill-btn px-3 py-1.5 text-xs shadow-xs appearance-none pr-6 bg-white"
+                className="w-[124px] h-[32px] rounded-[16px] bg-white border border-[rgba(71,43,20,0.14)] font-['Poppins'] font-semibold text-[10px] text-[#2F1B0C] px-3 appearance-none pr-6 focus:outline-none"
               >
                 {packingScopeOptions.map((opt) => (
                   <option key={opt} value={opt}>
@@ -904,24 +906,24 @@ export default function TripPacking() {
               <img
                 src={arrowDownIcon}
                 alt=""
-                className="w-2.5 h-2.5 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60"
+                className="w-2 h-2 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-60"
               />
             </div>
           </div>
         </div>
 
-        {/* Progress Ring Summary Card */}
-        <div className="bg-white rounded-2xl p-5 shadow-xs border border-stone-200/70 flex items-center justify-between gap-3">
-          {/* Ring */}
-          <div className="relative w-[110px] h-[110px] flex items-center justify-center shrink-0">
+        {/* Progress Ring Summary Card (Figma: h: 150px) */}
+        <div className="w-full bg-white rounded-[16px] p-[16px] border border-[rgba(71,43,20,0.14)] shadow-xs flex items-center justify-between gap-4 min-h-[150px]">
+          {/* Ring (104x104) */}
+          <div className="relative w-[104px] h-[104px] flex items-center justify-center shrink-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={mobilePackingChartData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={38}
-                  outerRadius={50}
+                  innerRadius={36}
+                  outerRadius={48}
                   dataKey="value"
                   startAngle={90}
                   endAngle={-270}
@@ -934,7 +936,7 @@ export default function TripPacking() {
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <span className="font-bold text-[#2F1B0C] text-xl leading-none">
+              <span className="font-['Poppins'] font-bold text-[#2F1B0C] text-[18px] leading-none">
                 {progressPercent}%
               </span>
             </div>
@@ -942,77 +944,75 @@ export default function TripPacking() {
 
           {/* Counts */}
           <div className="flex flex-col flex-1 min-w-0">
-            <span className="font-bold text-[#2F1B0C] text-lg leading-tight truncate">
+            <span className="font-['Poppins'] font-bold text-[#2F1B0C] text-[15px] leading-tight truncate">
               {packedItemsCount} of {totalItemsCount} packed
             </span>
-            <span className="text-xs text-stone-500 font-medium">
+            <span className="font-['Poppins'] font-normal text-[#73665C] text-[10px] mt-1">
               {remainingCount} items remaining
             </span>
             {categorySummaryText && (
-              <span className="text-[11px] text-stone-400 font-medium mt-2 line-clamp-2">
+              <span className="font-['Poppins'] font-normal text-[#73665C] text-[9px] mt-2 line-clamp-1">
                 {categorySummaryText}
               </span>
             )}
           </div>
         </div>
 
-        {/* Action Buttons Row */}
-        <div className="flex items-center gap-3">
+        {/* Action Buttons Row (Figma: y: 300, 168x38 and 178x38) */}
+        <div className="flex items-center gap-2.5">
           <button
             type="button"
             onClick={() => setIsAddItemOpen(true)}
-            className="mobile-primary-pill-btn flex-1 py-2.5 px-4 text-xs shadow-xs text-center flex items-center justify-center gap-1.5"
+            className="flex-1 h-[38px] rounded-[19px] bg-[#255F85] font-['Poppins'] font-semibold text-[10px] text-white flex items-center justify-center gap-1.5 shadow-xs hover:bg-[#1f4e6d] transition-colors"
           >
-            <Plus size={14} />
-            <span>Add Item</span>
+            <Plus size={13} />
+            <span>+ Add Item</span>
           </button>
           <button
             type="button"
             onClick={handleExportPdf}
             disabled={isExportingPdf || items.length === 0}
-            className="mobile-secondary-pill-btn flex-1 py-2.5 px-4 text-xs shadow-xs text-center flex items-center justify-center gap-1.5 disabled:opacity-50"
+            className="flex-1 h-[38px] rounded-[19px] bg-white border border-[rgba(71,43,20,0.14)] font-['Poppins'] font-semibold text-[10px] text-[#2F1B0C] flex items-center justify-center gap-1.5 shadow-xs hover:bg-stone-50 transition-colors disabled:opacity-50"
           >
-            <Download size={14} />
+            <Download size={13} />
             <span>Export PDF</span>
           </button>
         </div>
 
-        {/* Items Section */}
-        <div className="flex flex-col gap-2">
-          <h2 className="font-bold text-[#2F1B0C] text-lg">Items</h2>
-          <div className="bg-white rounded-2xl p-4 shadow-xs border border-stone-200/70 flex flex-col divide-y divide-stone-100">
+        {/* Items Section (Figma: min-h 342px) */}
+        <div className="flex flex-col gap-1.5">
+          <h2 className="font-['Poppins'] font-bold text-[14px] text-[#2F1B0C]">Items</h2>
+          <div className="w-full bg-white rounded-[16px] p-[16px] border border-[rgba(71,43,20,0.14)] shadow-xs flex flex-col divide-y divide-stone-100 min-h-[342px]">
             {filteredItems.length > 0 ? (
               filteredItems.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between py-3 first:pt-0 last:pb-0 gap-3"
+                  className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0 gap-3"
                 >
-                  {/* Checkbox button */}
+                  {/* 22x22 Checkbox button (Figma) */}
                   <button
                     type="button"
                     onClick={() => togglePacked(item.id)}
-                    className={`w-6 h-6 rounded-lg flex items-center justify-center border transition-colors shrink-0 ${
+                    className={`w-[22px] h-[22px] rounded-[6px] flex items-center justify-center shrink-0 transition-colors ${
                       item.packed
-                        ? 'bg-[#255F85] border-[#255F85] text-white'
-                        : 'bg-white border-stone-300 hover:border-stone-400'
+                        ? 'bg-[#255F85] text-white'
+                        : 'bg-white border border-[rgba(71,43,20,0.14)] hover:border-stone-400'
                     }`}
                     aria-label={item.packed ? 'Mark as unpacked' : 'Mark as packed'}
                   >
-                    {item.packed && <Check size={14} strokeWidth={3} />}
+                    {item.packed && (
+                      <span className="font-['Poppins'] font-bold text-[11px] leading-none">
+                        ✓
+                      </span>
+                    )}
                   </button>
 
                   {/* Item details */}
                   <div className="flex flex-col flex-1 min-w-0">
-                    <span
-                      className={`text-sm font-bold truncate ${
-                        item.packed
-                          ? 'line-through text-stone-400 font-medium'
-                          : 'text-[#2F1B0C]'
-                      }`}
-                    >
+                    <span className="font-['Poppins'] font-semibold text-[11px] text-[#2F1B0C] truncate">
                       {item.name}
                     </span>
-                    <span className="text-xs text-stone-400 font-medium truncate">
+                    <span className="font-['Poppins'] font-normal text-[8.5px] text-[#73665C] truncate">
                       {item.destination || 'Overall Trip'}
                     </span>
                   </div>
@@ -1020,28 +1020,28 @@ export default function TripPacking() {
                   {/* Category & quantity */}
                   <div className="flex items-center gap-2 shrink-0">
                     <span
-                      className="text-xs font-semibold"
+                      className="font-['Poppins'] font-semibold text-[8.5px] min-w-[60px] text-center"
                       style={{ color: getCategoryColor(item.category) }}
                     >
                       {item.category}
                     </span>
-                    <span className="text-xs font-bold text-stone-700 min-w-8 text-right">
+                    <span className="font-['Poppins'] font-bold text-[9px] text-[#2F1B0C] min-w-[28px] text-right">
                       × {item.qty}
                     </span>
                     <button
                       type="button"
                       onClick={() => deleteItem(item.id)}
-                      className="text-stone-400 hover:text-rose-600 p-1 ml-1"
+                      className="text-stone-400 hover:text-rose-600 p-1"
                       title="Remove item"
                       aria-label={`Remove ${item.name}`}
                     >
-                      <Trash2 size={15} />
+                      <Trash2 size={13} />
                     </button>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="text-xs text-stone-400 py-3 text-center">
+              <div className="font-['Poppins'] text-[10px] text-[#73665C] py-8 text-center my-auto">
                 No packing items found. Tap + Add Item to create one.
               </div>
             )}

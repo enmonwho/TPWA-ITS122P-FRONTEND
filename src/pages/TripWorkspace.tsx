@@ -1487,68 +1487,62 @@ export default function TripWorkspace() {
       </div>
 
       {/* Approved Mobile Workspace (Figma 829:172 and 829:226) */}
-      <div className="workspace-mobile-view md:hidden flex flex-col gap-4 p-4 pb-24 bg-[#FAF7F2]">
-        {/* Route / Day Mode Selector Row */}
-        <div className="flex items-center gap-2 flex-wrap">
+      <div className="workspace-mobile-view md:hidden flex flex-col gap-3 px-[18px] py-4 pb-20 bg-[#F9F4EE]">
+        {/* Route / Day Mode Selector Row (Figma: y: 88, h: 32/38 pills) */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleTabChange('route')}
+              className={`w-[108px] h-[32px] rounded-[16px] font-['Poppins'] font-semibold text-[10px] transition-all flex items-center justify-center ${
+                activeTab === 'route'
+                  ? 'mobile-active-pill-btn'
+                  : 'bg-white border border-[rgba(71,43,20,0.14)] text-[#2F1B0C]'
+              }`}
+            >
+              Route Planner
+            </button>
+            <button
+              type="button"
+              onClick={() => handleTabChange('day')}
+              className={`w-[102px] h-[32px] rounded-[16px] font-['Poppins'] font-semibold text-[10px] transition-all flex items-center justify-center ${
+                activeTab === 'day'
+                  ? 'mobile-active-pill-btn'
+                  : 'bg-white border border-[rgba(71,43,20,0.14)] text-[#2F1B0C]'
+              }`}
+            >
+              Day by Day
+            </button>
+          </div>
+
           {activeTab === 'route' ? (
-            <>
-              <button
-                type="button"
-                className="mobile-active-pill-btn px-4 py-1.5 text-xs shadow-xs"
-              >
-                Route Planner
-              </button>
-              <button
-                type="button"
-                onClick={() => handleTabChange('day')}
-                className="mobile-inactive-pill-btn px-4 py-1.5 text-xs shadow-xs"
-              >
-                Day by Day
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsAddCountryModalOpen(true)}
-                className="mobile-secondary-pill-btn px-3 py-1.5 text-xs shadow-xs flex items-center gap-1 ml-auto"
-              >
-                <Plus size={13} />
-                <span>Add Country</span>
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={() => setIsAddCountryModalOpen(true)}
+              className="w-[122px] h-[38px] rounded-[19px] bg-white border border-[rgba(71,43,20,0.14)] font-['Poppins'] font-semibold text-[10px] text-[#2F1B0C] flex items-center justify-center gap-1 shrink-0 hover:bg-stone-50 transition-colors"
+            >
+              + Add Country
+            </button>
           ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => handleTabChange('route')}
-                className="mobile-inactive-pill-btn px-4 py-1.5 text-xs shadow-xs"
-              >
-                Route Planner
-              </button>
-              <button
-                type="button"
-                className="mobile-active-pill-btn px-4 py-1.5 text-xs shadow-xs"
-              >
-                Day by Day
-              </button>
-              <span className="text-xs text-stone-600 font-medium ml-auto">
-                {groupedByCountry[0]?.country || 'Spain'} • Days 1–{tripDurationDays}
-              </span>
-            </>
+            <span className="font-['Poppins'] font-semibold text-[10px] text-[#73665C] truncate text-right">
+              {groupedByCountry[0]?.country || 'Spain'} · Days 1–{tripDurationDays}
+            </span>
           )}
         </div>
 
         {/* Mode Content */}
         {activeTab === 'route' ? (
           /* Route Planner Mobile (Figma 829:172) */
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
             {groupedByCountry.map((countryGroup) => (
               <div
                 key={countryGroup.countryId}
-                className="bg-white rounded-2xl p-4 shadow-xs border border-stone-200/70 flex flex-col gap-3.5"
+                className="w-full bg-white rounded-[16px] p-[16px] border border-[rgba(71,43,20,0.14)] shadow-xs flex flex-col gap-3"
               >
                 {/* Country Header */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-[#2F1B0C] text-lg">
+                    <h3 className="font-['Poppins'] font-bold text-[16px] text-[#2F1B0C]">
                       {countryGroup.country}
                     </h3>
                     {availableCountries.length > 1 && (
@@ -1559,11 +1553,11 @@ export default function TripWorkspace() {
                         title={`Remove ${countryGroup.country}`}
                         aria-label={`Remove ${countryGroup.country}`}
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={13} />
                       </button>
                     )}
                   </div>
-                  <span className="text-sm font-semibold text-[#E9724C]">
+                  <span className="font-['Poppins'] font-semibold text-[10px] text-[#E9724C]">
                     Days 1–{countryGroup.totalDays || tripDurationDays}
                   </span>
                 </div>
@@ -1572,14 +1566,14 @@ export default function TripWorkspace() {
                 {countryGroup.items.map((dest, idx) => (
                   <div
                     key={dest.id}
-                    className="flex flex-col gap-2.5 pt-2 border-t border-stone-100"
+                    className="flex flex-col gap-2 pt-2 border-t border-stone-100 first:border-t-0 first:pt-0"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-[#2F1B0C] text-base">
+                      <span className="font-['Poppins'] font-semibold text-[13px] text-[#2F1B0C]">
                         {dest.name}
                       </span>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-stone-500 font-medium">
+                        <span className="font-['Poppins'] font-semibold text-[10px] text-[#73665C]">
                           Day {idx + 1}
                         </span>
                         <button
@@ -1589,16 +1583,16 @@ export default function TripWorkspace() {
                           title={`Delete ${dest.name}`}
                           aria-label={`Delete ${dest.name}`}
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={13} />
                         </button>
                       </div>
                     </div>
 
                     {/* Stay Field */}
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col">
                       <label
                         htmlFor={`mobile-stay-${dest.id}`}
-                        className="text-[11px] font-semibold text-stone-500 uppercase tracking-wide"
+                        className="font-['Poppins'] font-semibold text-[9px] text-[#73665C] mb-1"
                       >
                         Stay
                       </label>
@@ -1612,7 +1606,7 @@ export default function TripWorkspace() {
                             e.target.value,
                           )
                         }
-                        className="w-full bg-[#FAF7F2] border border-stone-200/70 rounded-xl px-3 py-2 text-xs text-[#2F1B0C] font-medium appearance-none focus:outline-none focus:border-stone-400"
+                        className="w-full h-[34px] bg-[#FCF9F6] border border-[rgba(71,43,20,0.08)] rounded-[9px] px-3 font-['Poppins'] font-normal text-[10px] text-[#2F1B0C] appearance-none focus:outline-none focus:border-stone-400"
                       >
                         <option value="">Select accommodation</option>
                         {ACCOMMODATION_OPTIONS.map((opt) => (
@@ -1630,10 +1624,10 @@ export default function TripWorkspace() {
                     </div>
 
                     {/* Activity Field */}
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col">
                       <label
                         htmlFor={`mobile-act-${dest.id}`}
-                        className="text-[11px] font-semibold text-stone-500 uppercase tracking-wide"
+                        className="font-['Poppins'] font-semibold text-[9px] text-[#73665C] mb-1"
                       >
                         Activity
                       </label>
@@ -1643,7 +1637,7 @@ export default function TripWorkspace() {
                         onChange={(e) =>
                           handleUpdateDestination(dest.id, 'activities', e.target.value)
                         }
-                        className="w-full bg-[#FAF7F2] border border-stone-200/70 rounded-xl px-3 py-2 text-xs text-[#2F1B0C] font-medium appearance-none focus:outline-none focus:border-stone-400"
+                        className="w-full h-[34px] bg-[#FCF9F6] border border-[rgba(71,43,20,0.08)] rounded-[9px] px-3 font-['Poppins'] font-normal text-[10px] text-[#2F1B0C] appearance-none focus:outline-none focus:border-stone-400"
                       >
                         <option value="">Select activity</option>
                         {ACTIVITIES_OPTIONS.map((opt) => (
@@ -1659,10 +1653,10 @@ export default function TripWorkspace() {
                     </div>
 
                     {/* Transit Field */}
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col">
                       <label
                         htmlFor={`mobile-transit-${dest.id}`}
-                        className="text-[11px] font-semibold text-stone-500 uppercase tracking-wide"
+                        className="font-['Poppins'] font-semibold text-[9px] text-[#73665C] mb-1"
                       >
                         Transit
                       </label>
@@ -1676,7 +1670,7 @@ export default function TripWorkspace() {
                             e.target.value,
                           )
                         }
-                        className="w-full bg-[#FAF7F2] border border-stone-200/70 rounded-xl px-3 py-2 text-xs text-[#2F1B0C] font-medium appearance-none focus:outline-none focus:border-stone-400"
+                        className="w-full h-[34px] bg-[#FCF9F6] border border-[rgba(71,43,20,0.08)] rounded-[9px] px-3 font-['Poppins'] font-normal text-[10px] text-[#2F1B0C] appearance-none focus:outline-none focus:border-stone-400"
                       >
                         <option value="">Select transit</option>
                         {TRANSPORTATION_OPTIONS.map((opt) => (
@@ -1695,11 +1689,11 @@ export default function TripWorkspace() {
                   </div>
                 ))}
 
-                {/* + Add Destination Button */}
+                {/* + Add Destination Button (Figma: 38px height, 19px radius) */}
                 <button
                   type="button"
                   onClick={() => handleOpenAddDestForCountry(countryGroup.countryId)}
-                  className="w-full mt-2 py-2.5 px-4 rounded-full border border-stone-200 bg-white font-semibold text-sm text-[#2F1B0C] shadow-xs text-center hover:bg-stone-50 transition-colors"
+                  className="w-full h-[38px] rounded-[19px] bg-white border border-[rgba(71,43,20,0.14)] font-['Poppins'] font-semibold text-[10px] text-[#2F1B0C] mt-1 shadow-xs hover:bg-stone-50 transition-colors text-center"
                 >
                   + Add Destination
                 </button>
@@ -1711,53 +1705,49 @@ export default function TripWorkspace() {
           <div className="flex flex-col gap-3">
             {daySchedule.map((entry) =>
               entry.destination ? (
-                /* Planned Day Card */
+                /* Planned Day Card (Figma: 176px min-height, 44px badge) */
                 <div
                   key={entry.dayNumber}
-                  className="bg-white rounded-2xl p-4 shadow-xs border border-stone-200/70 flex gap-3.5 items-start"
+                  className="w-full bg-white rounded-[16px] p-[16px] border border-[rgba(71,43,20,0.14)] shadow-xs flex gap-[14px] items-start"
                 >
                   {/* Badge */}
-                  <div className="w-12 h-12 rounded-xl bg-[#FFC857] flex items-center justify-center font-bold text-lg text-[#2F1B0C] flex-shrink-0 shadow-xs">
+                  <div className="w-[44px] h-[44px] rounded-[12px] bg-[#FFC857] flex items-center justify-center font-['Poppins'] font-bold text-[14px] text-[#2F1B0C] shrink-0">
                     {entry.dayNumber}
                   </div>
 
                   {/* Details */}
                   <div className="flex flex-col flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="font-bold text-[#2F1B0C] text-base truncate">
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <span className="font-['Poppins'] font-bold text-[14px] text-[#2F1B0C] truncate">
                         {entry.destination.name}
                       </span>
-                      <span className="text-xs text-stone-500 font-medium flex-shrink-0">
+                      <span className="font-['Poppins'] font-normal text-[9px] text-[#73665C] shrink-0">
                         {getDayDateString(entry.dayNumber)}
                       </span>
                     </div>
-                    {entry.destination.country && (
-                      <span className="text-xs text-stone-400 font-medium mb-2">
-                        {entry.destination.country}
-                      </span>
-                    )}
-                    <div className="flex flex-col gap-1 text-xs mt-1">
-                      <div className="flex items-center">
-                        <span className="w-16 text-stone-400 font-semibold uppercase text-[10px]">
+
+                    <div className="flex flex-col gap-1.5 mt-1">
+                      <div className="flex items-baseline">
+                        <span className="w-[60px] font-['Poppins'] font-semibold text-[9px] text-[#73665C]">
                           Stay
                         </span>
-                        <span className="text-[#2F1B0C] font-medium truncate flex-1">
+                        <span className="font-['Poppins'] font-normal text-[10px] text-[#2F1B0C] truncate flex-1">
                           {entry.destination.accommodation || '—'}
                         </span>
                       </div>
-                      <div className="flex items-center">
-                        <span className="w-16 text-stone-400 font-semibold uppercase text-[10px]">
+                      <div className="flex items-baseline">
+                        <span className="w-[60px] font-['Poppins'] font-semibold text-[9px] text-[#73665C]">
                           Activity
                         </span>
-                        <span className="text-[#2F1B0C] font-medium truncate flex-1">
+                        <span className="font-['Poppins'] font-normal text-[10px] text-[#2F1B0C] truncate flex-1">
                           {entry.destination.activities || '—'}
                         </span>
                       </div>
-                      <div className="flex items-center">
-                        <span className="w-16 text-stone-400 font-semibold uppercase text-[10px]">
+                      <div className="flex items-baseline">
+                        <span className="w-[60px] font-['Poppins'] font-semibold text-[9px] text-[#73665C]">
                           Transit
                         </span>
-                        <span className="text-[#2F1B0C] font-medium truncate flex-1">
+                        <span className="font-['Poppins'] font-normal text-[10px] text-[#2F1B0C] truncate flex-1">
                           {entry.destination.transportation || '—'}
                         </span>
                       </div>
@@ -1765,16 +1755,18 @@ export default function TripWorkspace() {
                   </div>
                 </div>
               ) : (
-                /* Unplanned / Free Day Card */
+                /* Free Day Card (Figma: 94px height, 44px badge) */
                 <div
                   key={entry.dayNumber}
-                  className="bg-white rounded-2xl p-4 shadow-xs border border-stone-200/70 flex gap-3.5 items-center"
+                  className="w-full bg-white rounded-[16px] p-[16px] border border-[rgba(71,43,20,0.14)] shadow-xs flex gap-[14px] items-center"
                 >
-                  <div className="w-12 h-12 rounded-xl bg-[#F3F4F6] flex items-center justify-center font-bold text-lg text-stone-500 flex-shrink-0">
+                  <div className="w-[44px] h-[44px] rounded-[12px] bg-[#FCF9F6] border border-[rgba(71,43,20,0.08)] flex items-center justify-center font-['Poppins'] font-bold text-[14px] text-[#2F1B0C] shrink-0">
                     {entry.dayNumber}
                   </div>
-                  <div className="flex flex-col gap-1 flex-1">
-                    <span className="font-bold text-[#2F1B0C] text-base">Free day</span>
+                  <div className="flex flex-col gap-1.5 flex-1">
+                    <span className="font-['Poppins'] font-semibold text-[12px] text-[#2F1B0C]">
+                      Free day
+                    </span>
                     <button
                       type="button"
                       onClick={() =>
@@ -1782,7 +1774,7 @@ export default function TripWorkspace() {
                           availableCountries[0]?.countryId || 'philippines',
                         )
                       }
-                      className="text-sm font-semibold text-brand-blue hover:underline flex items-center gap-1.5 p-0 bg-transparent border-0 cursor-pointer text-left w-fit"
+                      className="h-[34px] px-3.5 rounded-[17px] bg-white border border-[rgba(71,43,20,0.14)] font-['Poppins'] font-semibold text-[10px] text-[#2F1B0C] flex items-center gap-1.5 w-fit hover:bg-stone-50 transition-colors"
                     >
                       + Add destination
                     </button>
@@ -1793,10 +1785,10 @@ export default function TripWorkspace() {
           </div>
         )}
 
-        {/* Mobile Map Section (Figma 829:172 and 829:226) */}
-        <div className="flex flex-col gap-2 mt-2">
-          <h3 className="font-bold text-[#2F1B0C] text-lg">Map</h3>
-          <div className="w-full h-[280px] rounded-2xl overflow-hidden border border-stone-200/80 shadow-xs relative bg-stone-100">
+        {/* Mobile Map Section (Figma 829:172 and 829:226: 220px map shell) */}
+        <div className="flex flex-col gap-1.5 mt-1">
+          <h3 className="font-['Poppins'] font-bold text-[14px] text-[#2F1B0C]">Map</h3>
+          <div className="w-full h-[220px] rounded-[16px] overflow-hidden border border-[rgba(71,43,20,0.14)] shadow-xs relative bg-[#E0E8E5]">
             <GlobeMap
               markers={globeMarkers}
               activeMarkerId={activeDestinationId}

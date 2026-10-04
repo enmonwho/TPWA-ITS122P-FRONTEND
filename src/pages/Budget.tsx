@@ -984,21 +984,23 @@ export function Budget() {
       </div>
 
       {/* Approved Mobile Budget View (Figma 829:280) */}
-      <div className="budget-mobile-view md:hidden flex flex-col gap-4 p-4 pb-24 bg-[#FAF7F2]">
+      <div className="budget-mobile-view md:hidden flex flex-col gap-3 px-[18px] py-4 pb-20 bg-[#F9F4EE]">
         {/* Section 1: Trip Budget */}
-        <div className="flex flex-col gap-2">
-          <h2 className="font-bold text-[#2F1B0C] text-lg">Trip Budget</h2>
-          <div className="bg-white rounded-2xl p-5 shadow-xs border border-stone-200/70 flex items-center justify-between gap-3">
-            {/* Donut progress ring */}
-            <div className="relative w-[110px] h-[110px] flex items-center justify-center shrink-0">
+        <div className="flex flex-col gap-1.5">
+          <h2 className="font-['Poppins'] font-bold text-[14px] text-[#2F1B0C]">
+            Trip Budget
+          </h2>
+          <div className="w-full bg-white rounded-[16px] p-[16px] border border-[rgba(71,43,20,0.14)] shadow-xs flex items-center justify-between gap-3 min-h-[176px]">
+            {/* Donut progress ring (Figma: 120x120, 12px stroke) */}
+            <div className="relative w-[120px] h-[120px] flex items-center justify-center shrink-0">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={chartData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={38}
-                    outerRadius={50}
+                    innerRadius={44}
+                    outerRadius={56}
                     dataKey="value"
                     startAngle={90}
                     endAngle={-270}
@@ -1014,10 +1016,10 @@ export function Budget() {
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="font-bold text-[#2F1B0C] text-lg leading-none">
+                <span className="font-['Poppins'] font-bold text-[#2F1B0C] text-[20px] leading-none">
                   {budgetPercentage}%
                 </span>
-                <span className="text-[11px] text-stone-500 font-medium mt-0.5">
+                <span className="font-['Poppins'] font-normal text-[#73665C] text-[9px] mt-1">
                   spent
                 </span>
               </div>
@@ -1025,10 +1027,10 @@ export function Budget() {
 
             {/* Spent info and buttons */}
             <div className="flex flex-col flex-1 min-w-0">
-              <span className="font-bold text-[#2F1B0C] text-xl leading-tight truncate">
+              <span className="font-['Poppins'] font-bold text-[#2F1B0C] text-[22px] leading-tight truncate">
                 {formattedSpent}
               </span>
-              <span className="text-xs text-stone-500 font-medium mb-3">
+              <span className="font-['Poppins'] font-normal text-[#73665C] text-[10px] mb-3">
                 of{' '}
                 {formatCurrency(convertedTotalSpent + convertedBalance, displayCurrency)}
               </span>
@@ -1036,14 +1038,14 @@ export function Budget() {
                 <button
                   type="button"
                   onClick={() => setIsAddBalanceOpen(true)}
-                  className="mobile-secondary-pill-btn px-3 py-1.5 text-xs shadow-xs"
+                  className="w-[80px] h-[38px] rounded-[19px] bg-white border border-[rgba(71,43,20,0.14)] font-['Poppins'] font-semibold text-[10px] text-[#2F1B0C] flex items-center justify-center shadow-xs hover:bg-stone-50 transition-colors"
                 >
                   + Balance
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsAddExpenseOpen(true)}
-                  className="mobile-primary-pill-btn px-3.5 py-1.5 text-xs shadow-xs ml-2"
+                  className="w-[90px] h-[38px] rounded-[19px] bg-[#255F85] border border-[rgba(71,43,20,0.14)] font-['Poppins'] font-semibold text-[10px] text-white flex items-center justify-center shadow-xs hover:bg-[#1f4e6d] transition-colors"
                 >
                   + Expense
                 </button>
@@ -1052,34 +1054,40 @@ export function Budget() {
           </div>
         </div>
 
-        {/* Section 2: Categories */}
-        <div className="flex flex-col gap-2">
-          <h2 className="font-bold text-[#2F1B0C] text-lg">Categories</h2>
-          <div className="bg-white rounded-2xl p-4 shadow-xs border border-stone-200/70 flex flex-col divide-y divide-stone-100">
+        {/* Section 2: Categories (Figma: min-h 118px) */}
+        <div className="flex flex-col gap-1.5">
+          <h2 className="font-['Poppins'] font-bold text-[14px] text-[#2F1B0C]">
+            Categories
+          </h2>
+          <div className="w-full bg-white rounded-[16px] p-[16px] border border-[rgba(71,43,20,0.14)] shadow-xs flex flex-col divide-y divide-stone-100 min-h-[118px] justify-center">
             {categoryTotals.length > 0 ? (
               categoryTotals.map((cat) => (
                 <div
                   key={cat.name}
-                  className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0"
+                  className="flex items-center justify-between py-2 first:pt-0 last:pb-0"
                 >
-                  <span className="text-sm font-semibold text-[#2F1B0C]">{cat.name}</span>
-                  <span className="text-sm font-bold text-[#2F1B0C]">
+                  <span className="font-['Poppins'] font-semibold text-[10px] text-[#2F1B0C]">
+                    {cat.name}
+                  </span>
+                  <span className="font-['Poppins'] font-semibold text-[10px] text-[#2F1B0C] text-right">
                     {formatCurrency(cat.value, displayCurrency)}
                   </span>
                 </div>
               ))
             ) : (
-              <div className="text-xs text-stone-400 py-2 text-center">
+              <div className="font-['Poppins'] text-[10px] text-[#73665C] py-2 text-center">
                 No category spending recorded yet.
               </div>
             )}
           </div>
         </div>
 
-        {/* Section 3: Recent Expenses */}
-        <div className="flex flex-col gap-2">
-          <h2 className="font-bold text-[#2F1B0C] text-lg">Recent Expenses</h2>
-          <div className="bg-white rounded-2xl p-4 shadow-xs border border-stone-200/70 flex flex-col divide-y divide-stone-100">
+        {/* Section 3: Recent Expenses (Figma: min-h 216px) */}
+        <div className="flex flex-col gap-1.5">
+          <h2 className="font-['Poppins'] font-bold text-[14px] text-[#2F1B0C]">
+            Recent Expenses
+          </h2>
+          <div className="w-full bg-white rounded-[16px] p-[16px] border border-[rgba(71,43,20,0.14)] shadow-xs flex flex-col divide-y divide-stone-100 min-h-[216px]">
             {budget.expenses.length > 0 ? (
               budget.expenses.map((expense) => {
                 const costDisplay = convert(
@@ -1091,18 +1099,18 @@ export function Budget() {
                 return (
                   <div
                     key={expense.id}
-                    className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0"
+                    className="flex items-center justify-between py-2 first:pt-0 last:pb-0"
                   >
                     <div className="flex flex-col min-w-0 pr-2">
-                      <span className="text-sm font-bold text-[#2F1B0C] truncate">
+                      <span className="font-['Poppins'] font-semibold text-[11px] text-[#2F1B0C] truncate">
                         {expense.name}
                       </span>
-                      <span className="text-xs text-stone-400 font-medium">
+                      <span className="font-['Poppins'] font-normal text-[9px] text-[#73665C]">
                         {expense.category}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-sm font-bold text-[#2F1B0C]">
+                      <span className="font-['Poppins'] font-bold text-[10px] text-[#2F1B0C]">
                         {formatCurrency(costDisplay, displayCurrency)}
                       </span>
                       <button
@@ -1112,14 +1120,14 @@ export function Budget() {
                         title="Delete Expense"
                         aria-label={`Delete ${expense.name}`}
                       >
-                        <Trash2 size={15} />
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </div>
                 );
               })
             ) : (
-              <div className="text-xs text-stone-400 py-3 text-center">
+              <div className="font-['Poppins'] text-[10px] text-[#73665C] py-6 text-center my-auto">
                 No expenses added yet. Tap + Expense to add one.
               </div>
             )}

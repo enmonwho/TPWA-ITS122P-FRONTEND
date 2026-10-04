@@ -5670,7 +5670,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
     flex-direction: column !important;
     padding-top: 0;
     min-height: 100dvh;
-    background-color: #faf7f2;
+    background-color: #f9f4ee;
   }
 
   .workspace-page {
@@ -5678,7 +5678,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
     border-radius: 0;
     box-shadow: none;
     padding: 0;
-    background-color: #faf7f2;
+    background-color: #f9f4ee;
   }
 
   /* Desktop sidebar, overlay, and desktop header card are hidden on mobile */
@@ -5692,7 +5692,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 
   .workspace-main-content {
     padding: 0 !important;
-    padding-bottom: 84px !important;
+    padding-bottom: 74px !important;
     width: 100% !important;
     max-width: 100% !important;
     overflow-x: hidden !important;
@@ -5772,9 +5772,9 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   background:
     linear-gradient(#ffffff, #ffffff) padding-box,
     linear-gradient(135deg, #255f85 0%, #e9724c 35%, #c5283d 70%, #ffc857 100%) border-box !important;
-  border: 1.5px solid transparent !important;
+  border: 1.25px solid transparent !important;
   border-radius: 9999px !important;
-  color: #2f1b0c !important;
+  color: #1a1a1a !important;
   font-weight: 600 !important;
 }
 

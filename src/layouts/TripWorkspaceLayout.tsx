@@ -130,25 +130,27 @@ export default function TripWorkspaceLayout() {
 
   return (
     <div className="workspace-layout-root">
-      {/* Approved Compact Mobile Header (Figma source of truth) */}
-      <header className="workspace-mobile-header-bar md:hidden flex items-center justify-between px-4 py-2.5 bg-white border-b border-stone-200/70 sticky top-0 z-30 shadow-xs w-full">
-        <div className="flex items-center gap-2 min-w-0">
+      {/* Approved Compact Mobile Header (Figma source of truth: 74px height) */}
+      <header className="workspace-mobile-header-bar md:hidden flex items-center justify-between px-[18px] h-[74px] bg-white border-b border-[rgba(71,43,20,0.14)] sticky top-0 z-30 w-full shrink-0">
+        <div className="flex items-center gap-[14px] min-w-0">
           <button
             type="button"
             onClick={() => navigate('/dashboard')}
             aria-label="Back to dashboard"
-            className="p-1 -ml-1 text-[#2F1B0C] hover:opacity-75 transition-opacity flex-shrink-0"
+            className="w-[18px] h-[18px] flex items-center justify-center text-[#2F1B0C] hover:opacity-75 transition-opacity shrink-0"
           >
-            <ChevronLeft size={26} strokeWidth={2.5} />
+            <ChevronLeft size={20} strokeWidth={2.5} />
           </button>
-          <div className="flex flex-col min-w-0">
-            <span className="font-bold text-[#2F1B0C] text-[17px] leading-tight truncate">
+          <div className="flex flex-col min-w-0 justify-center">
+            <span className="font-['Poppins'] font-bold text-[#2F1B0C] text-[16px] leading-[22px] truncate">
               {trip?.name || 'Spain Adventure'}
             </span>
-            <span className="text-xs text-stone-500 font-medium">{viewSubtitle}</span>
+            <span className="font-['Poppins'] font-normal text-[#73665C] text-[10px] leading-[14px]">
+              {viewSubtitle}
+            </span>
           </div>
         </div>
-        <div className="w-9 h-9 rounded-full border-2 border-[#E9724C] bg-white flex items-center justify-center font-bold text-sm text-[#E9724C] shadow-sm flex-shrink-0 overflow-hidden ml-2">
+        <div className="w-[36px] h-[36px] rounded-full border-2 border-[rgba(233,114,76,0.8)] bg-[#FCF9F6] flex items-center justify-center font-['Poppins'] font-bold text-[13px] text-[#2F1B0C] shrink-0 overflow-hidden">
           {userAvatar ? (
             <img src={userAvatar} alt="" className="w-full h-full object-cover" />
           ) : (
@@ -245,10 +247,10 @@ export default function TripWorkspaceLayout() {
         />
       </main>
 
-      {/* Approved Mobile Bottom Workspace Navigation (Figma source of truth) */}
+      {/* Approved Mobile Bottom Workspace Navigation (Figma source of truth: 58px height) */}
       <nav
         aria-label="Trip workspace navigation"
-        className="workspace-mobile-bottom-nav md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200/80 px-2 py-1 flex items-center justify-around z-30 shadow-lg"
+        className="workspace-mobile-bottom-nav md:hidden fixed bottom-0 left-0 right-0 h-[58px] bg-white border-t border-[rgba(71,43,20,0.14)] px-2 flex items-center justify-around z-30 shadow-md shrink-0"
       >
         {mobileNavItems.map((item) => {
           const Icon = item.icon;
@@ -256,24 +258,24 @@ export default function TripWorkspaceLayout() {
             <Link
               key={item.id}
               to={item.path}
-              className="flex flex-col items-center justify-center flex-1 py-1"
+              className="flex flex-col items-center justify-center flex-1 h-full py-1"
             >
               <div
-                className={`w-11 h-7 flex items-center justify-center transition-all ${
+                className={`w-11 h-6 flex items-center justify-center transition-all ${
                   item.isActive ? 'mobile-nav-active-pill' : 'mobile-nav-inactive-pill'
                 }`}
               >
                 <Icon
-                  size={19}
-                  className={item.isActive ? 'text-[#255F85]' : 'text-stone-500'}
-                  strokeWidth={item.isActive ? 2.5 : 2}
+                  size={20}
+                  className={item.isActive ? 'text-[#255F85]' : 'text-[#73665C]'}
+                  strokeWidth={item.isActive ? 2.3 : 1.8}
                 />
               </div>
               <span
-                className={`text-[11px] mt-0.5 ${
+                className={`text-[9px] font-['Poppins'] leading-[12px] mt-0.5 ${
                   item.isActive
-                    ? 'text-[#2F1B0C] font-bold'
-                    : 'text-stone-500 font-medium'
+                    ? 'text-[#1A1A1A] font-semibold'
+                    : 'text-[#73665C] font-normal'
                 }`}
               >
                 {item.label}
