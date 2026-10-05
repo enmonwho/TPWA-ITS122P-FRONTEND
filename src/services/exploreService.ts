@@ -60,8 +60,8 @@ export const MONTHS_SHORT = [
   'Dec',
 ];
 
-const STORAGE_KEY_COUNTRIES = 'lakbye_explore_countries_v2';
-const STORAGE_KEY_TIMESTAMP = 'lakbye_explore_timestamp_v2';
+const STORAGE_KEY_COUNTRIES = 'lakbye_explore_countries_v3';
+const STORAGE_KEY_TIMESTAMP = 'lakbye_explore_timestamp_v3';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
@@ -485,7 +485,7 @@ export const SEED_POPULAR_COUNTRIES: ExplorePlace[] = [
     flag: 'https://flagcdn.com/w320/za.png',
     population: 60000000,
     imageUrl:
-      'https://images.unsplash.com/photo-1580618672591-eb180b1a973f?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1626894169601-482d26b23f35?auto=format&fit=crop&w=800&q=80',
     description:
       'Kruger National Park safaris, Table Mountain panoramas, and coastal winelands.',
     tag: 'Wild Safari',

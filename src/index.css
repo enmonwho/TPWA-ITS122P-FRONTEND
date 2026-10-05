@@ -3676,6 +3676,11 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   box-sizing: border-box;
 }
 
+.dashboard-trips-card:has(.dashboard-trips-table) {
+  min-height: 0;
+  flex: 0 0 auto;
+}
+
 .dashboard-trips-filters {
   display: flex;
   gap: 16px;
@@ -4163,7 +4168,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   grid-template-columns: minmax(180px, 2fr) 1.5fr 1.6fr 1fr 48px;
   align-items: center;
   width: 100%;
-  padding: 14px 16px;
+  padding: 16px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.04);
   transition: background-color var(--transition-fast);
   box-sizing: border-box;
@@ -4231,6 +4236,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 0;
 }
 
 .trip-cell-actions {
@@ -4280,6 +4286,29 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   font-weight: 600;
   font-size: 13.5px;
   color: #255f85;
+}
+
+.trip-text-date.badge-pill-date,
+.trip-text-duration.badge-pill-nights {
+  height: auto;
+  min-height: 30px;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.trip-text-date.badge-pill-date {
+  max-width: 100%;
+  border-color: rgba(37, 95, 133, 0.4);
+  text-align: center;
+  white-space: normal;
+}
+
+.trip-text-duration.badge-pill-nights {
+  border-color: rgba(233, 114, 76, 0.45);
 }
 
 .trip-text-duration {
@@ -4441,7 +4470,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   }
 
   .dashboard-trips-table-row {
-    padding: 10px 12px;
+    padding: 14px 12px;
     font-size: 13px;
   }
 }
@@ -9907,28 +9936,34 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 }
 
 .badge-pill-date {
-  background: linear-gradient(180deg, #255f85 0%, #002945 100%);
-  border: 1px solid rgba(72, 42, 19, 0.2);
-  border-radius: 80px;
-  padding: 2px 10px;
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  background: rgba(37, 95, 133, 0.08);
+  border: 1px solid rgba(37, 95, 133, 0.2);
+  border-radius: 8px;
+  padding: 0 8px;
   font-family: 'SF Pro Rounded', sans-serif;
   font-weight: 700;
-  font-size: 8px;
-  line-height: 12px;
-  color: #fffefb;
+  font-size: 10px;
+  line-height: 1;
+  color: #255f85;
   white-space: nowrap;
 }
 
 .badge-pill-nights {
-  background: linear-gradient(180deg, #e9724c 0%, #a72800 98%);
-  border: 1px solid rgba(72, 42, 19, 0.2);
-  border-radius: 80px;
-  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  background: rgba(233, 114, 76, 0.08);
+  border: 1px solid rgba(233, 114, 76, 0.3);
+  border-radius: 8px;
+  padding: 0 8px;
   font-family: 'SF Pro Rounded', sans-serif;
   font-weight: 700;
-  font-size: 8px;
-  line-height: 12px;
-  color: #fffefb;
+  font-size: 10px;
+  line-height: 1;
+  color: #e9724c;
   white-space: nowrap;
 }
 

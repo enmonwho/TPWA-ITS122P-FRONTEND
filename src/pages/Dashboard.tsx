@@ -683,13 +683,13 @@ export default function Dashboard() {
                             </div>
 
                             <div className="trip-cell-dates">
-                              <span className="trip-text-date">
+                              <span className="trip-text-date badge-pill-date">
                                 {formatUserDateRange(trip.startDate, trip.endDate)}
                               </span>
                             </div>
 
                             <div className="trip-cell-duration">
-                              <span className="trip-text-duration">
+                              <span className="trip-text-duration badge-pill-nights">
                                 {trip.nights} {trip.nights === 1 ? 'Night' : 'Nights'}
                               </span>
                             </div>
