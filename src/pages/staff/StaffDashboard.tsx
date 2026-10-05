@@ -12,7 +12,6 @@ import {
   Info,
   ShieldAlert,
   DollarSign,
-  Pencil,
 } from 'lucide-react';
 import axios from 'axios';
 import lakbyeLogo from '../../assets/lakbye-logo.png';
@@ -59,20 +58,6 @@ function formatDateTime(dateStr?: string | null): string {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  });
-}
-
-/**
- * Format ISO date string into date only (e.g. Apr 15, 2026).
- */
-function formatDate(dateStr?: string | null): string {
-  if (!dateStr) return '—';
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
   });
 }
 
@@ -763,7 +748,7 @@ export default function StaffDashboard() {
                     {renderSortHeader('id', 'Booking ID')}
                     {renderSortHeader('customer', 'Customer Name')}
                     {renderSortHeader('title', 'Activity Title')}
-                    {renderSortHeader('date', 'Schedule Date & Time')}
+                    {renderSortHeader('date', 'Scheduled Date & Time')}
                     {renderSortHeader('cost', 'Cost')}
                     <th className="staff-th">Submitted At</th>
                     {renderSortHeader('status', 'Status', 'center')}
@@ -787,7 +772,7 @@ export default function StaffDashboard() {
                       activity?.title ||
                       `Activity #${booking.activity_id ?? 'Custom'}`;
                     const scheduleDate = booking.booking_date
-                      ? formatDate(booking.booking_date)
+                      ? formatDateTime(booking.booking_date)
                       : formatDateTime(booking.created_at);
                     const submittedAt = formatDateTime(booking.created_at);
                     const isUpdating = statusUpdatingId === booking.id;
@@ -801,31 +786,7 @@ export default function StaffDashboard() {
                         <td className="staff-td staff-activity-title">{activityTitle}</td>
                         <td className="staff-td staff-time-val">{scheduleDate}</td>
                         <td className="staff-td staff-cost-val">
-                          <div
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                            }}
-                          >
-                            <span>₱{Number(costVal).toLocaleString()}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenCostModal(booking)}
-                              title="Set / Edit Cost"
-                              style={{
-                                border: 'none',
-                                background: 'transparent',
-                                cursor: 'pointer',
-                                padding: '2px',
-                                color: '#E9724C',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                              }}
-                            >
-                              <Pencil size={12} />
-                            </button>
-                          </div>
+                          <span>₱{Number(costVal).toLocaleString()}</span>
                         </td>
                         <td className="staff-td staff-time-val">{submittedAt}</td>
                         <td className="staff-td" style={{ textAlign: 'center' }}>
@@ -940,7 +901,7 @@ export default function StaffDashboard() {
                     {renderSortHeader('id', 'Booking ID')}
                     {renderSortHeader('customer', 'Customer Name')}
                     {renderSortHeader('title', 'Activity')}
-                    {renderSortHeader('date', 'Schedule Date & Time')}
+                    {renderSortHeader('date', 'Scheduled Date & Time')}
                     {renderSortHeader('cost', 'Cost')}
                     <th className="staff-th">Processed At</th>
                     {renderSortHeader('status', 'Status', 'center')}
@@ -964,9 +925,13 @@ export default function StaffDashboard() {
                       activity?.title ||
                       `Activity #${booking.activity_id ?? 'Custom'}`;
                     const scheduleDate = booking.booking_date
-                      ? formatDate(booking.booking_date)
+                      ? formatDateTime(booking.booking_date)
                       : formatDateTime(booking.created_at);
-                    const processedAt = formatDateTime(booking.created_at);
+                    const processedAt = formatDateTime(
+                      booking.updated_at ||
+                        (booking as any).processed_at ||
+                        booking.created_at,
+                    );
                     const normStatus = (booking.status || 'confirmed').toLowerCase();
                     const isActionOpen = openActionMenuId === booking.id;
                     const isUpdating = statusUpdatingId === booking.id;
@@ -978,31 +943,7 @@ export default function StaffDashboard() {
                         <td className="staff-td staff-activity-title">{activityTitle}</td>
                         <td className="staff-td staff-time-val">{scheduleDate}</td>
                         <td className="staff-td staff-cost-val">
-                          <div
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                            }}
-                          >
-                            <span>₱{Number(costVal).toLocaleString()}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenCostModal(booking)}
-                              title="Set / Edit Cost"
-                              style={{
-                                border: 'none',
-                                background: 'transparent',
-                                cursor: 'pointer',
-                                padding: '2px',
-                                color: '#E9724C',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                              }}
-                            >
-                              <Pencil size={12} />
-                            </button>
-                          </div>
+                          <span>₱{Number(costVal).toLocaleString()}</span>
                         </td>
                         <td className="staff-td staff-time-val">{processedAt}</td>
                         <td className="staff-td" style={{ textAlign: 'center' }}>
@@ -1181,9 +1122,9 @@ export default function StaffDashboard() {
             </div>
 
             <div className="staff-detail-row">
-              <span className="staff-detail-label">Schedule Date</span>
+              <span className="staff-detail-label">Scheduled Date & Time</span>
               <span className="staff-detail-val">
-                {formatDate(
+                {formatDateTime(
                   selectedBookingForModal.booking_date ||
                     selectedBookingForModal.created_at,
                 )}

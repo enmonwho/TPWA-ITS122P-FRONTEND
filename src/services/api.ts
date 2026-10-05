@@ -1093,6 +1093,7 @@ export const adminApi = {
   },
   createActivity: async (payload: {
     title: string;
+    destination?: string;
     destination_id?: number;
     category_id?: number;
     cost: number;

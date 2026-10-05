@@ -251,8 +251,22 @@
   color: #401c02;
 }
 .admin-report-export {
-  border-radius: 8px;
+  padding: 8px 18px;
+  border-radius: 9999px;
   color: #401c02;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #e7e5e4;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.15s ease;
+}
+.admin-report-export:hover:not(:disabled) {
+  background: #fafaf9;
+  border-color: #d6d3d1;
 }
 .admin-report-rule {
   flex-shrink: 0;

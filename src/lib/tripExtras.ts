@@ -67,9 +67,9 @@ export function getTripExtras(tripId: string | number): TripExtras {
     const raw = localStorage.getItem(STORAGE_KEYS.TRIP_EXTRAS(tripId));
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<TripExtras>;
-      const countryRoute = normalizeCountryRoute(
-        parsed.countryRoute?.length ? parsed.countryRoute : parsed.countries || [],
-      );
+      const routeInput =
+        parsed.countryRoute !== undefined ? parsed.countryRoute : parsed.countries || [];
+      const countryRoute = normalizeCountryRoute(routeInput);
       return {
         ...DEFAULT_EXTRAS,
         ...parsed,
@@ -88,7 +88,12 @@ export function saveTripExtras(
   extras: Partial<TripExtras>,
 ): void {
   const current = getTripExtras(tripId);
-  const routeInput = extras.countryRoute ?? extras.countries ?? current.countryRoute;
+  const routeInput =
+    extras.countryRoute !== undefined
+      ? extras.countryRoute
+      : extras.countries !== undefined
+        ? extras.countries
+        : current.countryRoute;
   const countryRoute = normalizeCountryRoute(routeInput);
   const merged = {
     ...current,
