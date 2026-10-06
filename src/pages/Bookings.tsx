@@ -148,6 +148,7 @@ export default function Bookings() {
   const [customType, setCustomType] = useState<'activity' | 'hotel'>('activity');
   const [customTitle, setCustomTitle] = useState('');
   const [customLocation, setCustomLocation] = useState('');
+  const [selectedPlannedDestinationId, setSelectedPlannedDestinationId] = useState('');
   const [customCost, setCustomCost] = useState('');
   const [customNotes, setCustomNotes] = useState('');
   const [selectedActivityId, setSelectedActivityId] = useState<number | ''>('');
@@ -299,6 +300,34 @@ export default function Bookings() {
     return filteredTrips.find((t) => t.id === selectedTripId) || filteredTrips[0] || null;
   }, [filteredTrips, selectedTripId]);
 
+  const tripCatalogActivities = useMemo(() => {
+    const destinationIds = new Set(
+      tripDestinations.map((destination) => String(destination.id)),
+    );
+    return catalogActivities.filter(
+      (activity) =>
+        activity.destination_id != null &&
+        destinationIds.has(String(activity.destination_id)),
+    );
+  }, [catalogActivities, tripDestinations]);
+
+  const plannedActivities = useMemo(
+    () =>
+      tripDestinations
+        .filter((destination) => destination.activities?.trim())
+        .map((destination) => ({
+          destinationId: String(destination.id),
+          destinationName: destination.location_name,
+          activity: destination.activities!.trim(),
+        })),
+    [tripDestinations],
+  );
+
+  const plannedAccommodations = useMemo(
+    () => tripDestinations.filter((destination) => destination.accommodation?.trim()),
+    [tripDestinations],
+  );
+
   const scheduleDays = useMemo(() => {
     const baseDate = selectedTrip?.startDate
       ? new Date(selectedTrip.startDate)
@@ -335,21 +364,43 @@ export default function Bookings() {
   }, [selectedTrip, trips]);
 
   useEffect(() => {
-    if (!selectedTrip) return;
+    if (!selectedTrip) {
+      setTripDestinations([]);
+      setTripExpenses([]);
+      setCatalogActivities([]);
+      setAllDestinations([]);
+      setUserBookings([]);
+      return;
+    }
 
     let cancelled = false;
 
     const fetchTripDetails = async () => {
       setDetailsLoading(true);
+      setTripDestinations([]);
+      setTripExpenses([]);
+      setCatalogActivities([]);
+      setAllDestinations([]);
+      setUserBookings([]);
       try {
-        const [destData, budgetData, activitiesData, allDestData] = await Promise.all([
+        const [destData, budgetData, allDestData] = await Promise.all([
           destinationsApi.getByTripId(selectedTrip.id).catch(() => []),
           budgetApi
             .getBudget(selectedTrip.id)
             .catch(() => ({ balance: 0, expenses: [] })),
-          activitiesApi.getAll().catch(() => []),
           destinationsApi.getAll().catch(() => []),
         ]);
+
+        const activityLists = await Promise.all(
+          destData.map((destination) =>
+            activitiesApi.getAll({ destination_id: destination.id }).catch(() => []),
+          ),
+        );
+        const activitiesData = Array.from(
+          new Map(
+            activityLists.flat().map((activity) => [activity.id, activity]),
+          ).values(),
+        );
 
         if (!cancelled) {
           setTripDestinations(destData);
@@ -507,11 +558,12 @@ export default function Bookings() {
     if (!selectedTrip) return;
     setBookingDate(selectedTrip.startDate || new Date().toISOString().split('T')[0]);
     setBookingTime('09:00 AM');
-    if (catalogActivities.length > 0 && selectedActivityId === '') {
-      setSelectedActivityId(catalogActivities[0].id);
-    }
+    setBookingMode('catalog');
+    setCustomType('activity');
+    setSelectedActivityId(tripCatalogActivities[0]?.id ?? '');
     setCustomTitle('');
     setCustomLocation(selectedTrip.countries?.[0] || '');
+    setSelectedPlannedDestinationId('');
     setCustomCost('');
     setCustomNotes('');
     setBookingSuccessMsg(null);
@@ -559,6 +611,10 @@ export default function Bookings() {
           custom_title: customTitle.trim(),
           custom_type: customType,
           custom_location: customLocation.trim() || undefined,
+          ...(selectedPlannedDestinationId &&
+          Number.isFinite(Number(selectedPlannedDestinationId))
+            ? { destination_id: Number(selectedPlannedDestinationId) }
+            : {}),
           cost: costNum,
           total_price: costNum,
           booking_date: bookingDate || undefined,
@@ -1266,17 +1322,56 @@ export default function Bookings() {
                       id="activity-select"
                       className="booking-modal-select"
                       value={selectedActivityId}
-                      onChange={(e) => setSelectedActivityId(Number(e.target.value))}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value.startsWith('planned:')) {
+                          const planItem = plannedActivities.find(
+                            (item) =>
+                              item.destinationId === value.slice('planned:'.length),
+                          );
+                          if (planItem) {
+                            setBookingMode('custom');
+                            setCustomType('activity');
+                            setCustomTitle(planItem.activity);
+                            setCustomLocation(planItem.destinationName);
+                            setSelectedPlannedDestinationId(planItem.destinationId);
+                            setCustomCost('');
+                            setSelectedActivityId('');
+                          }
+                          return;
+                        }
+                        setSelectedActivityId(value ? Number(value) : '');
+                      }}
                       required={bookingMode === 'catalog'}
                     >
                       <option value="" disabled>
                         Select activity...
                       </option>
-                      {catalogActivities.map((act) => (
-                        <option key={act.id} value={act.id}>
-                          {act.title} — ₱{Number(act.cost).toLocaleString()}
-                        </option>
-                      ))}
+                      {plannedActivities.length > 0 && (
+                        <optgroup label="Planned in this trip">
+                          {plannedActivities.map((item) => (
+                            <option
+                              key={`planned-${item.destinationId}`}
+                              value={`planned:${item.destinationId}`}
+                            >
+                              {item.destinationName} — {item.activity}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {tripCatalogActivities.map((act) => {
+                        const destination = tripDestinations.find(
+                          (item) => String(item.id) === String(act.destination_id),
+                        );
+                        return (
+                          <option key={act.id} value={act.id}>
+                            {destination?.location_name
+                              ? `${destination.location_name} — `
+                              : ''}
+                            {act.title} — ₱{Number(act.cost).toLocaleString()}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
@@ -1337,6 +1432,41 @@ export default function Bookings() {
                 </>
               ) : (
                 <>
+                  {customType === 'hotel' && plannedAccommodations.length > 0 && (
+                    <div className="booking-modal-field">
+                      <label
+                        htmlFor="planned-accommodation-select"
+                        className="booking-modal-label"
+                      >
+                        Use planned accommodation (optional)
+                      </label>
+                      <select
+                        id="planned-accommodation-select"
+                        className="booking-modal-select"
+                        value=""
+                        onChange={(event) => {
+                          const plannedStay = plannedAccommodations.find(
+                            (destination) =>
+                              String(destination.id) === event.target.value,
+                          );
+                          if (!plannedStay) return;
+                          setCustomTitle(plannedStay.accommodation || '');
+                          setCustomLocation(plannedStay.location_name);
+                          setSelectedPlannedDestinationId(String(plannedStay.id));
+                        }}
+                      >
+                        <option value="" disabled>
+                          Select a planned stay...
+                        </option>
+                        {plannedAccommodations.map((destination) => (
+                          <option key={destination.id} value={destination.id}>
+                            {destination.location_name} — {destination.accommodation}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                   {/* Reservation / Hotel Name (Figma #808:214, #808:215, #808:216) */}
                   <div className="booking-modal-field">
                     <label htmlFor="custom-title" className="booking-modal-label">
@@ -1395,7 +1525,10 @@ export default function Bookings() {
                     >
                       <button
                         type="button"
-                        onClick={() => setCustomType('activity')}
+                        onClick={() => {
+                          setCustomType('activity');
+                          setSelectedPlannedDestinationId('');
+                        }}
                         className={`booking-modal-type-pill ${customType === 'activity' ? 'active' : ''}`}
                       >
                         <Ticket size={13} className="shrink-0" />
@@ -1403,7 +1536,10 @@ export default function Bookings() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setCustomType('hotel')}
+                        onClick={() => {
+                          setCustomType('hotel');
+                          setSelectedPlannedDestinationId('');
+                        }}
                         className={`booking-modal-type-pill ${customType === 'hotel' ? 'active' : ''}`}
                       >
                         <Bed size={13} className="shrink-0" />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ChevronDown,
@@ -23,10 +23,12 @@ import { CountryAutocomplete, GlobeMap } from '../components';
 import AnchoredPopover from '../components/AnchoredPopover';
 import { getCoordinatesForName } from '../constants/coordinates';
 import { useAuth } from '../context/AuthContext';
-import { ROUTES } from '../lib/constants';
+import { ROUTES, STORAGE_KEYS } from '../lib/constants';
 import type { Trip } from '../types/trip';
-import { tripsApi } from '../services/api';
+import type { Destination } from '../types/destination';
+import { destinationsApi, tripsApi } from '../services/api';
 import { mergeTripWithExtras, saveTripExtras } from '../lib/tripExtras';
+import { enqueueWorkspaceDestinationSync } from '../lib/workspaceDestinationSync';
 import { formatUserDateRange } from '../lib/formatters';
 import {
   searchDestinations,
@@ -64,6 +66,26 @@ export interface WorkspaceDestination {
 
 function generateCustomDestId(): string {
   return `dest-custom-${Date.now()}`;
+}
+
+function getWorkspaceCoordinates(
+  name: string,
+  country?: string,
+): [number, number] | null {
+  const cityCoordinates = getCoordinatesForName(name);
+  if (cityCoordinates) return cityCoordinates;
+
+  const countryOption = getCountryOption(country);
+  const countryNames = [
+    countryOption?.name,
+    ...(countryOption?.aliases || []),
+    country,
+  ].filter((value): value is string => Boolean(value));
+  for (const countryName of countryNames) {
+    const coordinates = getCoordinatesForName(countryName);
+    if (coordinates) return coordinates;
+  }
+  return null;
 }
 
 export default function TripWorkspace() {
@@ -104,53 +126,14 @@ export default function TripWorkspace() {
     setIsMobileAddDestOpen(true);
   };
 
-  const handleMobileAddDestination = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!mobileDestName.trim()) return;
-
-    const name = mobileDestName.trim();
-    const finalCountryId = mobileAddDestCountryId;
-    const finalCountry = getCountryName(finalCountryId);
-    if (!finalCountryId || !finalCountry) {
-      setIsMobileAddDestOpen(false);
-      setIsAddCountryModalOpen(true);
-      return;
-    }
-
-    const coords = getCoordinatesForName(name) || getCoordinatesForName(finalCountry);
-    const remainingDays = Math.max(1, tripDurationDays - totalAllocatedDays);
-    const initialDays = Math.min(1, remainingDays);
-
-    const newDest: WorkspaceDestination = {
-      id: generateCustomDestId(),
-      name,
-      countryId: finalCountryId,
-      country: finalCountry,
-      order: destinations.length,
-      days: initialDays,
-      accommodation: '',
-      activities: '',
-      transportation: '',
-      latitude: coords ? coords[1] : undefined,
-      longitude: coords ? coords[0] : undefined,
-    };
-
-    const updatedRoute = mergeCountryRoute(countryRoute, [finalCountryId]);
-    const updated = orderDestinationsByCountryRoute(
-      [...destinations, newDest],
-      updatedRoute,
-    ).map((destination, order) => ({ ...destination, order }));
-    setCountryRoute(updatedRoute);
-    setDestinations(updated);
-    persistDestinations(updated, updatedRoute);
-    setActiveDestinationId(newDest.id);
-    setIsMobileAddDestOpen(false);
-    setMobileDestName('');
-  };
-
   const [destinations, setDestinations] = useState<WorkspaceDestination[]>([]);
   const [countryRoute, setCountryRoute] = useState<CountryRouteEntry[]>([]);
   const [isAddCountryModalOpen, setIsAddCountryModalOpen] = useState(false);
+  const [pendingCountryRemoval, setPendingCountryRemoval] = useState<{
+    countryId: CountryId;
+    countryName: string;
+    destinationCount: number;
+  } | null>(null);
   const [newCountrySelection, setNewCountrySelection] = useState<CountryId[]>([]);
   const [newDestInput, setNewDestInput] = useState('');
   const [selectedCountryForNew, setSelectedCountryForNew] = useState<CountryId>('');
@@ -169,6 +152,74 @@ export default function TripWorkspace() {
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const dayScheduleListRef = useRef<HTMLDivElement>(null);
+  const countryRemovalDialogRef = useRef<HTMLDivElement>(null);
+  const countryRemovalCancelRef = useRef<HTMLButtonElement>(null);
+  const countryRemoveTriggerRef = useRef<HTMLElement | null>(null);
+  const persistDestinations = useCallback(
+    (updated: WorkspaceDestination[], routeOverride: CountryRouteEntry[]) => {
+      if (!tripId) return;
+      const normalizedRoute = mergeCountryRoute(
+        routeOverride,
+        updated.map((destination) => destination.countryId || destination.country || ''),
+      );
+      const ordered = orderDestinationsByCountryRoute(updated, normalizedRoute).map(
+        (destination, order) => ({ ...destination, order }),
+      );
+      localStorage.setItem(`lakbye_workspace_dests_${tripId}`, JSON.stringify(ordered));
+      saveTripExtras(tripId, { countryRoute: normalizedRoute });
+      localStorage.setItem(STORAGE_KEYS.WORKSPACE_DESTINATIONS_MIGRATED(tripId), 'false');
+
+      // Keep the legacy local mirror used by Budget and export while syncing the
+      // canonical destination records consumed by Bookings and Map.
+      enqueueWorkspaceDestinationSync(tripId, ordered);
+    },
+    [tripId],
+  );
+
+  useEffect(() => {
+    if (!pendingCountryRemoval) return;
+
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    countryRemovalCancelRef.current?.focus();
+
+    const handleCountryRemovalKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setPendingCountryRemoval(null);
+        return;
+      }
+
+      if (event.key !== 'Tab' || !countryRemovalDialogRef.current) return;
+      const focusable = Array.from(
+        countryRemovalDialogRef.current.querySelectorAll<HTMLButtonElement>(
+          'button:not(:disabled)',
+        ),
+      );
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleCountryRemovalKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleCountryRemovalKeyDown);
+      document.body.style.overflow = previousBodyOverflow;
+      const trigger = countryRemoveTriggerRef.current;
+      countryRemoveTriggerRef.current = null;
+      if (trigger?.isConnected) {
+        trigger.focus();
+      }
+    };
+  }, [pendingCountryRemoval]);
 
   useEffect(() => {
     if (activeTab === 'day' && dayScheduleListRef.current) {
@@ -234,7 +285,13 @@ export default function TripWorkspace() {
       setLoading(true);
       setNotFound(false);
       try {
-        const apiTrip = await tripsApi.getTrip(tripId);
+        const [apiTrip, serverDestinationsResult] = await Promise.all([
+          tripsApi.getTrip(tripId),
+          destinationsApi.getByTripIdStrict(tripId).then(
+            (rows) => ({ rows, loaded: true as const }),
+            () => ({ rows: [] as Destination[], loaded: false as const }),
+          ),
+        ]);
         if (cancelled) return;
 
         const merged = mergeTripWithExtras(apiTrip);
@@ -301,19 +358,134 @@ export default function TripWorkspace() {
           }
         }
 
+        let destinationIdMap: Record<string, string> = {};
+        try {
+          const parsedIdMap = JSON.parse(
+            localStorage.getItem(STORAGE_KEYS.WORKSPACE_DESTINATION_IDS(tripId)) || '{}',
+          );
+          if (parsedIdMap && typeof parsedIdMap === 'object') {
+            destinationIdMap = Object.fromEntries(
+              Object.entries(parsedIdMap).map(([localId, backendId]) => [
+                localId,
+                String(backendId),
+              ]),
+            );
+          }
+        } catch {
+          destinationIdMap = {};
+        }
+
+        const serverRows = serverDestinationsResult.rows;
+        const migrationComplete =
+          localStorage.getItem(STORAGE_KEYS.WORKSPACE_DESTINATIONS_MIGRATED(tripId)) ===
+          'true';
+        const matchedServerIds = new Set<string>();
+        const workspaceFromServer = (destination: Destination, index: number) => {
+          const country = getCountryOption(destination.country || '');
+          const coords = getWorkspaceCoordinates(
+            destination.location_name,
+            country?.name || destination.country,
+          );
+          return {
+            id: String(destination.id),
+            name: destination.location_name,
+            countryId: country?.id || '',
+            country: country?.name || destination.country || '',
+            order: Number.isFinite(Number(destination.order_sequence))
+              ? Number(destination.order_sequence)
+              : index,
+            days: Number(destination.days) || 1,
+            accommodation: destination.accommodation || '',
+            activities: destination.activities || '',
+            transportation: destination.transportation || '',
+            latitude:
+              destination.latitude != null ? Number(destination.latitude) : coords?.[1],
+            longitude:
+              destination.longitude != null ? Number(destination.longitude) : coords?.[0],
+          } satisfies WorkspaceDestination;
+        };
+
+        const serverWorkspaceRows = serverRows.map(workspaceFromServer);
+        if (migrationComplete && serverDestinationsResult.loaded) {
+          destinationIdMap = Object.fromEntries(
+            serverWorkspaceRows.map((destination) => [destination.id, destination.id]),
+          );
+        } else {
+          serverWorkspaceRows.forEach((destination) => {
+            destinationIdMap[destination.id] = destination.id;
+          });
+        }
+        const localWorkspaceRows = initialDests.map((localDestination) => {
+          const mappedId = destinationIdMap[localDestination.id] || localDestination.id;
+          const byId = serverRows.find(
+            (destination) =>
+              String(destination.id) === mappedId &&
+              !matchedServerIds.has(String(destination.id)),
+          );
+          const byLocation = byId
+            ? undefined
+            : serverRows.find((destination) => {
+                const rowId = String(destination.id);
+                if (matchedServerIds.has(rowId)) return false;
+                const sameName =
+                  destination.location_name.trim().toLowerCase() ===
+                  localDestination.name.trim().toLowerCase();
+                const sameCountry =
+                  getCountryId(destination.country || '') === localDestination.countryId;
+                return sameName && sameCountry;
+              });
+          const matched = byId || byLocation;
+          if (!matched) return localDestination;
+
+          matchedServerIds.add(String(matched.id));
+          destinationIdMap[localDestination.id] = String(matched.id);
+          const serverDestination = workspaceFromServer(
+            matched,
+            serverRows.indexOf(matched),
+          );
+          return {
+            ...serverDestination,
+            ...localDestination,
+            id: String(matched.id),
+            countryId: localDestination.countryId || serverDestination.countryId,
+            country: localDestination.country || serverDestination.country,
+            latitude: localDestination.latitude ?? serverDestination.latitude,
+            longitude: localDestination.longitude ?? serverDestination.longitude,
+          };
+        });
+        const remainingServerRows = serverWorkspaceRows.filter(
+          (destination) => !matchedServerIds.has(destination.id),
+        );
+        const mergedDestinations =
+          migrationComplete && serverDestinationsResult.loaded
+            ? serverWorkspaceRows
+            : [...localWorkspaceRows, ...remainingServerRows];
+
         const initialRoute = mergeCountryRoute(merged.countryRoute, [
           ...legacyWorkspaceCountries,
-          ...initialDests.map((destination) => destination.countryId),
+          ...mergedDestinations.map((destination) => destination.countryId),
         ]);
         const normalizedRoute = initialRoute;
         const orderedDestinations = orderDestinationsByCountryRoute(
-          initialDests,
+          mergedDestinations,
           normalizedRoute,
         ).map((destination, order) => ({ ...destination, order }));
 
         setCountryRoute(normalizedRoute);
         setDestinations(orderedDestinations);
         saveTripExtras(tripId, { countryRoute: normalizedRoute });
+        localStorage.setItem(
+          STORAGE_KEYS.WORKSPACE_DESTINATION_IDS(tripId),
+          JSON.stringify(destinationIdMap),
+        );
+        if (serverDestinationsResult.loaded) {
+          persistDestinations(orderedDestinations, normalizedRoute);
+        } else {
+          localStorage.setItem(
+            `lakbye_workspace_dests_${tripId}`,
+            JSON.stringify(orderedDestinations),
+          );
+        }
         localStorage.removeItem(`lakbye_workspace_countries_${tripId}`);
         setSelectedCountryForNew(normalizedRoute[0]?.countryId || '');
         if (orderedDestinations.length > 0) {
@@ -339,23 +511,7 @@ export default function TripWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, [user, tripId]);
-
-  const persistDestinations = (
-    updated: WorkspaceDestination[],
-    routeOverride: CountryRouteEntry[] = countryRoute,
-  ) => {
-    if (!tripId) return;
-    const normalizedRoute = mergeCountryRoute(
-      routeOverride,
-      updated.map((destination) => destination.countryId || destination.country || ''),
-    );
-    const ordered = orderDestinationsByCountryRoute(updated, normalizedRoute).map(
-      (destination, order) => ({ ...destination, order }),
-    );
-    localStorage.setItem(`lakbye_workspace_dests_${tripId}`, JSON.stringify(ordered));
-    saveTripExtras(tripId, { countryRoute: normalizedRoute });
-  };
+  }, [user, tripId, persistDestinations]);
 
   // Date picker duration in calendar days (inclusive start to end)
   const tripDurationDays = useMemo(() => {
@@ -379,6 +535,50 @@ export default function TripWorkspace() {
       0,
     );
   }, [destinations]);
+
+  const handleMobileAddDestination = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mobileDestName.trim()) return;
+
+    const name = mobileDestName.trim();
+    const finalCountryId = mobileAddDestCountryId;
+    const finalCountry = getCountryName(finalCountryId);
+    if (!finalCountryId || !finalCountry) {
+      setIsMobileAddDestOpen(false);
+      setIsAddCountryModalOpen(true);
+      return;
+    }
+
+    const coords = getWorkspaceCoordinates(name, finalCountry);
+    const remainingDays = Math.max(1, tripDurationDays - totalAllocatedDays);
+    const initialDays = Math.min(1, remainingDays);
+
+    const newDest: WorkspaceDestination = {
+      id: generateCustomDestId(),
+      name,
+      countryId: finalCountryId,
+      country: finalCountry,
+      order: destinations.length,
+      days: initialDays,
+      accommodation: '',
+      activities: '',
+      transportation: '',
+      latitude: coords ? coords[1] : undefined,
+      longitude: coords ? coords[0] : undefined,
+    };
+
+    const updatedRoute = mergeCountryRoute(countryRoute, [finalCountryId]);
+    const updated = orderDestinationsByCountryRoute(
+      [...destinations, newDest],
+      updatedRoute,
+    ).map((destination, order) => ({ ...destination, order }));
+    setCountryRoute(updatedRoute);
+    setDestinations(updated);
+    persistDestinations(updated, updatedRoute);
+    setActiveDestinationId(newDest.id);
+    setIsMobileAddDestOpen(false);
+    setMobileDestName('');
+  };
 
   // The configured route order is the single source of truth for countries.
   const availableCountries = useMemo(() => {
@@ -421,18 +621,21 @@ export default function TripWorkspace() {
   const handleRemoveCountry = (countryIdToRemove: CountryId, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     const countryName = getCountryName(countryIdToRemove);
-
     const itemsInCountry = destinations.filter(
       (destination) => destination.countryId === countryIdToRemove,
     );
-
-    if (itemsInCountry.length > 0) {
-      const confirmed = window.confirm(
-        `Are you sure you want to remove "${countryName}" and its ${itemsInCountry.length} destination(s)?`,
-      );
-      if (!confirmed) return;
+    if (e?.currentTarget instanceof HTMLElement) {
+      countryRemoveTriggerRef.current = e.currentTarget;
     }
 
+    setPendingCountryRemoval({
+      countryId: countryIdToRemove,
+      countryName,
+      destinationCount: itemsInCountry.length,
+    });
+  };
+
+  const executeCountryRemoval = (countryIdToRemove: CountryId) => {
     // 1. Remove destinations belonging to this country
     const updatedDests = destinations.filter(
       (destination) => destination.countryId !== countryIdToRemove,
@@ -462,6 +665,12 @@ export default function TripWorkspace() {
     });
   };
 
+  const confirmCountryRemoval = () => {
+    if (!pendingCountryRemoval) return;
+    executeCountryRemoval(pendingCountryRemoval.countryId);
+    setPendingCountryRemoval(null);
+  };
+
   const handleSelectSuggestion = (place: DestinationPlace) => {
     const country = getCountryOption(place.country);
     if (!country) return;
@@ -488,7 +697,7 @@ export default function TripWorkspace() {
       return;
     }
 
-    const coords = getCoordinatesForName(name) || getCoordinatesForName(finalCountry);
+    const coords = getWorkspaceCoordinates(name, finalCountry);
 
     // Initial days allocation respects trip date picker remaining days
     const remainingDays = Math.max(1, tripDurationDays - totalAllocatedDays);
@@ -525,24 +734,28 @@ export default function TripWorkspace() {
     field: keyof WorkspaceDestination,
     value: string | number,
   ) => {
-    setDestinations((prev) => {
-      let finalValue = value;
-      if (field === 'days') {
-        finalValue = value === '' ? '' : Math.max(1, Number(value) || 1);
-      }
-      const updated = prev.map((dest) =>
-        dest.id === id ? { ...dest, [field]: finalValue } : dest,
-      );
-      persistDestinations(updated);
-      return updated;
-    });
+    const finalValue =
+      field === 'days' ? (value === '' ? '' : Math.max(1, Number(value) || 1)) : value;
+    const updated = destinations.map((destination) =>
+      destination.id === id ? { ...destination, [field]: finalValue } : destination,
+    );
+    setDestinations(updated);
+    persistDestinations(updated, countryRoute);
+  };
+
+  const handleRouteDestinationNameChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const destinationId = event.currentTarget.dataset.destinationId;
+    if (!destinationId) return;
+    handleUpdateDestination(destinationId, 'name', event.currentTarget.value);
   };
 
   const handleDeleteDestination = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const updated = destinations.filter((d) => d.id !== id);
     setDestinations(updated);
-    persistDestinations(updated);
+    persistDestinations(updated, countryRoute);
     if (activeDestinationId === id)
       setActiveDestinationId(updated.length > 0 ? updated[0].id : null);
   };
@@ -559,7 +772,7 @@ export default function TripWorkspace() {
     next[targetIdx] = temp;
     const reordered = next.map((destination, order) => ({ ...destination, order }));
     setDestinations(reordered);
-    persistDestinations(reordered);
+    persistDestinations(reordered, countryRoute);
   };
 
   const renderFieldSelector = (
@@ -680,8 +893,7 @@ export default function TripWorkspace() {
       const coords =
         dest.longitude != null && dest.latitude != null
           ? ([dest.longitude, dest.latitude] as [number, number])
-          : getCoordinatesForName(dest.name) ||
-            (dest.country ? getCoordinatesForName(dest.country) : null);
+          : getWorkspaceCoordinates(dest.name, dest.country);
 
       if (!coords) return null;
 
@@ -804,6 +1016,161 @@ export default function TripWorkspace() {
 
     return schedule;
   }, [orderedDestinations, tripDurationDays]);
+
+  const renderCountrySearchRow = (countryId: CountryId) => {
+    const countryName = getCountryName(countryId);
+    const activeCountryId =
+      getCountryId(selectedCountryForNew) || groupedByCountry[0]?.countryId;
+    const isActiveCountry = activeCountryId === countryId;
+
+    if (!isActiveCountry) {
+      return (
+        <div className="workspace-add-destination-grid-row">
+          <button
+            type="button"
+            className="workspace-add-destination-trigger"
+            onClick={() => {
+              setSelectedCountryForNew(countryId);
+              setHighlightedIndex(-1);
+              window.setTimeout(() => {
+                document.getElementById('workspace-dest-input')?.focus();
+              }, 0);
+            }}
+          >
+            <Plus size={14} aria-hidden="true" />
+            <span>Add destination in {countryName}</span>
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <form
+        onSubmit={handleAddDestination}
+        className="workspace-add-destination-row workspace-country-search-row"
+      >
+        <div
+          ref={searchContainerRef}
+          className="workspace-add-destination-search relative flex flex-1 min-w-0 items-center gap-2"
+        >
+          <img
+            src={magnifierIcon}
+            alt=""
+            aria-hidden="true"
+            className="w-3.5 h-3.5 opacity-60 shrink-0"
+          />
+          <input
+            id="workspace-dest-input"
+            type="text"
+            value={newDestInput}
+            onChange={(event) => {
+              setNewDestInput(event.target.value);
+              setShowSuggestions(true);
+              setHighlightedIndex(-1);
+            }}
+            onFocus={() => {
+              setSelectedCountryForNew(countryId);
+              if (newDestInput.trim()) setShowSuggestions(true);
+            }}
+            onKeyDown={(event) => {
+              if (!showSuggestions || inRouteSuggestions.length === 0) return;
+              if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                setHighlightedIndex((previous) =>
+                  previous < inRouteSuggestions.length - 1 ? previous + 1 : 0,
+                );
+              } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                setHighlightedIndex((previous) =>
+                  previous > 0 ? previous - 1 : inRouteSuggestions.length - 1,
+                );
+              } else if (event.key === 'Enter') {
+                if (highlightedIndex >= 0 && inRouteSuggestions[highlightedIndex]) {
+                  event.preventDefault();
+                  handleSelectSuggestion(inRouteSuggestions[highlightedIndex]);
+                }
+              } else if (event.key === 'Escape') {
+                setShowSuggestions(false);
+              }
+            }}
+            placeholder={`Search city or destination in ${countryName}`}
+            className="workspace-add-input flex-1 min-w-0 bg-transparent text-xs text-[#2F1B0C] outline-none placeholder:text-[#74675D]/60"
+            autoComplete="off"
+          />
+
+          {showSuggestions && newDestInput.trim() && (
+            <AnchoredPopover
+              anchorRef={searchContainerRef}
+              onClose={() => setShowSuggestions(false)}
+              matchAnchorWidth
+              gap={6}
+              estimatedHeight={270}
+              className="workspace-dest-dropdown"
+              role="listbox"
+            >
+              {inRouteSuggestions.length > 0 ? (
+                inRouteSuggestions.map((place, index) => (
+                  <div
+                    key={`${place.name}-${place.country}`}
+                    role="option"
+                    tabIndex={0}
+                    aria-selected={index === highlightedIndex}
+                    className={`workspace-dest-option flex items-center justify-between p-2 rounded-lg cursor-pointer ${index === highlightedIndex ? 'highlighted' : ''}`}
+                    onMouseEnter={() => setHighlightedIndex(index)}
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      handleSelectSuggestion(place);
+                    }}
+                    onClick={() => handleSelectSuggestion(place)}
+                  >
+                    <div className="workspace-dest-option-main flex items-center gap-2">
+                      <MapPin size={13} aria-hidden="true" />
+                      <span className="workspace-dest-option-name">{place.name}</span>
+                      <span className="workspace-dest-option-country">
+                        {place.country}
+                      </span>
+                    </div>
+                    <span className="workspace-dest-option-action">Add +</span>
+                  </div>
+                ))
+              ) : (
+                <div className="workspace-dest-empty-state">
+                  <div className="workspace-dest-empty-title">
+                    No places found in {countryName}.
+                  </div>
+                  {otherRouteSuggestions.length > 0 && (
+                    <div>Choose another country in your route to search there.</div>
+                  )}
+                  {outOfRouteSuggestions.length > 0 && (
+                    <div>Add another country to search destinations there.</div>
+                  )}
+                </div>
+              )}
+            </AnchoredPopover>
+          )}
+        </div>
+
+        <div className="workspace-add-actions">
+          <span className="workspace-add-availability">
+            {tripDurationDays - totalAllocatedDays > 0
+              ? `${tripDurationDays - totalAllocatedDays} of ${tripDurationDays} Days Available`
+              : totalAllocatedDays === tripDurationDays
+                ? `All ${tripDurationDays} Days Allocated`
+                : `${totalAllocatedDays} of ${tripDurationDays} Days Allocated`}
+          </span>
+          <button
+            type="submit"
+            disabled={totalAllocatedDays >= tripDurationDays && destinations.length > 0}
+            className="workspace-add-btn"
+            title="Add Destination"
+          >
+            <Plus size={14} aria-hidden="true" />
+            Add
+          </button>
+        </div>
+      </form>
+    );
+  };
 
   if (loading) {
     return (
@@ -929,30 +1296,6 @@ export default function TripWorkspace() {
 
           {activeTab === 'route' ? (
             <div className="workspace-itinerary-table flex-1 min-h-0 overflow-y-auto pr-1">
-              {/* Shared route columns; country headers remain outside destination rows. */}
-              <div className="workspace-table-header-row workspace-route-grid bg-[#FFFBEB]/40 border-b border-[rgba(72,42,19,0.18)] py-2 px-3">
-                <div className="workspace-table-heading workspace-heading-destination font-semibold text-[#74675D] text-[9.5px]">
-                  <MapPin size={13} aria-hidden="true" />
-                  <span>Destination</span>
-                </div>
-                <div className="workspace-table-heading workspace-heading-nights justify-center font-semibold text-[#74675D] text-[9.5px]">
-                  <Moon size={13} aria-hidden="true" />
-                  <span>Nights</span>
-                </div>
-                <div className="workspace-table-heading workspace-heading-accommodation font-semibold text-[#74675D] text-[9.5px]">
-                  <BedDouble size={13} aria-hidden="true" />
-                  <span>Accommodation</span>
-                </div>
-                <div className="workspace-table-heading workspace-heading-activities font-semibold text-[#74675D] text-[9.5px]">
-                  <Sparkles size={13} aria-hidden="true" />
-                  <span>Activities</span>
-                </div>
-                <div className="workspace-table-heading workspace-heading-transport font-semibold text-[#74675D] text-[9.5px]">
-                  <BusFront size={13} aria-hidden="true" />
-                  <span>Transport</span>
-                </div>
-              </div>
-
               {/* Grouped by Country Hierarchy */}
               <div className="workspace-destination-rows">
                 {groupedByCountry.length === 0 ? (
@@ -983,7 +1326,10 @@ export default function TripWorkspace() {
                   groupedByCountry.map((group) => {
                     const isCollapsed = collapsedCountries[group.countryId];
                     return (
-                      <div key={group.countryId} className="workspace-country-group">
+                      <div
+                        key={group.countryId}
+                        className={`workspace-country-group ${isCollapsed ? 'is-collapsed' : ''}`}
+                      >
                         {/* Top-Level Country Row */}
                         <div className="workspace-country-header">
                           <div
@@ -1025,35 +1371,43 @@ export default function TripWorkspace() {
 
                         {/* Nested Cities / Destinations Rows */}
                         {!isCollapsed && (
-                          <div className="bg-white">
+                          <div className="workspace-country-content">
+                            <div className="workspace-table-header-row workspace-route-grid">
+                              <div className="workspace-table-heading workspace-heading-destination">
+                                <MapPin size={13} aria-hidden="true" />
+                                <span>Destination</span>
+                              </div>
+                              <div className="workspace-table-heading workspace-heading-nights">
+                                <Moon size={13} aria-hidden="true" />
+                                <span>Nights</span>
+                              </div>
+                              <div className="workspace-table-heading workspace-heading-accommodation">
+                                <BedDouble size={13} aria-hidden="true" />
+                                <span>Accommodation</span>
+                              </div>
+                              <div className="workspace-table-heading workspace-heading-activities">
+                                <Sparkles size={13} aria-hidden="true" />
+                                <span>Activities</span>
+                              </div>
+                              <div className="workspace-table-heading workspace-heading-transport">
+                                <BusFront size={13} aria-hidden="true" />
+                                <span>Transport</span>
+                              </div>
+                            </div>
                             {group.items.length === 0 ? (
-                              <div className="mx-3 my-2.5 p-4 bg-[#FEFCF9] border border-dashed border-[rgba(72,42,19,0.18)] rounded-xl flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-full bg-[#FFF5C2] flex items-center justify-center shrink-0">
-                                    <MapPin size={16} className="text-[#994D00]" />
-                                  </div>
+                              <div className="workspace-empty-destination-row workspace-route-grid">
+                                <div className="workspace-empty-destination-copy">
+                                  <MapPin size={15} aria-hidden="true" />
                                   <div>
-                                    <div className="font-semibold text-xs text-[#2F1B0C]">
+                                    <strong>
                                       No destinations in {group.country} yet
-                                    </div>
-                                    <div className="text-[10px] text-[#74675D]">
+                                    </strong>
+                                    <span>
                                       Use the search bar below to add a city, island, or
                                       place to {group.country}.
-                                    </div>
+                                    </span>
                                   </div>
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedCountryForNew(group.countryId);
-                                    const el =
-                                      document.getElementById('workspace-dest-input');
-                                    if (el) el.focus();
-                                  }}
-                                  className="px-3 py-1.5 bg-[#FFF7DB] hover:bg-[#ffefc2] border border-[rgba(72,42,19,0.14)] text-[#8C4D00] text-[10px] font-semibold rounded-full transition-colors shrink-0 cursor-pointer"
-                                >
-                                  + Add to {group.country}
-                                </button>
                               </div>
                             ) : (
                               group.items.map((dest) => {
@@ -1092,13 +1446,8 @@ export default function TripWorkspace() {
                                         <input
                                           type="text"
                                           value={dest.name || ''}
-                                          onChange={(e) =>
-                                            handleUpdateDestination(
-                                              dest.id,
-                                              'name',
-                                              e.target.value,
-                                            )
-                                          }
+                                          data-destination-id={dest.id}
+                                          onChange={handleRouteDestinationNameChange}
                                           placeholder="City name"
                                           className="workspace-route-destination-name"
                                           title={dest.name}
@@ -1261,6 +1610,7 @@ export default function TripWorkspace() {
                                 );
                               })
                             )}
+                            {renderCountrySearchRow(group.countryId)}
                           </div>
                         )}
                       </div>
@@ -1268,142 +1618,6 @@ export default function TripWorkspace() {
                   })
                 )}
               </div>
-
-              {/* Add Destination / City Form */}
-              <form
-                onSubmit={handleAddDestination}
-                className="workspace-add-destination-row mt-3 p-2 bg-white border border-[rgba(72,42,19,0.14)] rounded-xl flex flex-nowrap items-center gap-3 overflow-visible shadow-xs"
-              >
-                <div
-                  ref={searchContainerRef}
-                  className="workspace-add-destination-search relative flex flex-1 min-w-0 items-center gap-2"
-                >
-                  <img
-                    src={magnifierIcon}
-                    alt="Search"
-                    className="w-3.5 h-3.5 opacity-60 shrink-0"
-                  />
-                  <input
-                    id="workspace-dest-input"
-                    type="text"
-                    value={newDestInput}
-                    onChange={(e) => {
-                      setNewDestInput(e.target.value);
-                      setShowSuggestions(true);
-                      setHighlightedIndex(-1);
-                    }}
-                    onFocus={() => {
-                      if (newDestInput.trim()) setShowSuggestions(true);
-                    }}
-                    onKeyDown={(e) => {
-                      if (!showSuggestions || inRouteSuggestions.length === 0) return;
-                      if (e.key === 'ArrowDown') {
-                        e.preventDefault();
-                        setHighlightedIndex((prev) =>
-                          prev < inRouteSuggestions.length - 1 ? prev + 1 : 0,
-                        );
-                      } else if (e.key === 'ArrowUp') {
-                        e.preventDefault();
-                        setHighlightedIndex((prev) =>
-                          prev > 0 ? prev - 1 : inRouteSuggestions.length - 1,
-                        );
-                      } else if (e.key === 'Enter') {
-                        if (
-                          highlightedIndex >= 0 &&
-                          inRouteSuggestions[highlightedIndex]
-                        ) {
-                          e.preventDefault();
-                          handleSelectSuggestion(inRouteSuggestions[highlightedIndex]);
-                        }
-                      } else if (e.key === 'Escape') {
-                        setShowSuggestions(false);
-                      }
-                    }}
-                    placeholder={`Search city or destination in ${getCountryName(selectedCountryForNew) || 'your route'}`}
-                    className="workspace-add-input flex-1 min-w-0 bg-transparent text-xs text-[#2F1B0C] outline-none placeholder:text-[#74675D]/60"
-                    autoComplete="off"
-                  />
-
-                  {showSuggestions && newDestInput.trim() && (
-                    <AnchoredPopover
-                      anchorRef={searchContainerRef}
-                      onClose={() => setShowSuggestions(false)}
-                      matchAnchorWidth
-                      gap={6}
-                      estimatedHeight={270}
-                      className="workspace-dest-dropdown"
-                      role="listbox"
-                    >
-                      {inRouteSuggestions.length > 0 ? (
-                        inRouteSuggestions.map((place, idx) => (
-                          <div
-                            key={`${place.name}-${place.country}`}
-                            role="option"
-                            tabIndex={0}
-                            aria-selected={idx === highlightedIndex}
-                            className={`workspace-dest-option flex items-center justify-between p-2 rounded-lg cursor-pointer hover:bg-amber-50 ${idx === highlightedIndex ? 'highlighted bg-amber-50' : ''}`}
-                            onMouseEnter={() => setHighlightedIndex(idx)}
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              handleSelectSuggestion(place);
-                            }}
-                            onClick={() => handleSelectSuggestion(place)}
-                          >
-                            <div className="workspace-dest-option-main flex items-center gap-2">
-                              <MapPin size={13} className="text-[#E9724C]" />
-                              <span className="workspace-dest-option-name text-xs font-semibold text-[#2F1B0C]">
-                                {place.name}
-                              </span>
-                              <span className="workspace-dest-option-country text-[10px] text-[#74675D]">
-                                {place.country}
-                              </span>
-                            </div>
-                            <span className="text-[10px] font-bold text-[#C5283D]">
-                              Add +
-                            </span>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-3 text-center">
-                          <div className="text-xs font-semibold text-[#2F1B0C] mb-1">
-                            No places found in{' '}
-                            {getCountryName(selectedCountryForNew) || 'this country'}.
-                          </div>
-                          {otherRouteSuggestions.length > 0 && (
-                            <div className="text-[10px] text-[#74675D] mb-1">
-                              Choose another country in your route to search there.
-                            </div>
-                          )}
-                          {outOfRouteSuggestions.length > 0 && (
-                            <div className="text-[10px] text-[#74675D]">
-                              Add another country to search destinations there.
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </AnchoredPopover>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2.5 shrink-0 ml-auto pr-1">
-                  <span className="text-[9.5px] font-semibold text-[#994F00] whitespace-nowrap shrink-0">
-                    {tripDurationDays - totalAllocatedDays > 0
-                      ? `${tripDurationDays - totalAllocatedDays} of ${tripDurationDays} Days Available`
-                      : `All ${tripDurationDays} Days Allocated`}
-                  </span>
-
-                  <button
-                    type="submit"
-                    disabled={
-                      totalAllocatedDays >= tripDurationDays && destinations.length > 0
-                    }
-                    className="workspace-add-btn"
-                    title="Add Destination"
-                  >
-                    Add +
-                  </button>
-                </div>
-              </form>
             </div>
           ) : (
             /* Day by Day View */
@@ -2127,6 +2341,72 @@ export default function TripWorkspace() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {pendingCountryRemoval && (
+        <div
+          className="workspace-country-confirm-overlay"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setPendingCountryRemoval(null);
+            }
+          }}
+        >
+          <button
+            type="button"
+            className="workspace-country-confirm-backdrop"
+            aria-label="Close remove country confirmation"
+            tabIndex={-1}
+            onClick={() => setPendingCountryRemoval(null)}
+          />
+          <div
+            ref={countryRemovalDialogRef}
+            className="workspace-country-confirm-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="workspace-remove-country-title"
+            aria-describedby="workspace-remove-country-description"
+          >
+            <div className="workspace-country-confirm-icon" aria-hidden="true">
+              <Trash2 size={21} />
+            </div>
+            <h2 id="workspace-remove-country-title">Remove Country?</h2>
+            <p id="workspace-remove-country-description">
+              {pendingCountryRemoval.destinationCount === 0 ? (
+                <>
+                  Are you sure you want to remove {pendingCountryRemoval.countryName} from
+                  this trip?
+                </>
+              ) : (
+                <>
+                  Are you sure you want to remove {pendingCountryRemoval.countryName} and
+                  its {pendingCountryRemoval.destinationCount}{' '}
+                  {pendingCountryRemoval.destinationCount === 1
+                    ? 'destination'
+                    : 'destinations'}{' '}
+                  from this trip?
+                </>
+              )}
+            </p>
+            <div className="workspace-country-confirm-actions">
+              <button
+                ref={countryRemovalCancelRef}
+                type="button"
+                className="workspace-country-confirm-cancel"
+                onClick={() => setPendingCountryRemoval(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="workspace-country-confirm-remove"
+                onClick={confirmCountryRemoval}
+              >
+                Remove Country
+              </button>
+            </div>
           </div>
         </div>
       )}
