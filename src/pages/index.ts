@@ -15,4 +15,3 @@ export { default as ForgotPassword } from './ForgotPassword';
 export { default as ResetPassword } from './ResetPassword';
 export { default as VerifyEmail } from './VerifyEmail';
 export { default as TripPacking } from './TripPacking';
-export { default as PublicProfile } from './PublicProfile';

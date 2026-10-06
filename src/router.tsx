@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import StaffDashboard from './pages/staff/StaffDashboard';
 import { BaseLayout, DashboardLayout, TripWorkspaceLayout, RootLayout } from './layouts';
@@ -21,9 +21,12 @@ import {
   ProfileSettings,
   CustomerProfile,
   TripPacking,
-  PublicProfile,
 } from './pages';
-import { LegacyPublicProfileRedirect } from './pages/PublicProfile';
+function LegacyPublicProfileRedirect() {
+  const { username } = useParams<{ username: string }>();
+  if (!username) return <Navigate to="/" replace />;
+  return <Navigate to="/" replace state={{ openPublicProfile: username }} />;
+}
 
 /**
  * Application router configuration.
@@ -162,8 +165,8 @@ const router = createBrowserRouter([
         ],
       },
       {
-        path: '/profile/:username',
-        element: <PublicProfile />,
+        path: 'profile/:username',
+        element: <LegacyPublicProfileRedirect />,
       },
       {
         path: ':username', // Wildcard route placed at the very bottom

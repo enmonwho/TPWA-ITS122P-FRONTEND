@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Settings,
@@ -20,6 +20,7 @@ import {
   dedupeTravelerResults,
   type TravelerSearchResult,
 } from '../lib/travelerSearch';
+import { openPublicProfile } from '../lib/publicProfile';
 import PublicProfileModal from './PublicProfileModal';
 
 export default function Header() {
@@ -30,6 +31,8 @@ export default function Header() {
 
   // Search State
   const searchRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [searchExpanded, setSearchExpanded] = useState(false);
   const searchAbortRef = useRef<AbortController | null>(null);
   const searchRequestGuardRef = useRef(createLatestRequestGuard());
   const [searchQuery, setSearchQuery] = useState('');
@@ -40,19 +43,20 @@ export default function Header() {
   const { user, logout, isLoading } = useAuth();
   const { triggerTransition } = usePageLoader();
   const navigate = useNavigate();
-
-  // Public Profile Modal State
+  const location = useLocation();
+  const legacyProfileUsername = (
+    location.state as { openPublicProfile?: string } | null
+  )?.openPublicProfile?.replace(/^@+/, '');
   const [selectedProfileUsername, setSelectedProfileUsername] = useState<string | null>(
     null,
   );
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
+  // Canonical public-profile open path for search, legacy links, and other callers.
   useEffect(() => {
     const handleOpenProfileEvent = (e: Event) => {
       const customEvent = e as CustomEvent<{ username: string }>;
       if (customEvent.detail?.username) {
         setSelectedProfileUsername(customEvent.detail.username.replace(/^@+/, ''));
-        setIsProfileModalOpen(true);
       }
     };
     window.addEventListener('lakbye:open-profile', handleOpenProfileEvent);
@@ -60,6 +64,12 @@ export default function Header() {
       window.removeEventListener('lakbye:open-profile', handleOpenProfileEvent);
     };
   }, []);
+
+  useEffect(() => {
+    if (!legacyProfileUsername) return;
+    openPublicProfile(legacyProfileUsername);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [legacyProfileUsername, location.pathname, navigate]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -75,12 +85,24 @@ export default function Header() {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDropdownOpen(false);
       }
+      const target = event.target as Node;
+      const clickedSearchPopover =
+        target instanceof Element && target.closest('.header-traveler-results') !== null;
+      if (
+        searchRef.current &&
+        !searchRef.current.contains(target) &&
+        !clickedSearchPopover
+      ) {
+        setSearchExpanded(false);
+        setShowSearchResults(false);
+      }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setDropdownOpen(false);
         setShowSearchResults(false);
+        setSearchExpanded(false);
       }
     };
 
@@ -92,6 +114,14 @@ export default function Header() {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
+
+  useEffect(() => {
+    if (searchExpanded) {
+      const focusTimer = window.setTimeout(() => searchInputRef.current?.focus(), 120);
+      return () => window.clearTimeout(focusTimer);
+    }
+    searchInputRef.current?.blur();
+  }, [searchExpanded]);
 
   // Debounced User Search Effect
   useEffect(() => {
@@ -157,8 +187,8 @@ export default function Header() {
     if (!username) return;
     const cleanUsername = username.replace(/^@+/, '');
     setSelectedProfileUsername(cleanUsername);
-    setIsProfileModalOpen(true);
     setShowSearchResults(false);
+    setSearchExpanded(false);
     setSearchQuery('');
     handleLinkClick();
   };
@@ -221,12 +251,30 @@ export default function Header() {
           ) : user && user.is_verified !== false ? (
             <>
               {/* Traveler Search Bar (Only visible to logged-in users) */}
-              <div className="header-traveler-search" ref={searchRef}>
-                <div className="relative flex items-center">
-                  <Search className="absolute left-3 w-4 h-4 text-stone-400" />
+              <div
+                className={`header-traveler-search${searchExpanded ? ' is-expanded' : ''}`}
+                ref={searchRef}
+              >
+                <div className="header-traveler-search-control">
+                  <button
+                    type="button"
+                    className="header-traveler-search-toggle"
+                    aria-label={
+                      searchExpanded ? 'Close traveler search' : 'Open traveler search'
+                    }
+                    aria-expanded={searchExpanded}
+                    onClick={() => {
+                      setSearchExpanded((expanded) => !expanded);
+                      if (searchExpanded) setShowSearchResults(false);
+                    }}
+                  >
+                    <Search size={19} aria-hidden="true" />
+                  </button>
                   <input
+                    ref={searchInputRef}
                     type="text"
-                    placeholder="Find travelers..."
+                    aria-label="Find travelers"
+                    placeholder="Find travelers"
                     value={searchQuery}
                     onChange={(e) => {
                       const nextQuery = e.target.value;
@@ -236,10 +284,14 @@ export default function Header() {
                       setShowSearchResults(Boolean(nextQuery.trim()));
                     }}
                     onFocus={() => setShowSearchResults(true)}
-                    className="header-traveler-search-input pl-9 pr-9 py-2 bg-stone-100 border border-stone-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:bg-white transition-all"
+                    tabIndex={searchExpanded ? 0 : -1}
+                    className="header-traveler-search-input"
                   />
                   {isSearching && (
-                    <Loader2 className="absolute right-3 w-4 h-4 text-stone-400 animate-spin" />
+                    <Loader2
+                      className="header-traveler-search-loader animate-spin"
+                      aria-label="Searching"
+                    />
                   )}
                 </div>
 
@@ -250,7 +302,7 @@ export default function Header() {
                     onClose={() => setShowSearchResults(false)}
                     matchAnchorWidth
                     estimatedHeight={240}
-                    className="header-traveler-results bg-white border border-stone-200 rounded-xl shadow-lg overflow-hidden flex flex-col max-h-80 overflow-y-auto"
+                    className="header-traveler-results"
                     role="listbox"
                   >
                     {isSearching ? (
@@ -258,19 +310,17 @@ export default function Header() {
                         Searching...
                       </div>
                     ) : searchResults.length > 0 ? (
-                      <div className="flex flex-col py-1">
-                        <span className="px-3 py-1.5 text-xs font-semibold text-stone-400 uppercase tracking-wider">
-                          Travelers
-                        </span>
+                      <div className="header-traveler-search-list">
+                        <span className="header-traveler-search-heading">TRAVELERS</span>
                         {searchResults
                           .filter((res) => Boolean(res.username))
                           .map((res) => (
                             <button
                               key={res.id}
                               onClick={() => handleUserSelect(res.username)}
-                              className="flex items-center gap-3 px-4 py-2.5 hover:bg-stone-50 transition-colors text-left w-full"
+                              className="header-traveler-search-row"
                             >
-                              <div className="w-8 h-8 rounded-full bg-stone-200 flex shrink-0 items-center justify-center text-stone-500 text-xs font-bold overflow-hidden">
+                              <div className="header-traveler-search-avatar">
                                 {res.avatar_url ? (
                                   <img
                                     src={res.avatar_url}
@@ -285,11 +335,11 @@ export default function Header() {
                                   <User size={14} />
                                 )}
                               </div>
-                              <div className="flex flex-col overflow-hidden">
-                                <span className="text-sm font-bold text-stone-800 truncate">
+                              <div className="header-traveler-search-copy">
+                                <span className="header-traveler-search-name">
                                   {res.full_name}
                                 </span>
-                                <span className="text-xs text-stone-500 truncate">
+                                <span className="header-traveler-search-handle">
                                   @
                                   {res.username
                                     ? res.username.replace(/^@+/, '')
@@ -300,8 +350,8 @@ export default function Header() {
                           ))}
                       </div>
                     ) : (
-                      <div className="p-4 text-center text-sm text-stone-500">
-                        No travelers found.
+                      <div className="header-traveler-search-empty">
+                        No travelers found
                       </div>
                     )}
                   </AnchoredPopover>
@@ -445,9 +495,8 @@ export default function Header() {
       {/* Public Profile Modal */}
       <PublicProfileModal
         username={selectedProfileUsername}
-        isOpen={isProfileModalOpen}
+        isOpen={Boolean(selectedProfileUsername)}
         onClose={() => {
-          setIsProfileModalOpen(false);
           setSelectedProfileUsername(null);
         }}
       />

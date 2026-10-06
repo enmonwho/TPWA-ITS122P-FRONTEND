@@ -388,7 +388,7 @@ export default function Explore() {
 
   const handleStartPlanning = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tripName.trim() || !startDate || !endDate) return;
+    if (!tripName.trim() || !selectedLocation.trim() || !startDate || !endDate) return;
     if (endDate <= startDate) return;
 
     setSubmitting(true);
@@ -1635,19 +1635,15 @@ export default function Explore() {
               </div>
 
               <div>
-                <label htmlFor="explore-destination-country" className="modal-label">
+                <label id="explore-destination-label" className="modal-label">
                   Destination
                 </label>
-                <div className="relative">
-                  <input
-                    id="explore-destination-country"
-                    type="text"
-                    required
-                    className="modal-input-gradient"
-                    placeholder="Enter destination (e.g. Boracay, Japan, France)"
-                    value={selectedLocation}
-                    onChange={(e) => setSelectedLocation(e.target.value)}
-                  />
+                <div
+                  role="group"
+                  aria-labelledby="explore-destination-label"
+                  className="modal-input-gradient flex items-center"
+                >
+                  {selectedLocation}
                 </div>
               </div>
 
