@@ -9,6 +9,10 @@ import {
   Plus,
   X,
   MapPin,
+  Moon,
+  BedDouble,
+  Sparkles,
+  BusFront,
   Globe,
   Trash2,
 } from 'lucide-react';
@@ -172,27 +176,38 @@ export default function TripWorkspace() {
     }
   }, [activeTab]);
 
-  const { inRouteSuggestions, outOfRouteSuggestions } = useMemo(() => {
-    if (!newDestInput.trim() || newDestInput.trim().length < 1) {
-      return { inRouteSuggestions: [], outOfRouteSuggestions: [] };
-    }
-    const all = searchDestinations(newDestInput.trim(), 12);
-    const routeCountryIds = new Set(countryRoute.map((country) => country.countryId));
-    const inRoute: DestinationPlace[] = [];
-    const outOfRoute: DestinationPlace[] = [];
-    all.forEach((p) => {
-      const pCountryId = getCountryId(p.country);
-      if (pCountryId && routeCountryIds.has(pCountryId)) {
-        inRoute.push(p);
-      } else {
-        outOfRoute.push(p);
+  const { inRouteSuggestions, otherRouteSuggestions, outOfRouteSuggestions } =
+    useMemo(() => {
+      if (!newDestInput.trim() || newDestInput.trim().length < 1) {
+        return {
+          inRouteSuggestions: [],
+          otherRouteSuggestions: [],
+          outOfRouteSuggestions: [],
+        };
       }
-    });
-    return {
-      inRouteSuggestions: inRoute.slice(0, 8),
-      outOfRouteSuggestions: outOfRoute,
-    };
-  }, [newDestInput, countryRoute]);
+      const all = searchDestinations(newDestInput.trim(), 12);
+      const routeCountryIds = new Set(countryRoute.map((country) => country.countryId));
+      const selectedCountryId =
+        getCountryId(selectedCountryForNew) || countryRoute[0]?.countryId || '';
+      const inCountry: DestinationPlace[] = [];
+      const inOtherRouteCountries: DestinationPlace[] = [];
+      const outOfRoute: DestinationPlace[] = [];
+      all.forEach((p) => {
+        const pCountryId = getCountryId(p.country);
+        if (pCountryId === selectedCountryId) {
+          inCountry.push(p);
+        } else if (pCountryId && routeCountryIds.has(pCountryId)) {
+          inOtherRouteCountries.push(p);
+        } else {
+          outOfRoute.push(p);
+        }
+      });
+      return {
+        inRouteSuggestions: inCountry.slice(0, 8),
+        otherRouteSuggestions: inOtherRouteCountries,
+        outOfRouteSuggestions: outOfRoute,
+      };
+    }, [newDestInput, countryRoute, selectedCountryForNew]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -723,28 +738,39 @@ export default function TripWorkspace() {
     return groups;
   }, [orderedDestinations, availableCountries]);
 
-  const destinationDateRanges = useMemo(() => {
-    const ranges = new Map<string, string>();
-    if (!trip?.startDate) return ranges;
+  const itineraryDateRanges = useMemo(() => {
+    const destinationRanges = new Map<string, string>();
+    const countryRanges = new Map<CountryId, string>();
+    if (!trip?.startDate) return { destinationRanges, countryRanges };
 
-    const startDate = new Date(`${trip.startDate.slice(0, 10)}T00:00:00Z`);
-    if (Number.isNaN(startDate.getTime())) return ranges;
+    const routeStart = new Date(`${trip.startDate.slice(0, 10)}T00:00:00Z`);
+    if (Number.isNaN(routeStart.getTime())) return { destinationRanges, countryRanges };
 
-    const cursor = new Date(startDate);
-    orderedDestinations.forEach((destination) => {
-      const destinationStart = new Date(cursor);
-      const nights = Math.max(
-        1,
-        Number(destination.days) || Number(destination.nights) || 1,
-      );
-      cursor.setUTCDate(cursor.getUTCDate() + nights);
-      ranges.set(
-        destination.id,
-        formatUserDateRange(destinationStart.toISOString(), cursor.toISOString()),
-      );
+    const cursor = new Date(routeStart);
+    groupedByCountry.forEach((group) => {
+      const countryStart = new Date(cursor);
+      group.items.forEach((destination) => {
+        const destinationStart = new Date(cursor);
+        const nights = Math.max(
+          1,
+          Number(destination.days) || Number(destination.nights) || 1,
+        );
+        cursor.setUTCDate(cursor.getUTCDate() + nights);
+        destinationRanges.set(
+          destination.id,
+          formatUserDateRange(destinationStart.toISOString(), cursor.toISOString()),
+        );
+      });
+
+      if (group.items.length > 0) {
+        countryRanges.set(
+          group.countryId,
+          formatUserDateRange(countryStart.toISOString(), cursor.toISOString()),
+        );
+      }
     });
-    return ranges;
-  }, [orderedDestinations, trip?.startDate]);
+    return { destinationRanges, countryRanges };
+  }, [groupedByCountry, trip?.startDate]);
 
   // Day-by-day itinerary schedule breakdown
   const daySchedule = useMemo(() => {
@@ -905,20 +931,25 @@ export default function TripWorkspace() {
             <div className="workspace-itinerary-table flex-1 min-h-0 overflow-y-auto pr-1">
               {/* Shared route columns; country headers remain outside destination rows. */}
               <div className="workspace-table-header-row workspace-route-grid bg-[#FFFBEB]/40 border-b border-[rgba(72,42,19,0.18)] py-2 px-3">
-                <div className="workspace-table-heading font-semibold text-[#74675D] text-[9.5px]">
-                  Destination
+                <div className="workspace-table-heading workspace-heading-destination font-semibold text-[#74675D] text-[9.5px]">
+                  <MapPin size={13} aria-hidden="true" />
+                  <span>Destination</span>
                 </div>
-                <div className="workspace-table-heading justify-center font-semibold text-[#74675D] text-[9.5px]">
-                  Nights
+                <div className="workspace-table-heading workspace-heading-nights justify-center font-semibold text-[#74675D] text-[9.5px]">
+                  <Moon size={13} aria-hidden="true" />
+                  <span>Nights</span>
                 </div>
-                <div className="workspace-table-heading font-semibold text-[#74675D] text-[9.5px]">
-                  Accommodation
+                <div className="workspace-table-heading workspace-heading-accommodation font-semibold text-[#74675D] text-[9.5px]">
+                  <BedDouble size={13} aria-hidden="true" />
+                  <span>Accommodation</span>
                 </div>
-                <div className="workspace-table-heading font-semibold text-[#74675D] text-[9.5px]">
-                  Activities
+                <div className="workspace-table-heading workspace-heading-activities font-semibold text-[#74675D] text-[9.5px]">
+                  <Sparkles size={13} aria-hidden="true" />
+                  <span>Activities</span>
                 </div>
-                <div className="workspace-table-heading font-semibold text-[#74675D] text-[9.5px]">
-                  Transport
+                <div className="workspace-table-heading workspace-heading-transport font-semibold text-[#74675D] text-[9.5px]">
+                  <BusFront size={13} aria-hidden="true" />
+                  <span>Transport</span>
                 </div>
               </div>
 
@@ -952,33 +983,38 @@ export default function TripWorkspace() {
                   groupedByCountry.map((group) => {
                     const isCollapsed = collapsedCountries[group.countryId];
                     return (
-                      <div
-                        key={group.countryId}
-                        className="border-b border-slate-200/80 last:border-b-0"
-                      >
+                      <div key={group.countryId} className="workspace-country-group">
                         {/* Top-Level Country Row */}
-                        <div className="flex items-center justify-between px-3 py-2 bg-[#FFFBEB] border-t border-[rgba(72,42,19,0.14)] transition-colors">
+                        <div className="workspace-country-header">
                           <div
-                            className="flex items-center gap-2 cursor-pointer select-none"
-                            onClick={() => toggleCountryCollapse(group.countryId)}
+                            className="workspace-country-heading cursor-pointer select-none"
+                            onClick={() => {
+                              setSelectedCountryForNew(group.countryId);
+                              setHighlightedIndex(-1);
+                              toggleCountryCollapse(group.countryId);
+                            }}
                           >
                             {isCollapsed ? (
                               <ChevronRight size={16} className="text-[#8C4D00]" />
                             ) : (
                               <ChevronDown size={16} className="text-[#8C4D00]" />
                             )}
-                            <span className="font-bold text-[#2F1B0C] text-[13px]">
+                            <span className="workspace-country-name">
                               {group.country}
                             </span>
-                            <span className="text-[10px] font-semibold text-[#E9724C]">
-                              ({group.totalDays} {group.totalDays === 1 ? 'day' : 'days'})
+                            <span className="workspace-country-date-range">
+                              {itineraryDateRanges.countryRanges.get(group.countryId) ||
+                                'Dates flexible'}
+                            </span>
+                            <span className="workspace-country-days">
+                              {group.totalDays} {group.totalDays === 1 ? 'day' : 'days'}
                             </span>
                           </div>
 
                           <button
                             type="button"
                             onClick={(e) => handleRemoveCountry(group.countryId, e)}
-                            className="text-[9.5px] text-[#74675D] hover:text-[#C5283D] px-2 py-1 rounded transition-colors flex items-center gap-1 cursor-pointer font-medium"
+                            className="workspace-country-remove"
                             title={`Remove ${group.country} from trip`}
                             aria-label={`Remove ${group.country}`}
                           >
@@ -1068,8 +1104,9 @@ export default function TripWorkspace() {
                                           title={dest.name}
                                         />
                                         <span className="workspace-route-date-range">
-                                          {destinationDateRanges.get(dest.id) ||
-                                            'Dates flexible'}
+                                          {itineraryDateRanges.destinationRanges.get(
+                                            dest.id,
+                                          ) || 'Dates flexible'}
                                         </span>
                                       </div>
                                       <div className="workspace-route-row-actions">
@@ -1282,7 +1319,7 @@ export default function TripWorkspace() {
                         setShowSuggestions(false);
                       }
                     }}
-                    placeholder="Search city or destination"
+                    placeholder={`Search city or destination in ${getCountryName(selectedCountryForNew) || 'your route'}`}
                     className="workspace-add-input flex-1 min-w-0 bg-transparent text-xs text-[#2F1B0C] outline-none placeholder:text-[#74675D]/60"
                     autoComplete="off"
                   />
@@ -1329,8 +1366,14 @@ export default function TripWorkspace() {
                       ) : (
                         <div className="p-3 text-center">
                           <div className="text-xs font-semibold text-[#2F1B0C] mb-1">
-                            No places found in your route countries.
+                            No places found in{' '}
+                            {getCountryName(selectedCountryForNew) || 'this country'}.
                           </div>
+                          {otherRouteSuggestions.length > 0 && (
+                            <div className="text-[10px] text-[#74675D] mb-1">
+                              Choose another country in your route to search there.
+                            </div>
+                          )}
                           {outOfRouteSuggestions.length > 0 && (
                             <div className="text-[10px] text-[#74675D]">
                               Add another country to search destinations there.
@@ -1354,7 +1397,7 @@ export default function TripWorkspace() {
                     disabled={
                       totalAllocatedDays >= tripDurationDays && destinations.length > 0
                     }
-                    className="workspace-add-btn text-[10px] font-bold bg-[#C5283D] hover:bg-[#a82234] disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-1.5 rounded-full shadow-xs transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                    className="workspace-add-btn"
                     title="Add Destination"
                   >
                     Add +
