@@ -29,6 +29,12 @@ export const STORAGE_KEYS = {
    */
   TRIP_EXTRAS: (tripId: string | number) => `lakbye_trip_extras_${tripId}`,
 
+  /** Maps the Trip Workspace's stable local row IDs to backend destination IDs. */
+  WORKSPACE_DESTINATION_IDS: (tripId: string | number) =>
+    `lakbye_workspace_destination_ids_${tripId}`,
+  WORKSPACE_DESTINATIONS_MIGRATED: (tripId: string | number) =>
+    `lakbye_workspace_destinations_migrated_${tripId}`,
+
   /**
    * Side-table for user preferences (username, timeFormat, dateFormat, currency, distanceUnit).
    * Keyed by backend-issued user ID.

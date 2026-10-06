@@ -223,16 +223,19 @@ export const destinationsApi = {
   },
   getByTripId: async (tripId: string | number): Promise<Destination[]> => {
     try {
-      const response = await api.get<{ destinations?: Destination[] } | Destination[]>(
-        '/destinations',
-        { params: { trip_id: tripId } },
-      );
-      return Array.isArray(response.data)
-        ? response.data
-        : response.data.destinations || [];
+      return await destinationsApi.getByTripIdStrict(tripId);
     } catch {
       return [];
     }
+  },
+  getByTripIdStrict: async (tripId: string | number): Promise<Destination[]> => {
+    const response = await api.get<{ destinations?: Destination[] } | Destination[]>(
+      '/destinations',
+      { params: { trip_id: tripId } },
+    );
+    return Array.isArray(response.data)
+      ? response.data
+      : response.data.destinations || [];
   },
   getCategories: async (): Promise<Category[]> => {
     try {

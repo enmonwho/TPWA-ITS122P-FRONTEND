@@ -7,6 +7,8 @@ import { tripsApi, destinationsApi } from '../services/api';
 import { mergeTripsWithExtras } from '../lib/tripExtras';
 import { formatUserDate, formatUserDateRange } from '../lib/formatters';
 import { getMapboxStaticThumb } from '../services/exploreService';
+import { getCoordinatesForName } from '../constants/coordinates';
+import { getCountryId, getCountryOption } from '../lib/countries';
 import type { Trip } from '../types/trip';
 import type { Destination } from '../types/destination';
 import {
@@ -24,6 +26,18 @@ import {
 
 export interface TripWithDestinations extends Trip {
   destinations: Destination[];
+}
+
+function getCountryMapCoordinates(countryName: string): [number, number] | null {
+  const country = getCountryOption(countryName);
+  const names = [country?.name, ...(country?.aliases || []), countryName].filter(
+    (name): name is string => Boolean(name),
+  );
+  for (const name of names) {
+    const coordinates = getCoordinatesForName(name);
+    if (coordinates) return coordinates;
+  }
+  return null;
 }
 
 interface GeocodeFeature {
@@ -91,9 +105,34 @@ export default function MapView() {
       mergedTrips.map(async (trip) => {
         try {
           const dests = await destinationsApi.getByTripId(trip.id);
+          const destinationsWithCoordinates = (dests || []).map((destination) => {
+            const hasCoordinates =
+              destination.latitude != null &&
+              destination.longitude != null &&
+              Number.isFinite(Number(destination.latitude)) &&
+              Number.isFinite(Number(destination.longitude));
+            if (hasCoordinates) return destination;
+
+            const countryRouteEntry = trip.countryRoute.find(
+              (country) =>
+                getCountryId(country.name) === getCountryId(destination.country || ''),
+            );
+            const coordinates =
+              getCoordinatesForName(destination.location_name) ||
+              getCountryMapCoordinates(
+                destination.country || countryRouteEntry?.name || '',
+              );
+            return coordinates
+              ? {
+                  ...destination,
+                  longitude: coordinates[0],
+                  latitude: coordinates[1],
+                }
+              : destination;
+          });
           return {
             ...trip,
-            destinations: dests || [],
+            destinations: destinationsWithCoordinates,
           };
         } catch {
           return {
@@ -445,9 +484,56 @@ export default function MapView() {
 
   // Mapbox Globe Markers: Derived dynamically based on current mode
   const globeMarkers = useMemo<MarkerData[]>(() => {
+    const makeCountryMarkers = (tripList: TripWithDestinations[]) =>
+      tripList.flatMap((trip) =>
+        (trip.countryRoute || [])
+          .filter((country) => {
+            const hasDestination = trip.destinations.some(
+              (destination) =>
+                getCountryId(destination.country || '') === country.countryId,
+            );
+            if (hasDestination) return false;
+            if (activeViewMode === 'world-tracker') {
+              if (worldFilter === 'visited' && trip.status !== 'completed') return false;
+              if (worldFilter === 'upcoming' && trip.status === 'completed') return false;
+              if (
+                searchQuery.trim() &&
+                !country.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+                !trip.name.toLowerCase().includes(searchQuery.toLowerCase())
+              ) {
+                return false;
+              }
+            }
+            return true;
+          })
+          .flatMap((country) => {
+            const coordinates = getCountryMapCoordinates(country.name);
+            if (!coordinates) return [];
+            const dateStr =
+              trip.startDate && trip.endDate
+                ? formatUserDateRange(trip.startDate, trip.endDate)
+                : '';
+            return [
+              {
+                id: `country:${trip.id}:${country.countryId}`,
+                lat: coordinates[1],
+                lng: coordinates[0],
+                title: country.name,
+                color: trip.status === 'completed' ? '#10b981' : '#e9724c',
+                tripName: trip.name,
+                tripDates: dateStr,
+                status: trip.status === 'completed' ? 'completed' : 'upcoming',
+                thumbnailUrl:
+                  trip.cover_photo ||
+                  getMapboxStaticThumb(coordinates[0], coordinates[1], 200, 160, 5),
+              },
+            ];
+          }),
+      );
+
     if (activeViewMode === 'world-tracker') {
       // In World Tracker mode, show aggregate pins across all trips with visited/upcoming distinction
-      return filteredWorldItems.map((item) => {
+      const destinationMarkers = filteredWorldItems.map((item) => {
         const dateStr =
           item.trip.startDate && item.trip.endDate
             ? formatUserDateRange(item.trip.startDate, item.trip.endDate)
@@ -474,6 +560,7 @@ export default function MapView() {
             ),
         };
       });
+      return [...destinationMarkers, ...makeCountryMarkers(trips)];
     }
 
     // In My Trips mode:
@@ -484,7 +571,7 @@ export default function MapView() {
           ? formatUserDateRange(activeTrip.startDate, activeTrip.endDate)
           : '';
 
-      return (activeTrip.destinations || [])
+      const destinationMarkers = (activeTrip.destinations || [])
         .filter(
           (d) =>
             d.latitude !== null &&
@@ -514,10 +601,11 @@ export default function MapView() {
               'outdoors-v12',
             ),
         }));
+      return [...destinationMarkers, ...makeCountryMarkers([activeTrip])];
     }
 
     // When viewing trip list without active selection, show all trip destinations
-    return allDestinationsWithTrip.map((item) => ({
+    const destinationMarkers = allDestinationsWithTrip.map((item) => ({
       id: String(item.destination.id),
       lat: Number(item.destination.latitude),
       lng: Number(item.destination.longitude),
@@ -537,7 +625,16 @@ export default function MapView() {
           'outdoors-v12',
         ),
     }));
-  }, [activeViewMode, filteredWorldItems, activeTrip, allDestinationsWithTrip]);
+    return [...destinationMarkers, ...makeCountryMarkers(trips)];
+  }, [
+    activeViewMode,
+    filteredWorldItems,
+    activeTrip,
+    allDestinationsWithTrip,
+    trips,
+    searchQuery,
+    worldFilter,
+  ]);
 
   const handleMarkerSelect = useCallback(
     (markerId: string) => {
@@ -545,6 +642,15 @@ export default function MapView() {
       const found = allDestinationsWithTrip.find(
         (item) => String(item.destination.id) === String(markerId),
       );
+      if (!found) {
+        const countryMarker = globeMarkers.find((marker) => marker.id === markerId);
+        if (countryMarker) {
+          setSelectedDestinationItem(null);
+          setIsDetailDrawerOpen(false);
+          setFocusView([countryMarker.lng, countryMarker.lat]);
+        }
+        return;
+      }
       if (found) {
         setSelectedDestinationItem(found);
         setIsDetailDrawerOpen(true);
@@ -554,7 +660,7 @@ export default function MapView() {
         ]);
       }
     },
-    [allDestinationsWithTrip],
+    [allDestinationsWithTrip, globeMarkers],
   );
 
   // Filtered trips list for My Trips overview
@@ -1043,8 +1149,8 @@ export default function MapView() {
               /* ============================================================= */
               /* View State D: Selected Trip Destinations                      */
               /* ============================================================= */
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+              <div className="map-selected-trip-panel flex flex-col gap-4">
+                <div className="map-selected-trip-header flex items-center justify-between border-b border-stone-200 pb-3">
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => {
@@ -1093,7 +1199,7 @@ export default function MapView() {
                       setIsAddPlaceView(true);
                       setGeocodeError('');
                     }}
-                    className="btn-lakbye-gradient text-xs py-2 px-4 cursor-pointer"
+                    className="map-add-place-button text-xs py-2 px-4 cursor-pointer"
                   >
                     + Add Place
                   </button>
@@ -1101,17 +1207,19 @@ export default function MapView() {
 
                 {/* Destinations List */}
                 {!activeTrip.destinations || activeTrip.destinations.length === 0 ? (
-                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-center my-auto min-h-64">
-                    <MapPin size={32} className="text-stone-300 mb-2" />
-                    <p className="font-bold text-stone-800 mb-1">
-                      No places in this trip yet
-                    </p>
-                    <p className="text-xs text-stone-500 mb-3 max-w-xs">
-                      Add your first destination to place markers on the globe!
+                  <div className="map-trip-empty-state">
+                    <MapPin
+                      size={32}
+                      className="map-trip-empty-icon"
+                      aria-hidden="true"
+                    />
+                    <p className="map-trip-empty-title">No places in this trip yet</p>
+                    <p className="map-trip-empty-description">
+                      Add your first destination to place markers on the globe.
                     </p>
                     <button
                       onClick={() => setIsAddPlaceView(true)}
-                      className="btn-lakbye-gradient text-xs py-2 px-4 cursor-pointer"
+                      className="map-add-place-button text-xs py-2 px-4 cursor-pointer"
                     >
                       + Add First Place
                     </button>
