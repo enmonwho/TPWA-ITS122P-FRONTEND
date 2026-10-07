@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { activitiesApi, type ActivityCatalogItem } from '../services/api';
 import { isDestinationActivityRecommendation } from '../lib/activityRecommendations';
 interface Suggestion {
@@ -33,6 +34,7 @@ export default function DestinationActivitySuggestions({
   onChange,
 }: Props) {
   const [isCustomEntryOpen, setIsCustomEntryOpen] = useState(false);
+  const [customActivity, setCustomActivity] = useState('');
   const [recommendationState, setRecommendationState] = useState<RecommendationState>({
     key: '',
     suggestions: [],
@@ -111,71 +113,96 @@ export default function DestinationActivitySuggestions({
         ))}
       </div>
 
-      <div className="flex min-w-0">
+      <div className="relative flex min-w-0">
         {isCustomEntryOpen ? (
-          <form
-            className="flex min-w-0 flex-1"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const input = new FormData(event.currentTarget).get('activity');
-              if (typeof input === 'string' && input.trim()) {
-                addActivity(input.trim());
-                event.currentTarget.reset();
-                setIsCustomEntryOpen(false);
-              }
-            }}
-          >
+          <>
             <input
-              name="activity"
+              type="text"
+              value={customActivity}
+              onChange={(event) => setCustomActivity(event.target.value)}
               maxLength={100}
               placeholder="Enter custom activity"
               aria-label={`Enter a custom activity for ${area}`}
               autoFocus
               onKeyDown={(event) => {
-                if (event.key === 'Escape') {
+                if (event.key === 'Enter') {
                   event.preventDefault();
+                  event.stopPropagation();
+                  const name = customActivity.trim();
+                  if (
+                    !name ||
+                    selected.some(
+                      (item) => item.toLocaleLowerCase() === name.toLocaleLowerCase(),
+                    )
+                  ) {
+                    return;
+                  }
+                  addActivity(name);
+                  setCustomActivity('');
                   setIsCustomEntryOpen(false);
+                } else if (event.key === 'Escape') {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setCustomActivity('');
+                  setIsCustomEntryOpen(false);
+                } else if (event.key === ' ') {
+                  // The containing destination row handles Space as activation;
+                  // keep that shortcut from preventing text entry in this field.
+                  event.stopPropagation();
                 }
               }}
-              className="min-w-0 flex-1 rounded-lg border border-amber-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-[#6B3F20] placeholder:font-normal placeholder:text-stone-400"
+              className="h-[30px] min-w-0 w-full rounded-lg border border-amber-200 bg-white py-1.5 pl-2 pr-7 text-[10px] font-semibold text-[#6B3F20] placeholder:font-normal placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-amber-300"
             />
-          </form>
+            <ChevronDown
+              size={13}
+              aria-hidden="true"
+              className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-stone-400"
+            />
+          </>
         ) : (
-          <select
-            aria-label={`Choose an activity for ${area}${country ? `, ${country}` : ''}`}
-            value=""
-            disabled={loading}
-            onChange={(event) => {
-              const name = event.target.value;
-              if (name === '__CUSTOM_ACTIVITY__') {
-                setIsCustomEntryOpen(true);
-              } else if (name) {
-                addActivity(name);
-              }
-            }}
-            className="min-w-0 flex-1 rounded-lg border border-amber-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-[#6B3F20] disabled:bg-stone-50 disabled:text-stone-400"
-          >
-            <option value="">
-              {loading ? 'Loading activities…' : 'Select activity'}
-            </option>
-            {suggestions.map((suggestion) => {
-              const alreadyAdded = selected.some(
-                (item) =>
-                  item.toLocaleLowerCase() === suggestion.name.toLocaleLowerCase(),
-              );
-              return (
-                <option
-                  key={suggestion.id}
-                  value={suggestion.name}
-                  disabled={alreadyAdded}
-                >
-                  {suggestion.name}
-                  {alreadyAdded ? ' · Added' : ''}
-                </option>
-              );
-            })}
-            <option value="__CUSTOM_ACTIVITY__">+ Custom activity...</option>
-          </select>
+          <>
+            <select
+              aria-label={`Choose an activity for ${area}${country ? `, ${country}` : ''}`}
+              value=""
+              disabled={loading}
+              onChange={(event) => {
+                const name = event.target.value;
+                if (name === '__CUSTOM_ACTIVITY__') {
+                  setCustomActivity('');
+                  setIsCustomEntryOpen(true);
+                } else if (name) {
+                  addActivity(name);
+                }
+              }}
+              className="h-[30px] min-w-0 w-full appearance-none rounded-lg border border-amber-200 bg-white py-1.5 pl-2 pr-7 text-[10px] font-semibold text-[#6B3F20] disabled:bg-stone-50 disabled:text-stone-400"
+            >
+              <option value="">
+                {loading ? 'Loading activities…' : 'Select activity'}
+              </option>
+              {suggestions.map((suggestion) => {
+                const alreadyAdded = selected.some(
+                  (item) =>
+                    item.toLocaleLowerCase() === suggestion.name.toLocaleLowerCase(),
+                );
+                return (
+                  <option
+                    key={suggestion.id}
+                    value={suggestion.name}
+                    disabled={alreadyAdded}
+                  >
+                    {suggestion.name}
+                    {alreadyAdded ? ' · Added' : ''}
+                  </option>
+                );
+              })}
+              <option value="__CUSTOM_ACTIVITY__">+ Custom activity...</option>
+            </select>
+            <ChevronDown
+              size={13}
+              aria-hidden="true"
+              className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-stone-400"
+            />
+          </>
         )}
       </div>
 
