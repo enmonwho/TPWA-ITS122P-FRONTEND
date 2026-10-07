@@ -1072,6 +1072,49 @@
   box-sizing: border-box;
 }
 
+.admin-booking-status-filters {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  overflow-x: auto;
+  padding-bottom: 1px;
+}
+
+.admin-card-panel .admin-booking-status-filter {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 5px 12px;
+  border: 1px solid rgba(72, 42, 19, 0.2);
+  border-radius: 999px;
+  background: #fcf9f6;
+  color: #2f1b0c;
+  font-family: 'SF Pro Rounded', var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.admin-card-panel .admin-booking-status-filter:hover:not(.active) {
+  background: #fff;
+  border-color: rgba(72, 42, 19, 0.35);
+}
+
+.admin-card-panel .admin-booking-status-filter.active {
+  border-color: #e9724c;
+  background: #e9724c;
+  color: #fff;
+}
+
 /* Split View for Categories & Activities */
 .admin-split-view {
   display: flex;

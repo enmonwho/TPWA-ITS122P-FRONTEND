@@ -30,7 +30,15 @@ export interface UserSessionAction {
   created_at: string;
 }
 
-export interface UserActivityRecord extends UserSessionAction {
+export interface UserActivityRecord {
+  id: number | string;
+  user_id: number | null;
+  session_id: number | null;
+  action: string;
+  entity_type: string | null;
+  entity_id: number | null;
+  details: Record<string, unknown> | null;
+  created_at: string;
   full_name: string | null;
   username: string | null;
 }

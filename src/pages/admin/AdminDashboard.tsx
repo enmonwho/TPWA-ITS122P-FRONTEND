@@ -1037,6 +1037,7 @@ function TripsBookingsTab() {
     const owner = trip.userId == null ? undefined : usersById.get(String(trip.userId));
     return owner?.full_name || owner?.name || owner?.email || 'Unknown owner';
   };
+  const formatTripId = (id: Trip['id']) => `TRP-${String(id).padStart(3, '0')}`;
   const getTripDestinations = (trip: Trip) =>
     destinationsByTrip.get(String(trip.id)) || [];
   const filteredTrips = useMemo(() => {
@@ -1044,10 +1045,13 @@ function TripsBookingsTab() {
     if (!query) return trips;
     return trips.filter((trip) => {
       const owner = getOwner(trip);
+      const tripId = `${trip.id} ${formatTripId(trip.id)}`;
       const places = getTripDestinations(trip)
         .map((destination) => `${destination.location_name} ${destination.country || ''}`)
         .join(' ');
-      return `${trip.name} ${owner} ${places}`.toLocaleLowerCase().includes(query);
+      return `${tripId} ${trip.name} ${owner} ${places}`
+        .toLocaleLowerCase()
+        .includes(query);
     });
   }, [tripSearch, trips, usersById, destinationsByTrip]);
   const selectedTrip =
@@ -1113,7 +1117,7 @@ function TripsBookingsTab() {
           <Search size={14} className="shrink-0 text-stone-400" />
           <input
             type="search"
-            placeholder="Search trip, owner, or destination..."
+            placeholder="Search Trip ID, trip, owner, or destination..."
             value={tripSearch}
             onChange={(event) => setTripSearch(event.target.value)}
           />
@@ -1126,7 +1130,8 @@ function TripsBookingsTab() {
               <span>{tripDates(selectedTrip)}</span>
             </div>
             <p className="mt-1">
-              Owner: {getOwner(selectedTrip)} · {selectedTrip.status}
+              Trip ID: <span className="font-mono">{formatTripId(selectedTrip.id)}</span>{' '}
+              · Owner: {getOwner(selectedTrip)} · {selectedTrip.status}
               {selectedTrip.totalBudget > 0
                 ? ` · Budget ₱${selectedTrip.totalBudget.toLocaleString('en-PH')}`
                 : ''}
@@ -1153,9 +1158,10 @@ function TripsBookingsTab() {
           ) : filteredTrips.length === 0 ? (
             <div className="p-4 text-center text-xs text-stone-500">No trips found.</div>
           ) : (
-            <table className="admin-table min-w-[650px]">
+            <table className="admin-table min-w-[700px]">
               <thead>
                 <tr>
+                  <th>Trip ID</th>
                   <th>Trip</th>
                   <th>Owner</th>
                   <th>Dates</th>
@@ -1182,6 +1188,9 @@ function TripsBookingsTab() {
                       }}
                       className={`cursor-pointer hover:bg-amber-50/70 ${isSelected ? 'bg-amber-50/50' : ''}`}
                     >
+                      <td className="whitespace-nowrap font-mono text-[10px]">
+                        {formatTripId(trip.id)}
+                      </td>
                       <td className="font-semibold">{trip.name}</td>
                       <td>{getOwner(trip)}</td>
                       <td>{tripDates(trip)}</td>
@@ -1208,7 +1217,7 @@ function TripsBookingsTab() {
         </div>
         <div className="admin-header-rule" />
         <div
-          className="mb-4 flex flex-nowrap items-center gap-2 overflow-x-auto pb-1"
+          className="admin-booking-status-filters"
           aria-label="Filter bookings by status"
         >
           {(['all', 'pending', 'confirmed', 'cancelled'] as const).map((status) => (
@@ -1217,11 +1226,7 @@ function TripsBookingsTab() {
               type="button"
               aria-pressed={bookingStatus === status}
               onClick={() => setBookingStatus(status)}
-              className={`shrink-0 rounded-full border px-4 py-1.5 text-[11px] font-semibold capitalize transition-colors ${
-                bookingStatus === status
-                  ? 'border-[#E9724C] bg-[#E9724C] text-white'
-                  : 'border-stone-200 bg-white text-stone-600 hover:bg-amber-50'
-              }`}
+              className={`admin-booking-status-filter ${bookingStatus === status ? 'active' : ''}`}
             >
               {status === 'all' ? 'All' : status}
             </button>
@@ -1364,10 +1369,13 @@ function MasterRecordsTab() {
   const [deleteReason, setDeleteReason] = useState('');
   const [isDeletingTrip, setIsDeletingTrip] = useState(false);
   const [isExecutingTripDelete, setIsExecutingTripDelete] = useState(false);
+  const [tripDeleteError, setTripDeleteError] = useState('');
+  const [deletedTripSuccess, setDeletedTripSuccess] = useState<Trip | null>(null);
 
   const [userDeleteReason, setUserDeleteReason] = useState('');
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [isExecutingUserDelete, setIsExecutingUserDelete] = useState(false);
+  const [deletedUserSuccess, setDeletedUserSuccess] = useState<AdminUser | null>(null);
 
   const [auditLogs, setAuditLogs] = useState<SystemAuditLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(true);
@@ -1444,17 +1452,22 @@ function MasterRecordsTab() {
 
   const handleForceDeleteTrip = async () => {
     if (!foundTrip || !deleteReason.trim()) return;
+    const deletedTrip = foundTrip;
+    setTripDeleteError('');
     setIsExecutingTripDelete(true);
     try {
-      await adminApi.overrideDeleteTrip(Number(foundTrip.id), deleteReason);
+      await adminApi.overrideDeleteTrip(Number(deletedTrip.id), deleteReason);
       setFoundTrip(null);
       setIsDeletingTrip(false);
       setDeleteReason('');
       setTripSearch('');
       await loadAllRecords();
+      setDeletedTripSuccess(deletedTrip);
     } catch (err) {
       console.error('Failed to override delete trip:', err);
-      alert('Failed to override delete trip.');
+      const responseMessage = (err as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message;
+      setTripDeleteError(responseMessage || 'Failed to delete trip.');
     } finally {
       setIsExecutingTripDelete(false);
     }
@@ -1462,17 +1475,21 @@ function MasterRecordsTab() {
 
   const handleForceDeleteUser = async () => {
     if (!foundUser) return;
+    const deletedUser = foundUser;
     setIsExecutingUserDelete(true);
     try {
-      await adminApi.deleteUser(foundUser.id, userDeleteReason);
+      await adminApi.deleteUser(deletedUser.id, userDeleteReason);
       setFoundUser(null);
       setIsDeletingUser(false);
       setUserDeleteReason('');
       setUserSearch('');
       await loadAllRecords();
+      setDeletedUserSuccess(deletedUser);
     } catch (err) {
       console.error('Failed to force delete user:', err);
-      alert('Failed to delete user account.');
+      const responseMessage = (err as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message;
+      alert(responseMessage || 'Failed to delete user account.');
     } finally {
       setIsExecutingUserDelete(false);
     }
@@ -1571,7 +1588,10 @@ function MasterRecordsTab() {
               type="button"
               disabled={!foundTrip}
               className="btn-master-danger disabled:opacity-50 cursor-pointer"
-              onClick={() => setIsDeletingTrip(true)}
+              onClick={() => {
+                setTripDeleteError('');
+                setIsDeletingTrip(true);
+              }}
             >
               Master Force Delete Trip
             </button>
@@ -1718,16 +1738,27 @@ function MasterRecordsTab() {
                 {auditLogs.map((log) => (
                   <tr key={log.id}>
                     <td>
-                      {new Date(log.created_at).toLocaleDateString('en-US', {
+                      {new Date(log.created_at).toLocaleString('en-US', {
                         day: 'numeric',
                         month: 'long',
                         year: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
                       })}
                     </td>
                     <td>{log.user_name || 'System Administrator'}</td>
-                    <td className="font-semibold">{log.action_type}</td>
+                    <td className="font-semibold">
+                      {log.action_type === 'FORCE_DELETE_USER'
+                        ? 'Force Delete User'
+                        : log.action_type}
+                    </td>
                     <td className="font-bold">{log.record_id}</td>
-                    <td>{log.description || 'Administrative action'}</td>
+                    <td>
+                      {log.action_type === 'FORCE_DELETE_USER' &&
+                      !/\. Reason: /.test(log.description || '')
+                        ? `${log.description || 'Force Delete User'} · Reason not recorded`
+                        : log.description || 'Administrative action'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1761,9 +1792,18 @@ function MasterRecordsTab() {
               rows={3}
               placeholder="e.g. Terms of service violation, fraudulent booking..."
               value={deleteReason}
-              onChange={(e) => setDeleteReason(e.target.value)}
+              onChange={(e) => {
+                setDeleteReason(e.target.value);
+                setTripDeleteError('');
+              }}
+              maxLength={100}
               className="admin-modal-input-field"
             />
+            {tripDeleteError && (
+              <p className="mt-2 text-xs font-medium text-red-700" role="alert">
+                {tripDeleteError}
+              </p>
+            )}
             <div className="flex justify-end gap-2 mt-4">
               <button
                 type="button"
@@ -1772,6 +1812,7 @@ function MasterRecordsTab() {
                 onClick={() => {
                   setIsDeletingTrip(false);
                   setDeleteReason('');
+                  setTripDeleteError('');
                 }}
               >
                 Cancel
@@ -1783,6 +1824,37 @@ function MasterRecordsTab() {
                 onClick={handleForceDeleteTrip}
               >
                 {isExecutingTripDelete ? 'Deleting...' : 'Confirm Force Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deletedTripSuccess && (
+        <div
+          className="admin-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="force-delete-trip-success-title"
+        >
+          <div className="admin-modal-box">
+            <div
+              className="mb-3 text-base font-bold text-green-700"
+              id="force-delete-trip-success-title"
+            >
+              Trip deleted successfully.
+            </div>
+            <p className="text-xs text-stone-600">
+              Trip '{deletedTripSuccess.name}' was permanently deleted and recorded in the
+              audit trail.
+            </p>
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                className="rounded-full border border-stone-200 px-4 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50"
+                onClick={() => setDeletedTripSuccess(null)}
+              >
+                Close
               </button>
             </div>
           </div>
@@ -1809,7 +1881,7 @@ function MasterRecordsTab() {
               htmlFor="user-del-reason"
               className="block text-xs font-semibold mb-1 text-stone-700"
             >
-              Reason for Deletion (Logged in Audit Trail)
+              Reason for Deletion (Required; logged in Audit Trail) *
             </label>
             <textarea
               id="user-del-reason"
@@ -1817,6 +1889,7 @@ function MasterRecordsTab() {
               placeholder="e.g. Requested permanent GDPR deletion, severe policy violation..."
               value={userDeleteReason}
               onChange={(e) => setUserDeleteReason(e.target.value)}
+              maxLength={100}
               className="admin-modal-input-field"
             />
             <div className="flex justify-end gap-2 mt-4">
@@ -1833,11 +1906,42 @@ function MasterRecordsTab() {
               </button>
               <button
                 type="button"
-                disabled={isExecutingUserDelete}
+                disabled={isExecutingUserDelete || !userDeleteReason.trim()}
                 className="btn-master-danger mt-0! disabled:opacity-50 cursor-pointer"
                 onClick={handleForceDeleteUser}
               >
                 {isExecutingUserDelete ? 'Deleting...' : 'Confirm Permanent Deletion'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deletedUserSuccess && (
+        <div
+          className="admin-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="force-delete-success-title"
+        >
+          <div className="admin-modal-box">
+            <div
+              className="mb-3 text-base font-bold text-green-700"
+              id="force-delete-success-title"
+            >
+              Account deleted successfully.
+            </div>
+            <p className="text-xs text-stone-600">
+              {deletedUserSuccess.full_name || deletedUserSuccess.name || 'Account'}
+              {deletedUserSuccess.email ? ` (${deletedUserSuccess.email})` : ''}
+            </p>
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                className="rounded-full border border-stone-200 px-4 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50"
+                onClick={() => setDeletedUserSuccess(null)}
+              >
+                Close
               </button>
             </div>
           </div>

@@ -1178,7 +1178,7 @@ export const adminApi = {
     }
   },
   overrideDeleteTrip: async (tripId: number, reason?: string) => {
-    const res = await api.delete<{ message: string }>(`/trips/${tripId}`, {
+    const res = await api.delete<{ message: string }>(`/trips/${tripId}/force-delete`, {
       data: { reason },
     });
     return res.data;

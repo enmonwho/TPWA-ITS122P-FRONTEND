@@ -35,6 +35,7 @@ export default function Login() {
     const timer = setInterval(() => {
       const current = getLockoutState();
       setLockoutState(current);
+
       if (!current.isLocked) {
         setErrorMessage('');
         clearInterval(timer);
@@ -53,11 +54,14 @@ export default function Login() {
 
   const handleResendAndNavigate = async () => {
     if (!email.trim() || isResending) return;
+
     setIsResending(true);
     setResendSuccess('');
+
     try {
       await authApi.resendVerification(email.trim());
       setResendSuccess('Verification code sent! Redirecting...');
+
       setTimeout(() => {
         navigate(ROUTES.VERIFY_EMAIL, {
           state: { email: email.trim(), justResent: true },
@@ -65,7 +69,9 @@ export default function Login() {
       }, 700);
     } catch (resendErr) {
       console.error('Failed to resend verification:', resendErr);
-      navigate(ROUTES.VERIFY_EMAIL, { state: { email: email.trim() } });
+      navigate(ROUTES.VERIFY_EMAIL, {
+        state: { email: email.trim() },
+      });
     } finally {
       setIsResending(false);
     }
@@ -73,6 +79,7 @@ export default function Login() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
     if (lockoutState.isLocked) return;
 
     setErrorMessage('');
@@ -85,6 +92,7 @@ export default function Login() {
       const response = await login({ email, password });
 
       clearLockoutState();
+
       setLockoutState({
         isLocked: false,
         remainingSeconds: 0,
@@ -96,6 +104,7 @@ export default function Login() {
       // 2. User is completely authenticated — now display loading page transition to navigate
       await triggerTransition(async () => {
         const role = response.user?.role?.toLowerCase();
+
         if (role === 'admin') {
           navigate(ROUTES.ADMIN);
         } else if (role === 'staff') {
@@ -104,6 +113,7 @@ export default function Login() {
           // Check if customer has completed onboarding preferences
           const userId = response.user?.id;
           const prefs = await preferencesApi.getPreferences(userId);
+
           const hasPrefs =
             prefs &&
             (prefs.currency ||
@@ -122,6 +132,7 @@ export default function Login() {
       if (axios.isAxiosError(err)) {
         const status = err.response?.status;
         const data = err.response?.data;
+
         if (status === 403 && data?.needsVerification) {
           setNeedsVerification(true);
           setErrorMessage(data.message || 'Please verify your email before logging in.');
@@ -148,6 +159,7 @@ export default function Login() {
         if (err.message.toLowerCase().includes('invalid email or password')) {
           const updatedLockout = recordFailedAttempt();
           setLockoutState(updatedLockout);
+
           if (updatedLockout.isPermanent) {
             setErrorMessage(
               'Too many failed login attempts. Please try again later or reset your password.',
@@ -184,6 +196,7 @@ export default function Login() {
           <input
             type="email"
             value={email}
+            maxLength={254}
             onChange={(e) => {
               setEmail(e.target.value);
               if (errorMessage) setErrorMessage('');
@@ -198,6 +211,7 @@ export default function Login() {
           <input
             type={showPassword ? 'text' : 'password'}
             value={password}
+            maxLength={128}
             onChange={(e) => {
               setPassword(e.target.value);
               if (errorMessage) setErrorMessage('');
@@ -206,6 +220,7 @@ export default function Login() {
             required
             className="auth-input"
           />
+
           <button
             type="button"
             className="password-visibility-toggle"
@@ -281,9 +296,11 @@ export default function Login() {
                 {errorMessage || 'Please verify your email before logging in.'}
               </span>
             </div>
+
             {resendSuccess && (
               <p className="text-emerald-700 font-medium text-[11px]">{resendSuccess}</p>
             )}
+
             <div className="flex items-center justify-between pt-1 border-t border-amber-200/60">
               <button
                 type="button"
@@ -293,10 +310,13 @@ export default function Login() {
               >
                 {isResending ? 'Sending code...' : 'Resend verification code →'}
               </button>
+
               <button
                 type="button"
                 onClick={() =>
-                  navigate(ROUTES.VERIFY_EMAIL, { state: { email: email.trim() } })
+                  navigate(ROUTES.VERIFY_EMAIL, {
+                    state: { email: email.trim() },
+                  })
                 }
                 className="text-[11px] text-stone-600 hover:text-stone-900 underline cursor-pointer"
               >
@@ -308,7 +328,9 @@ export default function Login() {
           (lockoutState.isLocked &&
             (lockoutState.isPermanent
               ? 'Too many failed login attempts. Please try again later or reset your password.'
-              : `Too many failed login attempts. Please wait ${formatRemainingTime(lockoutState.remainingSeconds)}.`)) ? (
+              : `Too many failed login attempts. Please wait ${formatRemainingTime(
+                  lockoutState.remainingSeconds,
+                )}.`)) ? (
           <div className="auth-error-banner animate-fade-in-up" role="alert">
             <AlertCircle size={15} className="shrink-0" />
             <span>

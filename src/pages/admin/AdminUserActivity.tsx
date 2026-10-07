@@ -317,7 +317,9 @@ export default function AdminUserActivity() {
                         `User ${activity.user_id ?? 'removed'}`}
                     </td>
                     <td className="font-semibold">
-                      {activity.action.replaceAll('_', ' ')}
+                      {activity.action === 'ACCOUNT_CREATED'
+                        ? 'ACCOUNT_CREATED — Account created'
+                        : activity.action.replaceAll('_', ' ')}
                     </td>
                     <td>
                       {activity.entity_type || '—'}
