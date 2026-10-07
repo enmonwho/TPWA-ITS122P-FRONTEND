@@ -168,6 +168,7 @@ function mapTripFromApi(raw: TripApiResponse): Trip {
   const countryRoute = Array.isArray(raw.country_route) ? raw.country_route : [];
   return {
     id: raw.id,
+    userId: raw.user_id,
     name: raw.title,
     startDate: raw.start_date ? raw.start_date.split(/[T ]/)[0] : '',
     endDate: raw.end_date ? raw.end_date.split(/[T ]/)[0] : '',
@@ -473,14 +474,10 @@ export const bookingsApi = {
     }
     return resData as Booking;
   },
-  updateStatus: async (
-    id: number | string,
-    status: BookingStatus,
-    cost?: number,
-  ): Promise<Booking> => {
+  updateStatus: async (id: number | string, status: BookingStatus): Promise<Booking> => {
     const response = await api.put<{ message: string; booking: Booking }>(
       `/bookings/${id}`,
-      { status, cost },
+      { status },
     );
     return response.data.booking;
   },

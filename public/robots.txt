@@ -1,0 +1,7 @@
+User-agent: * Allow: /
+
+Disallow: /admin Disallow: /staff Disallow: /dashboard Disallow: /trip/
+Disallow: /onboarding Disallow: /app/ Disallow: /reset-password
+Disallow: /verify-email
+
+Sitemap: https://lakbye.vercel.app/sitemap.xml

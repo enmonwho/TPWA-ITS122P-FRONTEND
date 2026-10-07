@@ -8,28 +8,25 @@ import {
   LogOut,
   Search,
   MoreVertical,
-  Edit,
   Download,
-  Plus,
   CheckCircle,
   XCircle,
   AlertTriangle,
-  Trash2,
   AlertCircle,
   Activity as ActivityIcon,
 } from 'lucide-react';
 import lakbyeLogo from '../../assets/lakbye-logo.png';
-import { adminApi, tripsApi } from '../../services/api';
-import { searchDestinations } from '../../lib/tripAutoFill';
+import { adminApi, bookingsApi, destinationsApi, tripsApi } from '../../services/api';
 import type {
   AdminUser,
-  AdminCategory,
-  AdminActivity,
   SystemAuditLog,
   AdminSystemReportData,
 } from '../../services/api';
 import type { Trip } from '../../types/trip';
-import axios from 'axios';
+import type { Destination } from '../../types/destination';
+import type { Booking, BookingStatus } from '../../types/booking';
+import { isAccommodationBooking } from '../../lib/bookingFilters';
+import { formatBookingCost } from '../../lib/bookingCost';
 import { useAuth } from '../../context/AuthContext';
 import { STORAGE_KEYS } from '../../lib/constants';
 import '../../styles/Admin.css';
@@ -112,7 +109,7 @@ export default function AdminDashboard() {
             className={`admin-nav-item ${activeTab === 'categories' ? 'active' : ''}`}
             onClick={() => setActiveTab('categories')}
           >
-            <List size={16} /> Categories & Activities
+            <List size={16} /> Trips & Bookings
           </button>
           <button
             type="button"
@@ -141,7 +138,7 @@ export default function AdminDashboard() {
       <main className="admin-main-canvas">
         {activeTab === 'systems' && <SystemsReportTab />}
         {activeTab === 'users' && <UserManagementTab />}
-        {activeTab === 'categories' && <CategoriesActivitiesTab />}
+        {activeTab === 'categories' && <TripsBookingsTab />}
         {activeTab === 'master' && <MasterRecordsTab />}
         {activeTab === 'activity' && <AdminUserActivity />}
       </main>
@@ -965,258 +962,378 @@ function UserManagementTab() {
   );
 }
 
-// Tab 3: Categories & Activities
-function CategoriesActivitiesTab() {
-  const [categories, setCategories] = useState<AdminCategory[]>([]);
-  const [activities, setActivities] = useState<AdminActivity[]>([]);
-  const [catSearch, setCatSearch] = useState('');
-  const [actSearch, setActSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  // Modals
-  const [isCatModalOpen, setCatModalOpen] = useState(false);
-  const [isActModalOpen, setActModalOpen] = useState(false);
-
-  // Forms
-  const [editingCategory, setEditingCategory] = useState<AdminCategory | null>(null);
-  const [categoryName, setCategoryName] = useState('');
-  const [categoryType, setCategoryType] = useState('');
-  const [isSavingCat, setIsSavingCat] = useState(false);
-  const [catError, setCatError] = useState<string | null>(null);
-
-  const [activityName, setActivityName] = useState('');
-  const [activityDest, setActivityDest] = useState('');
-  const [activityCatId, setActivityCatId] = useState<number | ''>('');
-  const [activityCost, setActivityCost] = useState('');
-  const [showDestSuggestions, setShowDestSuggestions] = useState(false);
-  const [actError, setActError] = useState<string | null>(null);
-  const [isSavingAct, setIsSavingAct] = useState(false);
-
-  const destSuggestions = useMemo(() => {
-    if (!activityDest.trim() || activityDest.trim().length < 2) return [];
-    return searchDestinations(activityDest, 6);
-  }, [activityDest]);
-
-  const refreshData = async () => {
-    try {
-      const [cats, acts] = await Promise.all([
-        adminApi.getCategories(),
-        adminApi.getActivities(),
-      ]);
-      setCategories(cats || []);
-      setActivities(acts || []);
-    } catch (err) {
-      console.error('Failed to load database records:', err);
-    } finally {
-      setLoading(false);
-    }
+// Tab 3: Trip records are view-only; booking status uses the secure staff/admin workflow.
+function TripsBookingsTab() {
+  type BookingRecord = Booking & {
+    trip_title?: string;
+    destination_name?: string;
+    property_name?: string;
   };
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchInitialData = async () => {
-      try {
-        const [cats, acts] = await Promise.all([
-          adminApi.getCategories(),
-          adminApi.getActivities(),
-        ]);
-        if (isMounted) {
-          setCategories(cats || []);
-          setActivities(acts || []);
-        }
-      } catch (err) {
-        console.error('Failed to load database records:', err);
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [bookings, setBookings] = useState<BookingRecord[]>([]);
+  const [tripSearch, setTripSearch] = useState('');
+  const [selectedTripId, setSelectedTripId] = useState<number | null>(null);
+  const [bookingStatus, setBookingStatus] = useState<
+    'all' | 'pending' | 'confirmed' | 'cancelled'
+  >('all');
+  const [statusUpdatingId, setStatusUpdatingId] = useState<number | null>(null);
+  const [statusError, setStatusError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
-    fetchInitialData();
+  useEffect(() => {
+    let isCurrent = true;
+    Promise.all([
+      tripsApi.getTrips(),
+      adminApi.getUsers(),
+      destinationsApi.getAll(),
+      bookingsApi.getAll(),
+    ])
+      .then(([tripRecords, userRecords, destinationRecords, bookingRecords]) => {
+        if (!isCurrent) return;
+        setTrips(tripRecords);
+        setUsers(userRecords);
+        setDestinations(destinationRecords);
+        setBookings((bookingRecords as BookingRecord[]).filter(isAccommodationBooking));
+        setSelectedTripId((current) => current ?? tripRecords[0]?.id ?? null);
+      })
+      .catch(() => {
+        if (isCurrent) setLoadError('Unable to load trip and booking records.');
+      })
+      .finally(() => {
+        if (isCurrent) setLoading(false);
+      });
     return () => {
-      isMounted = false;
+      isCurrent = false;
     };
   }, []);
 
-  const handleSaveCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!categoryName.trim()) {
-      setCatError('Category Name is required.');
-      return;
-    }
-    if (!categoryType.trim()) {
-      setCatError('Category Tag / Slug is required.');
-      return;
-    }
-    setIsSavingCat(true);
-    setCatError(null);
+  const usersById = useMemo(
+    () => new Map(users.map((item) => [String(item.id), item])),
+    [users],
+  );
+  const tripsById = useMemo(
+    () => new Map(trips.map((item) => [String(item.id), item])),
+    [trips],
+  );
+  const destinationsById = useMemo(
+    () => new Map(destinations.map((item) => [String(item.id), item])),
+    [destinations],
+  );
+  const destinationsByTrip = useMemo(() => {
+    const grouped = new Map<string, Destination[]>();
+    destinations.forEach((destination) => {
+      if (destination.trip_id == null) return;
+      const key = String(destination.trip_id);
+      grouped.set(key, [...(grouped.get(key) || []), destination]);
+    });
+    return grouped;
+  }, [destinations]);
 
+  const getOwner = (trip: Trip) => {
+    const owner = trip.userId == null ? undefined : usersById.get(String(trip.userId));
+    return owner?.full_name || owner?.name || owner?.email || 'Unknown owner';
+  };
+  const getTripDestinations = (trip: Trip) =>
+    destinationsByTrip.get(String(trip.id)) || [];
+  const filteredTrips = useMemo(() => {
+    const query = tripSearch.trim().toLocaleLowerCase();
+    if (!query) return trips;
+    return trips.filter((trip) => {
+      const owner = getOwner(trip);
+      const places = getTripDestinations(trip)
+        .map((destination) => `${destination.location_name} ${destination.country || ''}`)
+        .join(' ');
+      return `${trip.name} ${owner} ${places}`.toLocaleLowerCase().includes(query);
+    });
+  }, [tripSearch, trips, usersById, destinationsByTrip]);
+  const selectedTrip =
+    trips.find((trip) => trip.id === selectedTripId) ||
+    filteredTrips[0] ||
+    trips[0] ||
+    null;
+
+  const filteredBookings = useMemo(
+    () =>
+      bookings.filter((booking) =>
+        bookingStatus === 'all'
+          ? true
+          : String(booking.status || '').toLocaleLowerCase() === bookingStatus,
+      ),
+    [bookingStatus, bookings],
+  );
+
+  const updateBookingStatus = async (
+    booking: BookingRecord,
+    nextStatus: BookingStatus,
+  ) => {
+    if (String(booking.status).toLowerCase() !== 'pending') return;
+    if (nextStatus !== 'confirmed' && nextStatus !== 'cancelled') return;
+    setStatusUpdatingId(booking.id);
+    setStatusError('');
     try {
-      if (editingCategory) {
-        const catId = editingCategory.id ?? editingCategory.categoryid ?? 0;
-        await adminApi.updateCategory(catId, {
-          name: categoryName.trim(),
-          type: categoryType.trim(),
-        });
-      } else {
-        await adminApi.createCategory({
-          name: categoryName.trim(),
-          type: categoryType.trim(),
-        });
-      }
-      setCatModalOpen(false);
-      setEditingCategory(null);
-      setCategoryName('');
-      setCategoryType('');
-      await refreshData();
-    } catch (err: unknown) {
-      console.error('Failed to save category:', err);
-      if (axios.isAxiosError(err) && err.response?.data?.message) {
-        setCatError(err.response.data.message);
-      } else if (err instanceof Error) {
-        setCatError(err.message);
-      } else {
-        setCatError('Failed to save category. Please check permissions.');
-      }
+      const updated = await bookingsApi.updateStatus(booking.id, nextStatus);
+      setBookings((current) =>
+        current.map((item) =>
+          item.id === booking.id
+            ? { ...item, status: updated.status || nextStatus }
+            : item,
+        ),
+      );
+    } catch {
+      setStatusError(`Could not update booking #${booking.id}. Refresh and try again.`);
     } finally {
-      setIsSavingCat(false);
+      setStatusUpdatingId(null);
     }
   };
 
-  const handleSaveActivity = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activityName.trim() || !activityDest.trim() || !activityCatId) {
-      setActError('Activity Title, Destination, and Category are all required.');
-      return;
-    }
-    setIsSavingAct(true);
-    setActError(null);
-
-    try {
-      await adminApi.createActivity({
-        title: activityName.trim(),
-        destination: activityDest.trim(),
-        category_id: Number(activityCatId),
-        cost: Number(activityCost) || 0,
-      });
-      setActModalOpen(false);
-      setActivityName('');
-      setActivityDest('');
-      setActivityCatId('');
-      setActivityCost('');
-      setShowDestSuggestions(false);
-      await refreshData();
-    } catch (err) {
-      console.error('Failed to create activity:', err);
-      setActError('Failed to create activity. Please verify inputs.');
-    } finally {
-      setIsSavingAct(false);
-    }
+  const dateLabel = (value?: string) => {
+    if (!value) return '—';
+    const date = value.slice(0, 10);
+    const [year, month, day] = date.split('-');
+    return year && month && day ? `${month}/${day}/${year}` : value;
   };
-
-  const filteredCategories = categories.filter((c) =>
-    c.name.toLowerCase().includes(catSearch.toLowerCase()),
-  );
-
-  const filteredActivities = activities.filter((a) =>
-    a.title.toLowerCase().includes(actSearch.toLowerCase()),
-  );
-
+  const tripDates = (trip: Trip) =>
+    trip.startDate && trip.endDate
+      ? `${dateLabel(trip.startDate)} – ${dateLabel(trip.endDate)}`
+      : 'Dates not set';
   return (
     <div className="admin-split-view">
-      {/* Categories Panel */}
-      <div className="admin-card-panel flex-1">
+      <section className="admin-card-panel min-w-0 flex-[1.15]">
         <img src={lakbyeLogo} alt="" className="admin-watermark" />
         <div className="admin-panel-header">
-          <h2 className="admin-panel-title">Categories Manager</h2>
-          <button
-            type="button"
-            className="btn-admin-pill-gradient"
-            onClick={() => setCatModalOpen(true)}
-          >
-            <Plus size={13} /> Add Category
-          </button>
+          <h2 className="admin-panel-title">Trip Records</h2>
+          <span className="text-xs text-stone-500">{filteredTrips.length} trips</span>
         </div>
         <div className="admin-header-rule" />
-
-        <div className="admin-pill-search">
-          <Search size={14} className="text-stone-400" />
+        <label className="admin-pill-search !w-full max-w-none" aria-label="Search trips">
+          <Search size={14} className="shrink-0 text-stone-400" />
           <input
-            type="text"
-            placeholder="Search..."
-            value={catSearch}
-            onChange={(e) => setCatSearch(e.target.value)}
+            type="search"
+            placeholder="Search trip, owner, or destination..."
+            value={tripSearch}
+            onChange={(event) => setTripSearch(event.target.value)}
           />
-        </div>
+        </label>
 
-        <div className="overflow-x-auto flex-1">
+        {selectedTrip && (
+          <div className="mb-3 rounded-lg border border-amber-100 bg-[#FCF9F6] px-3 py-2 text-[11px] text-stone-700">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <strong className="text-[#2F1B0C]">{selectedTrip.name}</strong>
+              <span>{tripDates(selectedTrip)}</span>
+            </div>
+            <p className="mt-1">
+              Owner: {getOwner(selectedTrip)} · {selectedTrip.status}
+              {selectedTrip.totalBudget > 0
+                ? ` · Budget ₱${selectedTrip.totalBudget.toLocaleString('en-PH')}`
+                : ''}
+            </p>
+            <p className="mt-1 break-words">
+              Destinations:{' '}
+              {getTripDestinations(selectedTrip)
+                .map(
+                  (destination) =>
+                    `${destination.location_name}${destination.country ? `, ${destination.country}` : ''}`,
+                )
+                .join(' · ') || 'None recorded'}
+            </p>
+          </div>
+        )}
+
+        <div className="min-h-0 flex-1 overflow-auto">
           {loading ? (
             <div className="p-4 text-center text-xs text-stone-500">
-              Loading categories...
+              Loading trip records…
             </div>
-          ) : filteredCategories.length === 0 ? (
-            <div className="p-4 text-center text-xs text-stone-500">
-              No categories found in database.
-            </div>
+          ) : loadError ? (
+            <div className="p-4 text-center text-xs text-rose-700">{loadError}</div>
+          ) : filteredTrips.length === 0 ? (
+            <div className="p-4 text-center text-xs text-stone-500">No trips found.</div>
           ) : (
-            <table className="admin-table">
+            <table className="admin-table min-w-[650px]">
               <thead>
                 <tr>
-                  <th>Category ID</th>
-                  <th>Category Name</th>
-                  <th>Type / Tag</th>
-                  <th>Active Items</th>
-                  <th>Action</th>
+                  <th>Trip</th>
+                  <th>Owner</th>
+                  <th>Dates</th>
+                  <th>Destinations</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredCategories.map((c) => {
-                  const catId = c.id ?? c.categoryid ?? 0;
+                {filteredTrips.map((trip) => {
+                  const places = getTripDestinations(trip);
+                  const isSelected = trip.id === selectedTrip?.id;
                   return (
-                    <tr key={catId}>
-                      <td>C{String(catId).padStart(3, '0')}</td>
-                      <td className="font-semibold">{c.name}</td>
-                      <td>{c.type}</td>
-                      <td>{c.activity_count ?? 0}</td>
+                    <tr
+                      key={trip.id}
+                      tabIndex={0}
+                      role="button"
+                      aria-pressed={isSelected}
+                      onClick={() => setSelectedTripId(trip.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          setSelectedTripId(trip.id);
+                        }
+                      }}
+                      className={`cursor-pointer hover:bg-amber-50/70 ${isSelected ? 'bg-amber-50/50' : ''}`}
+                    >
+                      <td className="font-semibold">{trip.name}</td>
+                      <td>{getOwner(trip)}</td>
+                      <td>{tripDates(trip)}</td>
+                      <td title={places.map((place) => place.location_name).join(', ')}>
+                        {places.length}
+                      </td>
+                      <td className="capitalize">{trip.status}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </section>
+
+      <section className="admin-card-panel min-w-0 flex-[1.6]">
+        <img src={lakbyeLogo} alt="" className="admin-watermark" />
+        <div className="admin-panel-header">
+          <h2 className="admin-panel-title">Booking Records</h2>
+          <span className="text-xs text-stone-500">
+            {filteredBookings.length} bookings
+          </span>
+        </div>
+        <div className="admin-header-rule" />
+        <div
+          className="mb-4 flex flex-nowrap items-center gap-2 overflow-x-auto pb-1"
+          aria-label="Filter bookings by status"
+        >
+          {(['all', 'pending', 'confirmed', 'cancelled'] as const).map((status) => (
+            <button
+              key={status}
+              type="button"
+              aria-pressed={bookingStatus === status}
+              onClick={() => setBookingStatus(status)}
+              className={`shrink-0 rounded-full border px-4 py-1.5 text-[11px] font-semibold capitalize transition-colors ${
+                bookingStatus === status
+                  ? 'border-[#E9724C] bg-[#E9724C] text-white'
+                  : 'border-stone-200 bg-white text-stone-600 hover:bg-amber-50'
+              }`}
+            >
+              {status === 'all' ? 'All' : status}
+            </button>
+          ))}
+        </div>
+        {statusError && (
+          <p role="alert" className="mb-3 text-xs text-rose-700">
+            {statusError}
+          </p>
+        )}
+        <div className="min-h-0 flex-1 overflow-auto">
+          {loading ? (
+            <div className="p-4 text-center text-xs text-stone-500">
+              Loading booking records…
+            </div>
+          ) : loadError ? (
+            <div className="p-4 text-center text-xs text-rose-700">{loadError}</div>
+          ) : filteredBookings.length === 0 ? (
+            <div className="p-4 text-center text-xs text-stone-500">
+              No accommodation bookings found.
+            </div>
+          ) : (
+            <table className="admin-table min-w-[900px]">
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Trip</th>
+                  <th>Destination</th>
+                  <th>Accommodation</th>
+                  <th>Booking Date</th>
+                  <th>Cost</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredBookings.map((booking) => {
+                  const destination =
+                    booking.destination_id == null
+                      ? undefined
+                      : destinationsById.get(String(booking.destination_id));
+                  const trip =
+                    booking.trip_id == null
+                      ? undefined
+                      : tripsById.get(String(booking.trip_id));
+                  const customer =
+                    booking.user_id == null
+                      ? undefined
+                      : usersById.get(String(booking.user_id));
+                  const status = String(booking.status || 'pending').toLocaleLowerCase();
+                  const statusClass =
+                    status === 'confirmed'
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                      : status === 'cancelled'
+                        ? 'border-rose-200 bg-rose-50 text-rose-800'
+                        : status === 'pending'
+                          ? 'border-amber-200 bg-amber-50 text-amber-800'
+                          : 'border-stone-200 bg-stone-100 text-stone-700';
+                  return (
+                    <tr key={booking.id}>
+                      <td className="font-semibold">
+                        {booking.customer_name ||
+                          customer?.full_name ||
+                          customer?.name ||
+                          customer?.email ||
+                          'Unknown customer'}
+                      </td>
+                      <td>{trip?.name || booking.trip_title || '—'}</td>
                       <td>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            aria-label="Edit category"
-                            title="Edit Category"
-                            className="text-stone-500 hover:text-black cursor-pointer"
-                            onClick={() => {
-                              setEditingCategory(c);
-                              setCategoryName(c.name);
-                              setCategoryType(c.type || 'General');
-                              setCatModalOpen(true);
-                            }}
-                          >
-                            <Edit size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            aria-label="Delete category"
-                            title="Delete Category"
-                            className="text-stone-400 hover:text-red-600 cursor-pointer"
-                            onClick={async () => {
-                              if (window.confirm(`Delete category "${c.name}"?`)) {
-                                try {
-                                  await adminApi.deleteCategory(catId);
-                                  await refreshData();
-                                } catch (err) {
-                                  console.error('Failed to delete category:', err);
-                                  alert(
-                                    'Cannot delete category with associated activities.',
-                                  );
-                                }
+                        {destination?.location_name || booking.destination_name || '—'}
+                      </td>
+                      <td
+                        title={
+                          booking.accommodation_name ||
+                          destination?.accommodation ||
+                          booking.property_name ||
+                          ''
+                        }
+                      >
+                        {booking.accommodation_name ||
+                          destination?.accommodation ||
+                          booking.property_name ||
+                          '—'}
+                      </td>
+                      <td>{dateLabel(booking.booking_date || booking.created_at)}</td>
+                      <td>{formatBookingCost(booking)}</td>
+                      <td>
+                        {status === 'pending' ? (
+                          <select
+                            aria-label={`Update booking ${booking.id} status`}
+                            value="pending"
+                            disabled={statusUpdatingId === booking.id}
+                            onChange={(event) => {
+                              const next = event.target.value as BookingStatus;
+                              if (next === 'confirmed' || next === 'cancelled') {
+                                void updateBookingStatus(booking, next);
                               }
                             }}
+                            className={`max-w-[116px] rounded-full border px-2 py-1 text-[10px] font-semibold capitalize outline-none ${statusClass} disabled:opacity-60`}
                           >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
+                            <option value="pending" disabled>
+                              {statusUpdatingId === booking.id ? 'Updating…' : 'Pending'}
+                            </option>
+                            <option value="confirmed">Confirm</option>
+                            <option value="cancelled">Cancel</option>
+                          </select>
+                        ) : (
+                          <span
+                            className={`inline-flex rounded-full border px-2 py-1 text-[9px] font-semibold capitalize ${statusClass}`}
+                          >
+                            {status}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -1225,360 +1342,7 @@ function CategoriesActivitiesTab() {
             </table>
           )}
         </div>
-      </div>
-
-      {/* Activities Panel */}
-      <div className="admin-card-panel flex-[1.4]">
-        <img src={lakbyeLogo} alt="" className="admin-watermark" />
-        <div className="admin-panel-header">
-          <h2 className="admin-panel-title">Activities Manager</h2>
-          <button
-            type="button"
-            className="btn-admin-pill-gradient"
-            onClick={() => {
-              setActError(null);
-              setActModalOpen(true);
-            }}
-          >
-            <Plus size={13} /> Create Activity
-          </button>
-        </div>
-        <div className="admin-header-rule" />
-
-        <div className="admin-pill-search">
-          <Search size={14} className="text-stone-400" />
-          <input
-            type="text"
-            placeholder="Search..."
-            value={actSearch}
-            onChange={(e) => setActSearch(e.target.value)}
-          />
-        </div>
-
-        <div className="overflow-x-auto flex-1">
-          {loading ? (
-            <div className="p-4 text-center text-xs text-stone-500">
-              Loading activities...
-            </div>
-          ) : filteredActivities.length === 0 ? (
-            <div className="p-4 text-center text-xs text-stone-500">
-              No activities found in database.
-            </div>
-          ) : (
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Activity Name</th>
-                  <th>Destination</th>
-                  <th>Category</th>
-                  <th>Cost</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredActivities.map((a) => (
-                  <tr key={a.id}>
-                    <td className="font-semibold">{a.title}</td>
-                    <td>{a.destination || 'Unassigned'}</td>
-                    <td>{a.category || 'General'}</td>
-                    <td className="font-bold">₱{Number(a.cost).toLocaleString()}</td>
-                    <td>
-                      <span className="admin-badge-active">ACTIVE</span>
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        aria-label="Delete activity"
-                        title="Delete Activity"
-                        className="text-stone-400 hover:text-red-600 transition-colors p-1 cursor-pointer"
-                        onClick={async () => {
-                          if (
-                            window.confirm(
-                              `Are you sure you want to delete activity "${a.title}"?`,
-                            )
-                          ) {
-                            try {
-                              await adminApi.deleteActivity(a.id);
-                              await refreshData();
-                            } catch (err) {
-                              console.error('Failed to delete activity:', err);
-                              alert('Failed to delete activity.');
-                            }
-                          }
-                        }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-
-      {/* Create Category Modal */}
-      {isCatModalOpen && (
-        <div className="admin-modal-overlay" role="dialog" aria-modal="true">
-          <form onSubmit={handleSaveCategory} className="admin-modal-box">
-            <h3 className="admin-modal-title">
-              {editingCategory ? 'Edit Category' : 'Add New Category'}
-            </h3>
-
-            {catError && (
-              <div
-                style={{
-                  backgroundColor: '#FEF2F2',
-                  border: '1px solid #FCA5A5',
-                  borderRadius: '8px',
-                  padding: '8px 12px',
-                  fontSize: '12px',
-                  color: '#991B1B',
-                  marginBottom: '12px',
-                }}
-              >
-                {catError}
-              </div>
-            )}
-
-            <div>
-              <label
-                htmlFor="cat-name-input"
-                className="block text-xs font-semibold mb-1 text-stone-700"
-              >
-                Category Name *
-              </label>
-              <input
-                id="cat-name-input"
-                type="text"
-                required
-                placeholder="e.g. Nature & Hiking"
-                value={categoryName}
-                onChange={(e) => {
-                  setCategoryName(e.target.value);
-                  if (catError) setCatError(null);
-                }}
-                className="admin-modal-input-field"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="cat-type-input"
-                className="block text-xs font-semibold mb-1 text-stone-700"
-              >
-                Category Tag / Slug *
-              </label>
-              <input
-                id="cat-type-input"
-                type="text"
-                list="category-tag-presets"
-                required
-                placeholder="e.g. outdoor"
-                value={categoryType}
-                onChange={(e) => {
-                  setCategoryType(e.target.value);
-                  if (catError) setCatError(null);
-                }}
-                className="admin-modal-input-field"
-              />
-              <datalist id="category-tag-presets">
-                <option value="outdoor" />
-                <option value="cultural" />
-                <option value="culinary" />
-                <option value="adventure" />
-                <option value="relaxation" />
-                <option value="shopping" />
-                <option value="sightseeing" />
-                <option value="general" />
-              </datalist>
-            </div>
-            <div className="flex justify-end gap-2 mt-4">
-              <button
-                type="button"
-                className="px-4 py-1.5 text-xs text-stone-600 font-semibold cursor-pointer"
-                onClick={() => {
-                  setCatModalOpen(false);
-                  setEditingCategory(null);
-                  setCatError(null);
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSavingCat || !categoryName.trim() || !categoryType.trim()}
-                className="btn-admin-pill-gradient disabled:opacity-50"
-              >
-                {isSavingCat ? 'Saving...' : 'Save Category'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Create Activity Modal */}
-      {isActModalOpen && (
-        <div className="admin-modal-overlay" role="dialog" aria-modal="true">
-          <form
-            onSubmit={handleSaveActivity}
-            className="admin-modal-box"
-            style={{ width: '480px' }}
-          >
-            <h3 className="admin-modal-title">Create Master Activity</h3>
-
-            {actError && (
-              <div
-                style={{
-                  backgroundColor: '#FEF2F2',
-                  border: '1px solid #FCA5A5',
-                  borderRadius: '8px',
-                  padding: '8px 12px',
-                  fontSize: '12px',
-                  color: '#991B1B',
-                  marginBottom: '12px',
-                }}
-              >
-                {actError}
-              </div>
-            )}
-
-            <div>
-              <label
-                htmlFor="act-title-input"
-                className="block text-xs font-semibold mb-1 text-stone-700"
-              >
-                Activity Title *
-              </label>
-              <input
-                id="act-title-input"
-                type="text"
-                required
-                placeholder="e.g. Island Hopping Adventure"
-                value={activityName}
-                onChange={(e) => {
-                  setActivityName(e.target.value);
-                  if (actError) setActError(null);
-                }}
-                className="admin-modal-input-field"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="relative">
-                <label
-                  htmlFor="act-dest-input"
-                  className="block text-xs font-semibold mb-1 text-stone-700"
-                >
-                  Destination *
-                </label>
-                <input
-                  id="act-dest-input"
-                  type="text"
-                  required
-                  placeholder="e.g. Boracay, Tarlac"
-                  value={activityDest}
-                  onChange={(e) => {
-                    setActivityDest(e.target.value);
-                    setShowDestSuggestions(true);
-                    if (actError) setActError(null);
-                  }}
-                  onFocus={() => setShowDestSuggestions(true)}
-                  className="admin-modal-input-field"
-                  autoComplete="off"
-                />
-                {showDestSuggestions && destSuggestions.length > 0 && (
-                  <ul className="absolute left-0 right-0 top-full mt-1 bg-white border border-stone-200 rounded-lg shadow-lg z-50 max-h-44 overflow-y-auto py-1">
-                    {destSuggestions.map((dest, idx) => (
-                      <li
-                        key={`${dest.name}-${dest.country}-${idx}`}
-                        className="px-3 py-1.5 text-xs text-stone-700 hover:bg-stone-100 cursor-pointer flex items-center justify-between"
-                        onMouseDown={() => {
-                          setActivityDest(dest.name);
-                          setShowDestSuggestions(false);
-                        }}
-                      >
-                        <span className="font-semibold text-stone-900">{dest.name}</span>
-                        <span className="text-[10px] text-stone-400">{dest.country}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <div>
-                <label
-                  htmlFor="act-cat-select"
-                  className="block text-xs font-semibold mb-1 text-stone-700"
-                >
-                  Category *
-                </label>
-                <select
-                  id="act-cat-select"
-                  required
-                  value={activityCatId}
-                  onChange={(e) => {
-                    setActivityCatId(e.target.value ? Number(e.target.value) : '');
-                    if (actError) setActError(null);
-                  }}
-                  className="admin-modal-input-field text-stone-700"
-                >
-                  <option value="">Select Category *</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="act-cost-input"
-                className="block text-xs font-semibold mb-1 text-stone-700"
-              >
-                Estimated Cost (PHP)
-              </label>
-              <input
-                id="act-cost-input"
-                type="number"
-                min="0"
-                placeholder="0.00"
-                value={activityCost}
-                onChange={(e) => setActivityCost(e.target.value)}
-                className="admin-modal-input-field"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 mt-4">
-              <button
-                type="button"
-                className="px-4 py-1.5 text-xs text-stone-600 font-semibold cursor-pointer"
-                onClick={() => {
-                  setActModalOpen(false);
-                  setShowDestSuggestions(false);
-                  setActError(null);
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={
-                  isSavingAct ||
-                  !activityName.trim() ||
-                  !activityDest.trim() ||
-                  !activityCatId
-                }
-                className="btn-admin-pill-gradient disabled:opacity-50"
-              >
-                {isSavingAct ? 'Saving...' : 'Save Activity'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      </section>
     </div>
   );
 }

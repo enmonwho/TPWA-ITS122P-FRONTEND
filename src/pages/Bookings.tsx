@@ -24,6 +24,7 @@ import { mergeTripsWithExtras } from '../lib/tripExtras';
 import { reconcileTripBookings, saveBookingExtra } from '../lib/bookingExtras';
 import { formatUserDate, formatUserDateRange } from '../lib/formatters';
 import { isBookingDateWithinTripRange } from '../lib/bookingDateRange';
+import { formatBookingCost } from '../lib/bookingCost';
 import type { Trip } from '../types/trip';
 import type { Destination } from '../types/destination';
 import type { Accommodation } from '../types/accommodation';
@@ -513,7 +514,6 @@ export default function Bookings() {
           )?.location_name ||
           selectedTrip.countries?.[0] ||
           selectedTrip.name;
-        const cost = booking.total_price ?? booking.cost;
 
         const date = booking.booking_date
           ? formatUserDate(booking.booking_date)
@@ -527,10 +527,7 @@ export default function Bookings() {
           destination: destinationName,
           accommodation:
             booking.accommodation_name || booking.custom_title || 'Accommodation stay',
-          cost:
-            cost !== undefined && cost !== null && cost !== ''
-              ? `PHP ${Number(cost).toLocaleString()}`
-              : 'Not provided',
+          cost: formatBookingCost(booking),
           status: normalizeBookingStatus(booking.status),
           type: 'hotel' as const,
         };

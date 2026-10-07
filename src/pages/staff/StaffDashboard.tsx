@@ -11,7 +11,6 @@ import {
   Clock,
   Info,
   ShieldAlert,
-  DollarSign,
 } from 'lucide-react';
 import axios from 'axios';
 import lakbyeLogo from '../../assets/lakbye-logo.png';
@@ -25,6 +24,7 @@ import { useAuth } from '../../context/AuthContext';
 import { bookingsApi, activitiesApi, adminApi } from '../../services/api';
 import { STORAGE_KEYS } from '../../lib/constants';
 import type { Booking, Activity, BookingStatus } from '../../types/booking';
+import { formatBookingCost, getBookingCost } from '../../lib/bookingCost';
 import type { AdminUser } from '../../services/api';
 import '../../styles/Staff.css';
 
@@ -131,11 +131,6 @@ export default function StaffDashboard() {
   const [selectedBookingForModal, setSelectedBookingForModal] = useState<Booking | null>(
     null,
   );
-
-  // Set Cost modal state
-  const [costEditingBooking, setCostEditingBooking] = useState<Booking | null>(null);
-  const [bookingCostInput, setBookingCostInput] = useState<string>('');
-  const [isSavingCost, setIsSavingCost] = useState(false);
 
   // Staff User Display Name
   const staffName = user?.full_name || user?.email?.split('@')[0] || 'LakBye Staff';
@@ -301,41 +296,6 @@ export default function StaffDashboard() {
     }
   };
 
-  const handleOpenCostModal = (b: Booking) => {
-    setCostEditingBooking(b);
-    setBookingCostInput(String(b.total_price ?? b.cost ?? ''));
-    setOpenActionMenuId(null);
-  };
-
-  const handleSaveBookingCost = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!costEditingBooking) return;
-    const entered = parseFloat(bookingCostInput);
-    if (isNaN(entered) || entered < 0) return;
-
-    setIsSavingCost(true);
-    try {
-      await bookingsApi.updateStatus(
-        costEditingBooking.id,
-        costEditingBooking.status,
-        entered,
-      );
-      setBookings((prev) =>
-        prev.map((b) =>
-          b.id === costEditingBooking.id
-            ? { ...b, total_price: entered, cost: entered }
-            : b,
-        ),
-      );
-      setCostEditingBooking(null);
-    } catch (err) {
-      console.error('Failed to update booking cost:', err);
-      alert('Failed to update booking cost. Please check server connection.');
-    } finally {
-      setIsSavingCost(false);
-    }
-  };
-
   const renderSortHeader = (
     field: SortField,
     label: string,
@@ -422,10 +382,8 @@ export default function StaffDashboard() {
         valA = new Date(a.booking_date || a.created_at || 0).getTime();
         valB = new Date(b.booking_date || b.created_at || 0).getTime();
       } else if (sortField === 'cost') {
-        const costA = a.activity_id ? activityMap.get(Number(a.activity_id))?.cost : 0;
-        const costB = b.activity_id ? activityMap.get(Number(b.activity_id))?.cost : 0;
-        valA = Number(a.total_price ?? a.cost ?? costA ?? 0);
-        valB = Number(b.total_price ?? b.cost ?? costB ?? 0);
+        valA = Number(getBookingCost(a) ?? 0);
+        valB = Number(getBookingCost(b) ?? 0);
       } else if (sortField === 'status') {
         valA = (a.status || '').toLowerCase();
         valB = (b.status || '').toLowerCase();
@@ -763,8 +721,6 @@ export default function StaffDashboard() {
                       ? activityMap.get(Number(booking.activity_id))
                       : undefined;
                     const customer = userMap.get(booking.user_id);
-                    const costVal =
-                      booking.total_price ?? booking.cost ?? activity?.cost ?? 0;
                     const bookingCode = `LB${String(booking.id).padStart(4, '0')}`;
                     const customerName = getCustomerDisplayName(booking, customer);
                     const activityTitle =
@@ -786,7 +742,7 @@ export default function StaffDashboard() {
                         <td className="staff-td staff-activity-title">{activityTitle}</td>
                         <td className="staff-td staff-time-val">{scheduleDate}</td>
                         <td className="staff-td staff-cost-val">
-                          <span>₱{Number(costVal).toLocaleString()}</span>
+                          <span>{formatBookingCost(booking)}</span>
                         </td>
                         <td className="staff-td staff-time-val">{submittedAt}</td>
                         <td className="staff-td" style={{ textAlign: 'center' }}>
@@ -876,14 +832,6 @@ export default function StaffDashboard() {
                                   <Info size={14} />
                                   <span>View Details</span>
                                 </button>
-                                <button
-                                  type="button"
-                                  className="staff-dropdown-item"
-                                  onClick={() => handleOpenCostModal(booking)}
-                                >
-                                  <DollarSign size={14} />
-                                  <span>Set / Edit Price</span>
-                                </button>
                               </div>
                             )}
                           </div>
@@ -916,8 +864,6 @@ export default function StaffDashboard() {
                       ? activityMap.get(Number(booking.activity_id))
                       : undefined;
                     const customer = userMap.get(booking.user_id);
-                    const costVal =
-                      booking.total_price ?? booking.cost ?? activity?.cost ?? 0;
                     const bookingCode = `LB${String(booking.id).padStart(4, '0')}`;
                     const customerName = getCustomerDisplayName(booking, customer);
                     const activityTitle =
@@ -943,7 +889,7 @@ export default function StaffDashboard() {
                         <td className="staff-td staff-activity-title">{activityTitle}</td>
                         <td className="staff-td staff-time-val">{scheduleDate}</td>
                         <td className="staff-td staff-cost-val">
-                          <span>₱{Number(costVal).toLocaleString()}</span>
+                          <span>{formatBookingCost(booking)}</span>
                         </td>
                         <td className="staff-td staff-time-val">{processedAt}</td>
                         <td className="staff-td" style={{ textAlign: 'center' }}>
@@ -983,14 +929,6 @@ export default function StaffDashboard() {
                                 >
                                   <Info size={14} />
                                   <span>View Details</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  className="staff-dropdown-item"
-                                  onClick={() => handleOpenCostModal(booking)}
-                                >
-                                  <DollarSign size={14} />
-                                  <span>Set / Edit Price</span>
                                 </button>
                                 <button
                                   type="button"
@@ -1110,14 +1048,7 @@ export default function StaffDashboard() {
             <div className="staff-detail-row">
               <span className="staff-detail-label">Total Cost</span>
               <span className="staff-detail-val staff-cost-val">
-                ₱
-                {Number(
-                  selectedBookingForModal.total_price ??
-                    (selectedBookingForModal.activity_id
-                      ? activityMap.get(Number(selectedBookingForModal.activity_id))?.cost
-                      : 0) ??
-                    0,
-                ).toLocaleString()}
+                {formatBookingCost(selectedBookingForModal)}
               </span>
             </div>
 
@@ -1167,134 +1098,6 @@ export default function StaffDashboard() {
                 Close
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Set Cost Modal for Staff */}
-      {costEditingBooking && (
-        <div className="staff-modal-backdrop">
-          <button
-            type="button"
-            className="staff-modal-backdrop-dismiss"
-            aria-label="Close set cost modal"
-            onClick={() => setCostEditingBooking(null)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="staff-cost-modal-title"
-            className="staff-modal-card"
-            style={{ maxWidth: '420px' }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '16px',
-              }}
-            >
-              <h2 id="staff-cost-modal-title" className="staff-modal-title">
-                Set Booking Cost
-              </h2>
-              <button
-                type="button"
-                onClick={() => setCostEditingBooking(null)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: '#7B6F68',
-                }}
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <p style={{ fontSize: '13px', color: '#666', marginBottom: '16px' }}>
-              Assign or adjust the official total cost for booking{' '}
-              <strong>LB{String(costEditingBooking.id).padStart(4, '0')}</strong> (
-              {costEditingBooking.activity_title || 'Custom Activity'}).
-            </p>
-
-            <form onSubmit={handleSaveBookingCost}>
-              <div style={{ marginBottom: '16px' }}>
-                <label
-                  htmlFor="bookingCostInput"
-                  style={{
-                    display: 'block',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    color: '#401C02',
-                    marginBottom: '6px',
-                  }}
-                >
-                  Total Price (PHP / ₱)
-                </label>
-                <input
-                  id="bookingCostInput"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  required
-                  value={bookingCostInput}
-                  onChange={(e) => setBookingCostInput(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    border: '1px solid #D9D9D9',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    outline: 'none',
-                  }}
-                  placeholder="e.g. 2500"
-                />
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: '8px',
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setCostEditingBooking(null)}
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: '6px',
-                    border: '1px solid #D9D9D9',
-                    background: '#FFFFFF',
-                    color: '#401C02',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingCost}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    background: '#E9724C',
-                    color: '#FFFFFF',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    cursor: isSavingCost ? 'not-allowed' : 'pointer',
-                    opacity: isSavingCost ? 0.7 : 1,
-                  }}
-                >
-                  {isSavingCost ? 'Saving...' : 'Save Cost'}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

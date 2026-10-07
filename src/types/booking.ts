@@ -15,8 +15,9 @@ export interface Booking {
   accommodation_id?: number | string;
   accommodation_name?: string;
   status: BookingStatus;
+  booking_cost?: number | string | null;
   total_price?: number | string;
-  cost?: number | string;
+  cost?: number | string | null;
   booking_date?: string;
   created_at?: string;
   updated_at?: string;
@@ -52,8 +53,6 @@ export interface BookingCreatePayload {
   destination_id?: number;
   accommodation_id?: number | string;
   booking_date?: string;
-  total_price?: number;
-  cost?: number;
   custom_title?: string;
   custom_type?: 'hotel' | 'activity' | string;
   custom_location?: string;

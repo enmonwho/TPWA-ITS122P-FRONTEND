@@ -4,6 +4,8 @@ export type TripStatus = 'planning' | 'confirmed' | 'ongoing' | 'completed' | 'c
 
 export interface Trip {
   id: number;
+  /** API-provided owner ID, retained for Admin read-only records. */
+  userId?: number;
   name: string;
   startDate: string;
   endDate: string;
