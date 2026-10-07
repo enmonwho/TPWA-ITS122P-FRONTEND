@@ -29,14 +29,8 @@ import { useAuth } from '../context/AuthContext';
 import { ROUTES, STORAGE_KEYS } from '../lib/constants';
 import type { Trip } from '../types/trip';
 import type { Destination } from '../types/destination';
-import {
-  accommodationsApi,
-  activitiesApi,
-  destinationsApi,
-  tripsApi,
-} from '../services/api';
+import { accommodationsApi, destinationsApi, tripsApi } from '../services/api';
 import type { Accommodation } from '../types/accommodation';
-import { buildActivityOptionsByCountry } from '../lib/countryActivities';
 import { mergeTripWithExtras, saveTripExtras } from '../lib/tripExtras';
 import { enqueueWorkspaceDestinationSync } from '../lib/workspaceDestinationSync';
 import { formatUserDateRange } from '../lib/formatters';
@@ -62,6 +56,7 @@ export interface WorkspaceDestination {
   name: string;
   countryId: CountryId;
   country?: string;
+  regionHint?: string;
   order: number;
   days?: number;
   nights?: number;
@@ -138,24 +133,6 @@ export default function TripWorkspace() {
   const [isExportItineraryOpen, setIsExportItineraryOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [activityOptionsByCountry, setActivityOptionsByCountry] = useState<
-    Record<string, string[]>
-  >({});
-
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([destinationsApi.getAll(), activitiesApi.getAll()]).then(
-      ([activityDestinations, activities]) => {
-        if (!cancelled)
-          setActivityOptionsByCountry(
-            buildActivityOptionsByCountry(activityDestinations, activities),
-          );
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id]);
 
   const [isMobileAddDestOpen, setIsMobileAddDestOpen] = useState(false);
   const [mobileAddDestCountryId, setMobileAddDestCountryId] = useState<CountryId>('');
@@ -235,6 +212,7 @@ export default function TripWorkspace() {
           id: destination.id,
           country: destination.country || getCountryName(destination.countryId),
           area: destination.name,
+          regionHint: destination.regionHint || '',
         })),
       ),
     [destinations],
@@ -245,9 +223,10 @@ export default function TripWorkspace() {
       id: string;
       country: string;
       area: string;
+      regionHint?: string;
     }>;
     const controller = new AbortController();
-    const requests = locations.map(({ id, country, area }) => {
+    const requests = locations.map(({ id, country, area, regionHint }) => {
       if (!country || !area) {
         return Promise.resolve([
           id,
@@ -255,7 +234,7 @@ export default function TripWorkspace() {
         ] as const);
       }
       return accommodationsApi
-        .getByLocation(country, area, controller.signal)
+        .getByLocation(country, area, controller.signal, regionHint)
         .then((items) => {
           return [id, { items, loading: false, error: false }] as const;
         })
@@ -590,6 +569,7 @@ export default function TripWorkspace() {
             name: destination.location_name,
             countryId: country?.id || '',
             country: country?.name || destination.country || '',
+            regionHint: destination.region || undefined,
             order: Number.isFinite(Number(destination.order_sequence))
               ? Number(destination.order_sequence)
               : index,
@@ -778,6 +758,7 @@ export default function TripWorkspace() {
       name,
       countryId: finalCountryId,
       country: finalCountry,
+      regionHint: selectedMobileMapboxPlace.region,
       order: destinations.length,
       days: initialDays,
       accommodation: '',
@@ -934,6 +915,7 @@ export default function TripWorkspace() {
       name,
       countryId: finalCountryId,
       country: finalCountry,
+      regionHint: selectedMapboxPlace.region,
       order: destinations.length,
       days: initialDays,
       accommodation: '',
@@ -2048,9 +2030,6 @@ export default function TripWorkspace() {
                                         country={
                                           dest.country || getCountryName(dest.countryId)
                                         }
-                                        fallbackOptions={
-                                          activityOptionsByCountry[dest.countryId] || []
-                                        }
                                         value={dest.activities}
                                         onChange={(value) =>
                                           handleUpdateDestination(
@@ -2377,7 +2356,6 @@ export default function TripWorkspace() {
                         key={String(dest.id) + ':' + dest.name + ':' + dest.countryId}
                         area={dest.name}
                         country={dest.country || getCountryName(dest.countryId)}
-                        fallbackOptions={activityOptionsByCountry[dest.countryId] || []}
                         value={dest.activities}
                         onChange={(value) =>
                           handleUpdateDestination(dest.id, 'activities', value)

@@ -270,6 +270,7 @@ export const destinationsApi = {
     longitude?: number;
     order_sequence?: number;
     country?: string;
+    region_hint?: string;
     parent_destination_id?: number | string | null;
     days?: number;
     accommodation_id?: number | null;
@@ -304,11 +305,12 @@ export const accommodationsApi = {
     country: string,
     area: string,
     signal?: AbortSignal,
+    regionHint?: string,
   ): Promise<Accommodation[]> => {
     const response = await api.get<
       { accommodations?: Accommodation[]; data?: Accommodation[] } | Accommodation[]
     >('/accommodations', {
-      params: { country, area },
+      params: { country, area, ...(regionHint ? { region_hint: regionHint } : {}) },
       signal,
     });
     if (Array.isArray(response.data)) return response.data;

@@ -7,6 +7,7 @@ export interface WorkspaceDestinationSyncItem {
   name: string;
   countryId: string;
   country?: string;
+  regionHint?: string;
   days?: number;
   accommodationId?: number | null;
   accommodation?: string | null;
@@ -51,6 +52,7 @@ async function syncSnapshot(
       longitude: destination.longitude,
       order_sequence: order + 1,
       country,
+      ...(destination.regionHint ? { region_hint: destination.regionHint } : {}),
       days: Number(destination.days) || 1,
       activities: destination.activities || '',
       transportation: destination.transportation || '',

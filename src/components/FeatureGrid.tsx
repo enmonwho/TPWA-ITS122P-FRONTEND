@@ -29,8 +29,15 @@ const FeatureGrid: React.FC = () => {
           className="feature-card"
           style={{ backgroundColor: 'var(--color-feature-gold)' }}
         >
-          <img src={budgetIcon} alt="Budget Tracker" className="feature-card-icon" />
-          <h3>Budget Tracker</h3>
+          <div className="feature-card-heading">
+            <img
+              src={budgetIcon}
+              alt=""
+              aria-hidden="true"
+              className="feature-card-icon"
+            />
+            <h3>Budget Tracker</h3>
+          </div>
           <p className="feature-card-desc">
             Track expenses, manage travel funds, and stay comfortably within your budget
             limits.
@@ -41,8 +48,15 @@ const FeatureGrid: React.FC = () => {
           className="feature-card"
           style={{ backgroundColor: 'var(--color-feature-orange)' }}
         >
-          <img src={builderIcon} alt="Itinerary Builder" className="feature-card-icon" />
-          <h3>Itinerary Builder</h3>
+          <div className="feature-card-heading">
+            <img
+              src={builderIcon}
+              alt=""
+              aria-hidden="true"
+              className="feature-card-icon"
+            />
+            <h3>Itinerary Builder</h3>
+          </div>
           <p className="feature-card-desc">
             Organize daily routes, schedules, and must-visit spots seamlessly in one
             place.
@@ -53,8 +67,15 @@ const FeatureGrid: React.FC = () => {
           className="feature-card"
           style={{ backgroundColor: 'var(--color-feature-red)' }}
         >
-          <img src={journalIcon} alt="Trip Journal" className="feature-card-icon" />
-          <h3>Trip Journal</h3>
+          <div className="feature-card-heading">
+            <img
+              src={journalIcon}
+              alt=""
+              aria-hidden="true"
+              className="feature-card-icon"
+            />
+            <h3>Trip Journal</h3>
+          </div>
           <p className="feature-card-desc">
             Document your travel memories, milestones, and personal experiences along the
             way.
@@ -65,8 +86,10 @@ const FeatureGrid: React.FC = () => {
           className="feature-card"
           style={{ backgroundColor: 'var(--color-feature-blue)' }}
         >
-          <img src={mapIcon} alt="Interactive Travel Map" className="feature-card-icon" />
-          <h3>Interactive Travel Map</h3>
+          <div className="feature-card-heading">
+            <img src={mapIcon} alt="" aria-hidden="true" className="feature-card-icon" />
+            <h3>Interactive Travel Map</h3>
+          </div>
           <p className="feature-card-desc">
             Visualize destinations, pinned places, and custom travel routes across the
             globe.

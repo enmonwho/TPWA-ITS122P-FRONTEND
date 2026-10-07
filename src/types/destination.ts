@@ -7,6 +7,8 @@ export interface Destination {
   order_sequence?: number;
   country?: string;
   country_code?: string | null;
+  region?: string | null;
+  region_hint?: string | null;
   parent_destination_id?: number | string | null;
   days?: number;
   accommodation_id?: number | null;

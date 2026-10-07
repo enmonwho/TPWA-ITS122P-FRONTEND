@@ -23,6 +23,7 @@ import {
 import { mergeTripsWithExtras } from '../lib/tripExtras';
 import { reconcileTripBookings, saveBookingExtra } from '../lib/bookingExtras';
 import { formatUserDate, formatUserDateRange } from '../lib/formatters';
+import { isBookingDateWithinTripRange } from '../lib/bookingDateRange';
 import type { Trip } from '../types/trip';
 import type { Destination } from '../types/destination';
 import type { Accommodation } from '../types/accommodation';
@@ -307,6 +308,16 @@ export default function Bookings() {
     return filteredTrips.find((t) => t.id === selectedTripId) || filteredTrips[0] || null;
   }, [filteredTrips, selectedTripId]);
 
+  const handleTripSelection = (tripId: number) => {
+    const nextTrip = trips.find((trip) => trip.id === tripId);
+    setBookingDate((currentDate) =>
+      isBookingDateWithinTripRange(currentDate, nextTrip?.startDate, nextTrip?.endDate)
+        ? currentDate
+        : '',
+    );
+    setSelectedTripId(tripId);
+  };
+
   const plannedAccommodations = useMemo(
     () =>
       tripDestinations.filter(
@@ -323,6 +334,7 @@ export default function Bookings() {
           id: String(destination.id),
           country: destination.country || selectedTrip?.countries?.[0] || '',
           area: destination.location_name,
+          regionHint: destination.region || '',
           plannedName: destination.accommodation || '',
           accommodationId: destination.accommodation_id ?? null,
         })),
@@ -337,6 +349,7 @@ export default function Bookings() {
       area: string;
       plannedName: string;
       accommodationId: number | null;
+      regionHint?: string;
     }>;
     const controller = new AbortController();
     void Promise.all(
@@ -346,6 +359,7 @@ export default function Bookings() {
             row.country,
             row.area,
             controller.signal,
+            row.regionHint,
           );
           return [
             row.id,
@@ -553,7 +567,17 @@ export default function Bookings() {
 
   const handleOpenAccommodationModal = async () => {
     if (!selectedTrip) return;
-    setBookingDate(selectedTrip.startDate || new Date().toISOString().split('T')[0]);
+    const defaultBookingDate =
+      selectedTrip.startDate || new Date().toISOString().split('T')[0];
+    setBookingDate(
+      isBookingDateWithinTripRange(
+        defaultBookingDate,
+        selectedTrip.startDate,
+        selectedTrip.endDate,
+      )
+        ? defaultBookingDate
+        : '',
+    );
     setSelectedPlannedDestinationId('');
     setCustomNotes('');
     setBookingSuccessMsg(null);
@@ -591,6 +615,18 @@ export default function Bookings() {
       return;
     if (!selectedPlannedDestination || !selectedAccommodation) {
       setBookingErrorMsg('Select an available planned accommodation before submitting.');
+      return;
+    }
+    if (
+      bookingDate &&
+      !isBookingDateWithinTripRange(
+        bookingDate,
+        selectedTrip.startDate,
+        selectedTrip.endDate,
+      )
+    ) {
+      setBookingDate('');
+      setBookingErrorMsg('Booking date must be within the selected trip dates.');
       return;
     }
 
@@ -774,7 +810,7 @@ export default function Bookings() {
                       <button
                         key={t.id}
                         type="button"
-                        onClick={() => setSelectedTripId(t.id)}
+                        onClick={() => handleTripSelection(t.id)}
                         className={`bookings-trip-item ${isSelected ? 'active' : ''}`}
                       >
                         <div className="bookings-trip-item-info">
@@ -1064,14 +1100,14 @@ export default function Bookings() {
                     key={trip.id}
                     className={`bookings-mobile-trip-card ${isSelected ? 'selected' : ''}`}
                     onClick={() => {
-                      setSelectedTripId(trip.id);
+                      handleTripSelection(trip.id);
                       navigate(`/trip/${trip.id}`);
                     }}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
-                        setSelectedTripId(trip.id);
+                        handleTripSelection(trip.id);
                         navigate(`/trip/${trip.id}`);
                       }
                     }}
@@ -1282,7 +1318,20 @@ export default function Bookings() {
                   type="date"
                   className="booking-modal-input"
                   value={bookingDate}
-                  onChange={(event) => setBookingDate(event.target.value)}
+                  min={selectedTrip.startDate || undefined}
+                  max={selectedTrip.endDate || undefined}
+                  onChange={(event) => {
+                    const nextDate = event.target.value;
+                    setBookingDate(
+                      isBookingDateWithinTripRange(
+                        nextDate,
+                        selectedTrip.startDate,
+                        selectedTrip.endDate,
+                      )
+                        ? nextDate
+                        : '',
+                    );
+                  }}
                 />
               </div>
 

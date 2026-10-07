@@ -43,7 +43,6 @@ function matchesFilter(suggestion: Suggestion, filter: Filter): boolean {
 interface Props {
   area: string;
   country?: string;
-  fallbackOptions?: string[];
   value?: string;
   onChange: (value: string) => void;
 }
@@ -61,7 +60,6 @@ function toSuggestion(activity: ActivityCatalogItem): Suggestion {
 export default function DestinationActivitySuggestions({
   area,
   country,
-  fallbackOptions = [],
   value,
   onChange,
 }: Props) {
@@ -289,23 +287,8 @@ export default function DestinationActivitySuggestions({
           {unavailable
             ? 'LakBye activities could not be loaded.'
             : 'No named LakBye activities have been added for this area yet.'}{' '}
-          You can add an activity manually or choose an existing category fallback.
+          You can add an activity manually.
         </p>
-        {fallbackOptions.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {fallbackOptions.map((option) => (
-              <button
-                key={option}
-                type="button"
-                disabled={selected.includes(option)}
-                onClick={() => addActivity(option)}
-                className="rounded-full border border-stone-200 px-3 py-1 text-xs text-stone-700 disabled:opacity-50"
-              >
-                {option}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
     );
   }

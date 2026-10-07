@@ -1,20 +1,4 @@
 import { getCoordinatesForName } from '../constants/coordinates';
-import { getCountryId } from './countries';
-
-export const ACTIVITIES_OPTIONS = [
-  'Sightseeing & Iconic Landmarks',
-  'Cultural & Historical Walking Tour',
-  'Museums, Art & Architecture',
-  'Food Tour & Local Street Food',
-  'Beach, Island Hopping & Water Sports',
-  'Mountain Hiking & Nature Trekking',
-  'Adventure & Theme Parks',
-  'Shopping & Night Markets',
-  'Nightlife & City Entertainment',
-  'Spa, Wellness & Thermal Springs',
-  'Wildlife Safari & Marine Encounter',
-  'Photography & Sunset Cruise',
-];
 
 export const TRANSPORTATION_OPTIONS = [
   'Flight (International / Domestic)',
@@ -45,330 +29,259 @@ export interface AutoFillRecommendation {
  */
 const CITY_RECOMMENDATIONS: Record<
   string,
-  Omit<AutoFillRecommendation, 'name' | 'latitude' | 'longitude'>
+  Omit<AutoFillRecommendation, 'name' | 'latitude' | 'longitude' | 'activities'>
 > = {
   tokyo: {
     country: 'Japan',
     nights: 4,
-    activities: 'Sightseeing & Iconic Landmarks',
     transportation: 'High-Speed Bullet Train / Shinkansen',
   },
   kyoto: {
     country: 'Japan',
     nights: 3,
-    activities: 'Cultural & Historical Walking Tour',
     transportation: 'Express Train / Intercity Rail',
   },
   osaka: {
     country: 'Japan',
     nights: 3,
-    activities: 'Food Tour & Local Street Food',
     transportation: 'Subway & Metro Transit',
   },
   paris: {
     country: 'France',
     nights: 4,
-    activities: 'Museums, Art & Architecture',
     transportation: 'Subway & Metro Transit',
   },
   nice: {
     country: 'France',
     nights: 3,
-    activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Express Train / Intercity Rail',
   },
   rome: {
     country: 'Italy',
     nights: 3,
-    activities: 'Cultural & Historical Walking Tour',
     transportation: 'Subway & Metro Transit',
   },
   florence: {
     country: 'Italy',
     nights: 3,
-    activities: 'Museums, Art & Architecture',
     transportation: 'Express Train / Intercity Rail',
   },
   venice: {
     country: 'Italy',
     nights: 2,
-    activities: 'Photography & Sunset Cruise',
     transportation: 'Ferry / Passenger Boat',
   },
   london: {
     country: 'United Kingdom',
     nights: 4,
-    activities: 'Sightseeing & Iconic Landmarks',
     transportation: 'Subway & Metro Transit',
   },
   edinburgh: {
     country: 'United Kingdom',
     nights: 3,
-    activities: 'Cultural & Historical Walking Tour',
     transportation: 'Express Train / Intercity Rail',
   },
   'new york': {
     country: 'United States',
     nights: 4,
-    activities: 'Sightseeing & Iconic Landmarks',
     transportation: 'Subway & Metro Transit',
   },
   'san francisco': {
     country: 'United States',
     nights: 3,
-    activities: 'Sightseeing & Iconic Landmarks',
     transportation: 'Subway & Metro Transit',
   },
   'los angeles': {
     country: 'United States',
     nights: 4,
-    activities: 'Adventure & Theme Parks',
     transportation: 'Rental Car / Road Trip',
   },
   manila: {
     country: 'Philippines',
     nights: 2,
-    activities: 'Food Tour & Local Street Food',
     transportation: 'Private Transfer / Taxi / Grab',
   },
   cebu: {
     country: 'Philippines',
     nights: 3,
-    activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Ferry / Passenger Boat',
   },
   boracay: {
     country: 'Philippines',
     nights: 4,
-    activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Ferry / Passenger Boat',
   },
   palawan: {
     country: 'Philippines',
     nights: 4,
-    activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Ferry / Passenger Boat',
   },
   'el nido': {
     country: 'Philippines',
     nights: 4,
-    activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Ferry / Passenger Boat',
   },
   coron: {
     country: 'Philippines',
     nights: 3,
-    activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Ferry / Passenger Boat',
   },
   siargao: {
     country: 'Philippines',
     nights: 4,
-    activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Bicycle / Scooter Rental',
   },
   baguio: {
     country: 'Philippines',
     nights: 2,
-    activities: 'Mountain Hiking & Nature Trekking',
     transportation: 'Scenic Coach / Bus',
   },
   bohol: {
     country: 'Philippines',
     nights: 3,
-    activities: 'Wildlife Safari & Marine Encounter',
     transportation: 'Rental Car / Road Trip',
   },
   tarlac: {
     country: 'Philippines',
     nights: 2,
-    activities: 'Cultural & Historical Walking Tour',
     transportation: 'Scenic Coach / Bus',
   },
   'la union': {
     country: 'Philippines',
     nights: 3,
-    activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Scenic Coach / Bus',
   },
   'san juan': {
     country: 'Philippines',
     nights: 3,
-    activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Scenic Coach / Bus',
   },
   tagaytay: {
     country: 'Philippines',
     nights: 2,
-    activities: 'Sightseeing & Iconic Landmarks',
     transportation: 'Rental Car / Road Trip',
   },
   batanes: {
     country: 'Philippines',
     nights: 4,
-    activities: 'Photography & Sunset Cruise',
     transportation: 'Bicycle / Scooter Rental',
   },
   davao: {
     country: 'Philippines',
     nights: 3,
-    activities: 'Wildlife Safari & Marine Encounter',
     transportation: 'Private Transfer / Taxi / Grab',
   },
   iloilo: {
     country: 'Philippines',
     nights: 3,
-    activities: 'Food Tour & Local Street Food',
     transportation: 'Private Transfer / Taxi / Grab',
   },
   bacolod: {
     country: 'Philippines',
     nights: 2,
-    activities: 'Food Tour & Local Street Food',
     transportation: 'Private Transfer / Taxi / Grab',
   },
   vigan: {
     country: 'Philippines',
     nights: 2,
-    activities: 'Cultural & Historical Walking Tour',
     transportation: 'Scenic Coach / Bus',
   },
   sagada: {
     country: 'Philippines',
     nights: 3,
-    activities: 'Mountain Hiking & Nature Trekking',
     transportation: 'Scenic Coach / Bus',
   },
   bali: {
     country: 'Indonesia',
     nights: 4,
-    activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Private Transfer / Taxi / Grab',
   },
   bangkok: {
     country: 'Thailand',
     nights: 3,
-    activities: 'Food Tour & Local Street Food',
     transportation: 'Subway & Metro Transit',
   },
   phuket: {
     country: 'Thailand',
     nights: 4,
-    activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Private Transfer / Taxi / Grab',
   },
   'chiang mai': {
     country: 'Thailand',
     nights: 3,
-    activities: 'Cultural & Historical Walking Tour',
     transportation: 'Bicycle / Scooter Rental',
   },
   singapore: {
     country: 'Singapore',
     nights: 3,
-    activities: 'Sightseeing & Iconic Landmarks',
     transportation: 'Subway & Metro Transit',
   },
   seoul: {
     country: 'South Korea',
     nights: 4,
-    activities: 'Shopping & Night Markets',
     transportation: 'Subway & Metro Transit',
   },
   busan: {
     country: 'South Korea',
     nights: 3,
-    activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'High-Speed Bullet Train / Shinkansen',
   },
   sydney: {
     country: 'Australia',
     nights: 4,
-    activities: 'Sightseeing & Iconic Landmarks',
     transportation: 'Subway & Metro Transit',
   },
   melbourne: {
     country: 'Australia',
     nights: 3,
-    activities: 'Food Tour & Local Street Food',
     transportation: 'Subway & Metro Transit',
   },
   barcelona: {
     country: 'Spain',
     nights: 4,
-    activities: 'Museums, Art & Architecture',
     transportation: 'Subway & Metro Transit',
   },
   madrid: {
     country: 'Spain',
     nights: 3,
-    activities: 'Museums, Art & Architecture',
     transportation: 'High-Speed Bullet Train / Shinkansen',
   },
   amsterdam: {
     country: 'Netherlands',
     nights: 3,
-    activities: 'Museums, Art & Architecture',
     transportation: 'Bicycle / Scooter Rental',
   },
   berlin: {
     country: 'Germany',
     nights: 3,
-    activities: 'Cultural & Historical Walking Tour',
     transportation: 'Subway & Metro Transit',
   },
   zurich: {
     country: 'Switzerland',
     nights: 3,
-    activities: 'Sightseeing & Iconic Landmarks',
     transportation: 'Scenic Coach / Bus',
   },
   interlaken: {
     country: 'Switzerland',
     nights: 3,
-    activities: 'Mountain Hiking & Nature Trekking',
     transportation: 'Scenic Coach / Bus',
   },
   dubai: {
     country: 'United Arab Emirates',
     nights: 3,
-    activities: 'Sightseeing & Iconic Landmarks',
     transportation: 'Private Transfer / Taxi / Grab',
   },
   cairo: {
     country: 'Egypt',
     nights: 3,
-    activities: 'Cultural & Historical Walking Tour',
     transportation: 'Private Transfer / Taxi / Grab',
   },
   reykjavik: {
     country: 'Iceland',
     nights: 4,
-    activities: 'Mountain Hiking & Nature Trekking',
     transportation: 'Rental Car / Road Trip',
   },
 };
-
-/** Country-scoped activity categories already present in the curated city data. */
-export function getCuratedActivityOptionsByCountry(): Record<string, string[]> {
-  const options = new Map<string, Set<string>>();
-  Object.values(CITY_RECOMMENDATIONS).forEach((recommendation) => {
-    const countryId = recommendation.country
-      ? getCountryId(recommendation.country)
-      : null;
-    if (!countryId || !recommendation.activities) return;
-    const countryOptions = options.get(countryId) || new Set<string>();
-    countryOptions.add(recommendation.activities);
-    options.set(countryId, countryOptions);
-  });
-
-  return Object.fromEntries(
-    Array.from(options, ([countryId, countryOptions]) => [
-      countryId,
-      Array.from(countryOptions).sort((left, right) => left.localeCompare(right)),
-    ]),
-  );
-}
 
 /**
  * Top curated highlight stops per country for full itinerary generation.
@@ -616,7 +529,7 @@ export function getAutoFillRecommendations(
         country: rec.country || countryHint,
         nights: rec.nights,
         accommodation: '',
-        activities: rec.activities,
+        activities: '',
         transportation: rec.transportation,
         latitude: coords ? coords[1] : undefined,
         longitude: coords ? coords[0] : undefined,
@@ -638,7 +551,7 @@ export function getAutoFillRecommendations(
       country: countryHint,
       nights: 3,
       accommodation: '',
-      activities: 'Beach, Island Hopping & Water Sports',
+      activities: '',
       transportation: 'Ferry / Passenger Boat',
       latitude: coords ? coords[1] : undefined,
       longitude: coords ? coords[0] : undefined,
@@ -658,7 +571,7 @@ export function getAutoFillRecommendations(
       country: countryHint,
       nights: 3,
       accommodation: '',
-      activities: 'Mountain Hiking & Nature Trekking',
+      activities: '',
       transportation: 'Rental Car / Road Trip',
       latitude: coords ? coords[1] : undefined,
       longitude: coords ? coords[0] : undefined,
@@ -671,7 +584,7 @@ export function getAutoFillRecommendations(
     country: countryHint,
     nights: 3,
     accommodation: '',
-    activities: 'Sightseeing & Iconic Landmarks',
+    activities: '',
     transportation: 'Express Train / Intercity Rail',
     latitude: coords ? coords[1] : undefined,
     longitude: coords ? coords[0] : undefined,
