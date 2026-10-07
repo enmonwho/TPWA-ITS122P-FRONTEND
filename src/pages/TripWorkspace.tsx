@@ -15,28 +15,36 @@ import {
   BusFront,
   Globe,
   Trash2,
+  Download,
 } from 'lucide-react';
 import routeIcon from '../assets/route.png';
 import dayByDayIcon from '../assets/day-by-day.png';
 import magnifierIcon from '../assets/magnifier.png';
 import { CountryAutocomplete, GlobeMap } from '../components';
+import ExportItineraryModal from '../components/ExportItineraryModal';
+import DestinationActivitySuggestions from '../components/DestinationActivitySuggestions';
 import AnchoredPopover from '../components/AnchoredPopover';
 import { getCoordinatesForName } from '../constants/coordinates';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES, STORAGE_KEYS } from '../lib/constants';
 import type { Trip } from '../types/trip';
 import type { Destination } from '../types/destination';
-import { destinationsApi, tripsApi } from '../services/api';
+import {
+  accommodationsApi,
+  activitiesApi,
+  destinationsApi,
+  tripsApi,
+} from '../services/api';
+import type { Accommodation } from '../types/accommodation';
+import { buildActivityOptionsByCountry } from '../lib/countryActivities';
 import { mergeTripWithExtras, saveTripExtras } from '../lib/tripExtras';
 import { enqueueWorkspaceDestinationSync } from '../lib/workspaceDestinationSync';
 import { formatUserDateRange } from '../lib/formatters';
+import { TRANSPORTATION_OPTIONS } from '../lib/tripAutoFill';
 import {
-  searchDestinations,
-  type DestinationPlace,
-  ACCOMMODATION_OPTIONS,
-  ACTIVITIES_OPTIONS,
-  TRANSPORTATION_OPTIONS,
-} from '../lib/tripAutoFill';
+  searchMapboxDestinations,
+  type MapboxDestinationResult,
+} from '../lib/mapboxGeocoding';
 import axios from 'axios';
 import {
   getCountryId,
@@ -57,7 +65,8 @@ export interface WorkspaceDestination {
   order: number;
   days?: number;
   nights?: number;
-  accommodation?: string;
+  accommodationId?: number | null;
+  accommodation?: string | null;
   activities?: string;
   transportation?: string;
   latitude?: number;
@@ -88,6 +97,26 @@ function getWorkspaceCoordinates(
   return null;
 }
 
+const countryRouteSyncQueues = new Map<string, Promise<unknown>>();
+
+function enqueueCountryRouteSync(
+  tripId: string | number,
+  countryRoute: CountryRouteEntry[],
+) {
+  const key = String(tripId);
+  const previous = countryRouteSyncQueues.get(key) || Promise.resolve();
+  const update = previous
+    .catch(() => undefined)
+    .then(() => tripsApi.updateTrip(tripId, { country_route: countryRoute }));
+  countryRouteSyncQueues.set(
+    key,
+    update.catch((error) => {
+      console.warn('Could not sync Trip Workspace countries to the server:', error);
+    }),
+  );
+  return update;
+}
+
 export default function TripWorkspace() {
   const { tripId } = useParams<{ tripId: string }>();
   const navigate = useNavigate();
@@ -106,12 +135,38 @@ export default function TripWorkspace() {
   };
 
   const [trip, setTrip] = useState<Trip | null>(null);
+  const [isExportItineraryOpen, setIsExportItineraryOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [activityOptionsByCountry, setActivityOptionsByCountry] = useState<
+    Record<string, string[]>
+  >({});
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([destinationsApi.getAll(), activitiesApi.getAll()]).then(
+      ([activityDestinations, activities]) => {
+        if (!cancelled)
+          setActivityOptionsByCountry(
+            buildActivityOptionsByCountry(activityDestinations, activities),
+          );
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   const [isMobileAddDestOpen, setIsMobileAddDestOpen] = useState(false);
   const [mobileAddDestCountryId, setMobileAddDestCountryId] = useState<CountryId>('');
   const [mobileDestName, setMobileDestName] = useState('');
+  const [mobileMapboxSuggestions, setMobileMapboxSuggestions] = useState<
+    MapboxDestinationResult[]
+  >([]);
+  const [mobileMapboxLoading, setMobileMapboxLoading] = useState(false);
+  const [mobileMapboxError, setMobileMapboxError] = useState('');
+  const [selectedMobileMapboxPlace, setSelectedMobileMapboxPlace] =
+    useState<MapboxDestinationResult | null>(null);
 
   const getDayDateString = (dayNum: number) => {
     if (!trip?.startDate) return '';
@@ -123,6 +178,9 @@ export default function TripWorkspace() {
   const handleOpenAddDestForCountry = (countryId: CountryId) => {
     setMobileAddDestCountryId(countryId);
     setMobileDestName('');
+    setSelectedMobileMapboxPlace(null);
+    setMobileMapboxSuggestions([]);
+    setMobileMapboxError('');
     setIsMobileAddDestOpen(true);
   };
 
@@ -137,11 +195,25 @@ export default function TripWorkspace() {
   const [newCountrySelection, setNewCountrySelection] = useState<CountryId[]>([]);
   const [newDestInput, setNewDestInput] = useState('');
   const [selectedCountryForNew, setSelectedCountryForNew] = useState<CountryId>('');
+  const [mapboxSuggestions, setMapboxSuggestions] = useState<MapboxDestinationResult[]>(
+    [],
+  );
+  const [mapboxSearchLoading, setMapboxSearchLoading] = useState(false);
+  const [mapboxSearchError, setMapboxSearchError] = useState('');
+  const [selectedMapboxPlace, setSelectedMapboxPlace] =
+    useState<MapboxDestinationResult | null>(null);
   const [activeDestinationId, setActiveDestinationId] = useState<string | null>(null);
   const [collapsedCountries, setCollapsedCountries] = useState<Record<string, boolean>>(
     {},
   );
   const [customInputActive, setCustomInputActive] = useState<Record<string, boolean>>({});
+  const [accommodationInventory, setAccommodationInventory] = useState<
+    Record<string, { items: Accommodation[]; loading: boolean; error: boolean }>
+  >({});
+  const [accommodationSaveErrors, setAccommodationSaveErrors] = useState<
+    Record<string, string>
+  >({});
+  const [accommodationRetryKey, setAccommodationRetryKey] = useState(0);
   const [userCustomOptions, setUserCustomOptions] = useState<Record<string, string[]>>({
     accommodation: [],
     activities: [],
@@ -155,9 +227,64 @@ export default function TripWorkspace() {
   const countryRemovalDialogRef = useRef<HTMLDivElement>(null);
   const countryRemovalCancelRef = useRef<HTMLButtonElement>(null);
   const countryRemoveTriggerRef = useRef<HTMLElement | null>(null);
+
+  const accommodationLocationsKey = useMemo(
+    () =>
+      JSON.stringify(
+        destinations.map((destination) => ({
+          id: destination.id,
+          country: destination.country || getCountryName(destination.countryId),
+          area: destination.name,
+        })),
+      ),
+    [destinations],
+  );
+
+  useEffect(() => {
+    const locations = JSON.parse(accommodationLocationsKey) as Array<{
+      id: string;
+      country: string;
+      area: string;
+    }>;
+    const controller = new AbortController();
+    const requests = locations.map(({ id, country, area }) => {
+      if (!country || !area) {
+        return Promise.resolve([
+          id,
+          { items: [], loading: false, error: false },
+        ] as const);
+      }
+      return accommodationsApi
+        .getByLocation(country, area, controller.signal)
+        .then((items) => {
+          return [id, { items, loading: false, error: false }] as const;
+        })
+        .catch(() => {
+          return [id, { items: [], loading: false, error: true }] as const;
+        });
+    });
+    void Promise.all(requests).then((entries) => {
+      if (!controller.signal.aborted) {
+        setAccommodationInventory(Object.fromEntries(entries));
+      }
+    });
+
+    return () => controller.abort();
+  }, [accommodationLocationsKey, accommodationRetryKey]);
+
+  const persistCountryRoute = useCallback(
+    (route: CountryRouteEntry[]) => {
+      if (!tripId) return Promise.resolve();
+      const normalizedRoute = mergeCountryRoute(route, []);
+      saveTripExtras(tripId, { countryRoute: normalizedRoute });
+      return enqueueCountryRouteSync(tripId, normalizedRoute);
+    },
+    [tripId],
+  );
+
   const persistDestinations = useCallback(
     (updated: WorkspaceDestination[], routeOverride: CountryRouteEntry[]) => {
-      if (!tripId) return;
+      if (!tripId) return Promise.resolve();
       const normalizedRoute = mergeCountryRoute(
         routeOverride,
         updated.map((destination) => destination.countryId || destination.country || ''),
@@ -166,14 +293,20 @@ export default function TripWorkspace() {
         (destination, order) => ({ ...destination, order }),
       );
       localStorage.setItem(`lakbye_workspace_dests_${tripId}`, JSON.stringify(ordered));
-      saveTripExtras(tripId, { countryRoute: normalizedRoute });
+      void persistCountryRoute(normalizedRoute);
       localStorage.setItem(STORAGE_KEYS.WORKSPACE_DESTINATIONS_MIGRATED(tripId), 'false');
 
       // Keep the legacy local mirror used by Budget and export while syncing the
       // canonical destination records consumed by Bookings and Map.
-      enqueueWorkspaceDestinationSync(tripId, ordered);
+      const syncPromise = enqueueWorkspaceDestinationSync(tripId, ordered);
+      // Keep older fire-and-forget workspace edits from producing unhandled
+      // rejections; callers that need persistence confirmation can await it.
+      void syncPromise.catch((error) => {
+        console.warn('Could not sync Trip Workspace destinations to the server:', error);
+      });
+      return syncPromise;
     },
-    [tripId],
+    [tripId, persistCountryRoute],
   );
 
   useEffect(() => {
@@ -227,38 +360,104 @@ export default function TripWorkspace() {
     }
   }, [activeTab]);
 
-  const { inRouteSuggestions, otherRouteSuggestions, outOfRouteSuggestions } =
-    useMemo(() => {
-      if (!newDestInput.trim() || newDestInput.trim().length < 1) {
-        return {
-          inRouteSuggestions: [],
-          otherRouteSuggestions: [],
-          outOfRouteSuggestions: [],
-        };
-      }
-      const all = searchDestinations(newDestInput.trim(), 12);
-      const routeCountryIds = new Set(countryRoute.map((country) => country.countryId));
-      const selectedCountryId =
-        getCountryId(selectedCountryForNew) || countryRoute[0]?.countryId || '';
-      const inCountry: DestinationPlace[] = [];
-      const inOtherRouteCountries: DestinationPlace[] = [];
-      const outOfRoute: DestinationPlace[] = [];
-      all.forEach((p) => {
-        const pCountryId = getCountryId(p.country);
-        if (pCountryId === selectedCountryId) {
-          inCountry.push(p);
-        } else if (pCountryId && routeCountryIds.has(pCountryId)) {
-          inOtherRouteCountries.push(p);
-        } else {
-          outOfRoute.push(p);
-        }
-      });
-      return {
-        inRouteSuggestions: inCountry.slice(0, 8),
-        otherRouteSuggestions: inOtherRouteCountries,
-        outOfRouteSuggestions: outOfRoute,
-      };
-    }, [newDestInput, countryRoute, selectedCountryForNew]);
+  useEffect(() => {
+    const query = newDestInput.trim();
+    const countryId =
+      getCountryId(selectedCountryForNew) || countryRoute[0]?.countryId || '';
+    const countryName = getCountryName(countryId);
+    const token = import.meta.env.VITE_MAPBOX_TOKEN || '';
+
+    if (
+      query.length < 2 ||
+      !countryName ||
+      (selectedMapboxPlace?.name === query &&
+        getCountryId(selectedMapboxPlace.country) === countryId)
+    ) {
+      setMapboxSuggestions([]);
+      setMapboxSearchLoading(false);
+      setMapboxSearchError('');
+      return;
+    }
+
+    if (!token) {
+      setMapboxSearchError('Unable to search destinations right now.');
+      return;
+    }
+
+    const controller = new AbortController();
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setMapboxSearchLoading(true);
+      setMapboxSearchError('');
+      void searchMapboxDestinations(query, countryName, token, controller.signal)
+        .then((results) => {
+          if (!active) return;
+          setMapboxSuggestions(results);
+          setShowSuggestions(true);
+        })
+        .catch((error: unknown) => {
+          if (!active || (error instanceof DOMException && error.name === 'AbortError')) {
+            return;
+          }
+          setMapboxSuggestions([]);
+          setMapboxSearchError('Unable to search destinations right now.');
+        })
+        .finally(() => {
+          if (active) setMapboxSearchLoading(false);
+        });
+    }, 300);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [newDestInput, selectedCountryForNew, countryRoute, selectedMapboxPlace]);
+
+  useEffect(() => {
+    const query = mobileDestName.trim();
+    const countryName = getCountryName(mobileAddDestCountryId);
+    const token = import.meta.env.VITE_MAPBOX_TOKEN || '';
+
+    if (query.length < 2 || !countryName || selectedMobileMapboxPlace?.name === query) {
+      setMobileMapboxSuggestions([]);
+      setMobileMapboxLoading(false);
+      setMobileMapboxError('');
+      return;
+    }
+
+    if (!token) {
+      setMobileMapboxError('Unable to search destinations right now.');
+      return;
+    }
+
+    const controller = new AbortController();
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setMobileMapboxLoading(true);
+      setMobileMapboxError('');
+      void searchMapboxDestinations(query, countryName, token, controller.signal)
+        .then((results) => {
+          if (active) setMobileMapboxSuggestions(results);
+        })
+        .catch((error: unknown) => {
+          if (!active || (error instanceof DOMException && error.name === 'AbortError')) {
+            return;
+          }
+          setMobileMapboxSuggestions([]);
+          setMobileMapboxError('Unable to search destinations right now.');
+        })
+        .finally(() => {
+          if (active) setMobileMapboxLoading(false);
+        });
+    }, 300);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [mobileDestName, mobileAddDestCountryId, selectedMobileMapboxPlace]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -396,6 +595,12 @@ export default function TripWorkspace() {
               : index,
             days: Number(destination.days) || 1,
             accommodation: destination.accommodation || '',
+            accommodationId:
+              destination.accommodation_id === undefined
+                ? undefined
+                : destination.accommodation_id == null
+                  ? null
+                  : Number(destination.accommodation_id),
             activities: destination.activities || '',
             transportation: destination.transportation || '',
             latitude:
@@ -449,6 +654,18 @@ export default function TripWorkspace() {
             id: String(matched.id),
             countryId: localDestination.countryId || serverDestination.countryId,
             country: localDestination.country || serverDestination.country,
+            accommodationId:
+              localDestination.accommodationId !== undefined
+                ? localDestination.accommodationId
+                : serverDestination.accommodationId,
+            accommodation:
+              localDestination.accommodationId !== undefined
+                ? localDestination.accommodation || ''
+                : serverDestination.accommodationId != null
+                  ? serverDestination.accommodation || ''
+                  : localDestination.accommodation ||
+                    serverDestination.accommodation ||
+                    '',
             latitude: localDestination.latitude ?? serverDestination.latitude,
             longitude: localDestination.longitude ?? serverDestination.longitude,
           };
@@ -473,7 +690,7 @@ export default function TripWorkspace() {
 
         setCountryRoute(normalizedRoute);
         setDestinations(orderedDestinations);
-        saveTripExtras(tripId, { countryRoute: normalizedRoute });
+        void persistCountryRoute(normalizedRoute);
         localStorage.setItem(
           STORAGE_KEYS.WORKSPACE_DESTINATION_IDS(tripId),
           JSON.stringify(destinationIdMap),
@@ -538,18 +755,21 @@ export default function TripWorkspace() {
 
   const handleMobileAddDestination = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!mobileDestName.trim()) return;
+    if (!selectedMobileMapboxPlace) return;
 
-    const name = mobileDestName.trim();
+    const name = selectedMobileMapboxPlace.name;
     const finalCountryId = mobileAddDestCountryId;
     const finalCountry = getCountryName(finalCountryId);
-    if (!finalCountryId || !finalCountry) {
+    if (
+      !finalCountryId ||
+      !finalCountry ||
+      getCountryId(selectedMobileMapboxPlace.country) !== finalCountryId
+    ) {
       setIsMobileAddDestOpen(false);
       setIsAddCountryModalOpen(true);
       return;
     }
 
-    const coords = getWorkspaceCoordinates(name, finalCountry);
     const remainingDays = Math.max(1, tripDurationDays - totalAllocatedDays);
     const initialDays = Math.min(1, remainingDays);
 
@@ -561,10 +781,11 @@ export default function TripWorkspace() {
       order: destinations.length,
       days: initialDays,
       accommodation: '',
+      accommodationId: null,
       activities: '',
       transportation: '',
-      latitude: coords ? coords[1] : undefined,
-      longitude: coords ? coords[0] : undefined,
+      latitude: selectedMobileMapboxPlace.latitude,
+      longitude: selectedMobileMapboxPlace.longitude,
     };
 
     const updatedRoute = mergeCountryRoute(countryRoute, [finalCountryId]);
@@ -578,6 +799,7 @@ export default function TripWorkspace() {
     setActiveDestinationId(newDest.id);
     setIsMobileAddDestOpen(false);
     setMobileDestName('');
+    setSelectedMobileMapboxPlace(null);
   };
 
   // The configured route order is the single source of truth for countries.
@@ -598,8 +820,9 @@ export default function TripWorkspace() {
 
     const updatedRoute = mergeCountryRoute(countryRoute, newCountrySelection);
     setCountryRoute(updatedRoute);
-    if (tripId) saveTripExtras(tripId, { countryRoute: updatedRoute });
+    void persistCountryRoute(updatedRoute);
     setSelectedCountryForNew(newCountrySelection[0]);
+    setSelectedMapboxPlace(null);
     setNewCountrySelection([]);
     setIsAddCountryModalOpen(false);
 
@@ -671,33 +894,36 @@ export default function TripWorkspace() {
     setPendingCountryRemoval(null);
   };
 
-  const handleSelectSuggestion = (place: DestinationPlace) => {
-    const country = getCountryOption(place.country);
-    if (!country) return;
+  const handleSelectSuggestion = (place: MapboxDestinationResult) => {
+    const selectedCountryId =
+      getCountryId(selectedCountryForNew) || countryRoute[0]?.countryId || '';
+    if (getCountryId(place.country) !== selectedCountryId) return;
     setNewDestInput(place.name);
-    setSelectedCountryForNew(country.id);
-    setCountryRoute((current) => mergeCountryRoute(current, [country.id]));
+    setSelectedMapboxPlace(place);
     setShowSuggestions(false);
     setHighlightedIndex(-1);
-    setCollapsedCountries((prev) => ({ ...prev, [country.id]: false }));
+    setCollapsedCountries((prev) => ({ ...prev, [selectedCountryId]: false }));
   };
 
   const handleAddDestination = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newDestInput.trim()) return;
+    if (!selectedMapboxPlace) return;
 
     setShowSuggestions(false);
     setHighlightedIndex(-1);
 
-    const name = newDestInput.trim();
-    const finalCountryId = getCountryId(selectedCountryForNew);
+    const name = selectedMapboxPlace.name;
+    const finalCountryId =
+      getCountryId(selectedCountryForNew) || countryRoute[0]?.countryId || '';
     const finalCountry = finalCountryId ? getCountryName(finalCountryId) : '';
-    if (!finalCountryId || !finalCountry) {
+    if (
+      !finalCountryId ||
+      !finalCountry ||
+      getCountryId(selectedMapboxPlace.country) !== finalCountryId
+    ) {
       setIsAddCountryModalOpen(true);
       return;
     }
-
-    const coords = getWorkspaceCoordinates(name, finalCountry);
 
     // Initial days allocation respects trip date picker remaining days
     const remainingDays = Math.max(1, tripDurationDays - totalAllocatedDays);
@@ -711,10 +937,11 @@ export default function TripWorkspace() {
       order: destinations.length,
       days: initialDays,
       accommodation: '',
+      accommodationId: null,
       activities: '',
       transportation: '',
-      latitude: coords ? coords[1] : undefined,
-      longitude: coords ? coords[0] : undefined,
+      latitude: selectedMapboxPlace.latitude,
+      longitude: selectedMapboxPlace.longitude,
     };
 
     const updatedRoute = mergeCountryRoute(countryRoute, [finalCountryId]);
@@ -727,6 +954,8 @@ export default function TripWorkspace() {
     persistDestinations(updated, updatedRoute);
     setActiveDestinationId(newDest.id);
     setNewDestInput('');
+    setSelectedMapboxPlace(null);
+    setMapboxSuggestions([]);
   };
 
   const handleUpdateDestination = (
@@ -736,11 +965,82 @@ export default function TripWorkspace() {
   ) => {
     const finalValue =
       field === 'days' ? (value === '' ? '' : Math.max(1, Number(value) || 1)) : value;
-    const updated = destinations.map((destination) =>
-      destination.id === id ? { ...destination, [field]: finalValue } : destination,
-    );
+    const updated = destinations.map((destination) => {
+      if (destination.id !== id) return destination;
+      const locationChanged =
+        (field === 'name' && destination.name !== finalValue) ||
+        (field === 'country' && destination.country !== finalValue) ||
+        (field === 'countryId' && destination.countryId !== finalValue);
+      return {
+        ...destination,
+        [field]: finalValue,
+        ...(locationChanged ? { accommodationId: null, accommodation: '' } : {}),
+      };
+    });
     setDestinations(updated);
     persistDestinations(updated, countryRoute);
+  };
+
+  const handleSelectAccommodation = async (
+    id: string,
+    property: Accommodation | null,
+  ) => {
+    const accommodationId = property ? Number(property.id) : null;
+    const updated = destinations.map((destination) =>
+      destination.id === id
+        ? {
+            ...destination,
+            accommodationId,
+            accommodation: property?.name || '',
+          }
+        : destination,
+    );
+    setDestinations(updated);
+    setAccommodationSaveErrors((previous) => {
+      const next = { ...previous };
+      delete next[id];
+      return next;
+    });
+
+    try {
+      await persistDestinations(updated, countryRoute);
+      if (!tripId) throw new Error('Trip ID is unavailable');
+
+      const idMap = JSON.parse(
+        localStorage.getItem(STORAGE_KEYS.WORKSPACE_DESTINATION_IDS(tripId)) || '{}',
+      ) as Record<string, string>;
+      const backendId = idMap[id] || id;
+      const savedDestinations = await destinationsApi.getByTripIdStrict(tripId);
+      const savedDestination = savedDestinations.find(
+        (destination) => String(destination.id) === String(backendId),
+      );
+      const savedAccommodationId =
+        savedDestination?.accommodation_id == null
+          ? null
+          : Number(savedDestination.accommodation_id);
+      if (!savedDestination || savedAccommodationId !== accommodationId) {
+        throw new Error('Saved accommodation link could not be verified');
+      }
+
+      setDestinations((current) => {
+        const merged = current.map((destination) =>
+          destination.id === id
+            ? {
+                ...destination,
+                accommodationId: savedDestination.accommodation_id ?? null,
+                accommodation: savedDestination.accommodation ?? '',
+              }
+            : destination,
+        );
+        localStorage.setItem(`lakbye_workspace_dests_${tripId}`, JSON.stringify(merged));
+        return merged;
+      });
+    } catch {
+      setAccommodationSaveErrors((previous) => ({
+        ...previous,
+        [id]: 'Unable to save this accommodation. Please try selecting it again.',
+      }));
+    }
   };
 
   const handleRouteDestinationNameChange = (
@@ -781,11 +1081,115 @@ export default function TripWorkspace() {
     currentValue: string | undefined,
     baseOptions: string[],
     placeholder: string,
+    accommodationId?: number | null,
   ) => {
+    if (field === 'accommodation') {
+      const inventory = accommodationInventory[destId];
+      const matchingSaved =
+        accommodationId != null
+          ? inventory?.items.find((item) => String(item.id) === String(accommodationId))
+          : undefined;
+      const legacyMatch =
+        accommodationId == null && currentValue
+          ? inventory?.items.find((item) => item.name.trim() === currentValue.trim())
+          : undefined;
+      const selectorValue =
+        accommodationId != null
+          ? String(accommodationId)
+          : currentValue
+            ? '__LEGACY__'
+            : '';
+      const formatPrice = (price: number | string) =>
+        `PHP ${Number(price).toLocaleString()}`;
+      return (
+        <div className="w-full min-w-0">
+          <select
+            value={selectorValue}
+            disabled={
+              !inventory ||
+              inventory.loading ||
+              inventory.error ||
+              inventory.items.length === 0
+            }
+            onChange={(event) => {
+              const selected = inventory?.items.find(
+                (property) => String(property.id) === event.target.value,
+              );
+              void handleSelectAccommodation(destId, selected || null);
+            }}
+            className="w-full min-w-0 h-8 px-2 text-xs text-[#2F1B0C] bg-white border border-[rgba(72,42,19,0.14)] rounded-lg focus:border-[#E9724C] focus:outline-none disabled:text-[#73665C] disabled:bg-[#FCF9F6]"
+            title={currentValue || 'Select an accommodation in this destination'}
+          >
+            <option value="">
+              {!inventory || inventory.loading
+                ? 'Loading accommodations...'
+                : inventory?.error
+                  ? 'Unable to load accommodations.'
+                  : inventory && inventory.items.length === 0
+                    ? 'No accommodations available for this destination yet.'
+                    : 'Select accommodation'}
+            </option>
+            {currentValue && accommodationId == null && (
+              <option value="__LEGACY__" disabled>
+                {legacyMatch
+                  ? `Legacy: ${currentValue} · select property to link`
+                  : `Legacy/unavailable: ${currentValue}`}
+              </option>
+            )}
+            {accommodationId != null && !matchingSaved && (
+              <option value={String(accommodationId)} disabled>
+                This accommodation is no longer available.
+              </option>
+            )}
+            {inventory?.items
+              .filter(
+                (property) => property.active !== false && property.is_active !== false,
+              )
+              .map((property) => (
+                <option key={property.id} value={String(property.id)}>
+                  {property.name} — {property.area}
+                  {property.address ? `, ${property.address}` : ''} ·{' '}
+                  {formatPrice(property.price)}
+                </option>
+              ))}
+          </select>
+          {inventory?.error && (
+            <button
+              type="button"
+              className="mt-1 text-[10px] font-semibold text-[#E9724C]"
+              onClick={() => setAccommodationRetryKey((value) => value + 1)}
+            >
+              Retry
+            </button>
+          )}
+          {accommodationSaveErrors[destId] && (
+            <span role="alert" className="block truncate text-[9px] text-rose-700">
+              {accommodationSaveErrors[destId]}
+            </span>
+          )}
+          {currentValue && accommodationId == null && !inventory?.loading && (
+            <span
+              className="block truncate text-[9px] text-[#8A776A]"
+              title="Legacy text only; select a property to link it"
+            >
+              {legacyMatch
+                ? 'Legacy stay · select property to save its link'
+                : 'Legacy stay · unavailable until a matching property is selected'}
+            </span>
+          )}
+        </div>
+      );
+    }
+
     const isInputActive = customInputActive[`${destId}-${field}`];
-    const extraOptions = userCustomOptions[field] || [];
+    const extraOptions = field === 'activities' ? [] : userCustomOptions[field] || [];
     const allOptions = Array.from(new Set([...baseOptions, ...extraOptions]));
-    const isCustomValue = Boolean(currentValue && !allOptions.includes(currentValue));
+    const isUnmatchedActivity =
+      field === 'activities' &&
+      Boolean(currentValue && !allOptions.includes(currentValue));
+    const isCustomValue = Boolean(
+      currentValue && !allOptions.includes(currentValue) && !isUnmatchedActivity,
+    );
 
     if (isInputActive) {
       return (
@@ -873,23 +1277,36 @@ export default function TripWorkspace() {
           className="w-full min-w-0 h-8 px-2 py-1 text-xs text-[#2F1B0C] bg-white hover:bg-slate-50 border border-[rgba(72,42,19,0.14)] hover:border-slate-300 rounded-lg focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500/20 transition-all cursor-pointer truncate shadow-xs font-normal"
           title={currentValue || placeholder}
         >
-          <option value="">{currentValue ? '-- Clear / None --' : placeholder}</option>
+          <option value="">
+            {isUnmatchedActivity
+              ? 'Choose an activity linked to this country'
+              : currentValue
+                ? '-- Clear / None --'
+                : placeholder}
+          </option>
+          {isUnmatchedActivity && (
+            <option value={currentValue} disabled>
+              Previously saved activity is not available for this country
+            </option>
+          )}
           {isCustomValue && <option value={currentValue}>{currentValue} (Custom)</option>}
           {allOptions.map((opt) => (
             <option key={opt} value={opt}>
               {opt}
             </option>
           ))}
-          <option value="__CUSTOM__" className="text-amber-700 font-semibold">
-            + Enter custom...
-          </option>
+          {field !== 'activities' && (
+            <option value="__CUSTOM__" className="text-amber-700 font-semibold">
+              + Enter custom...
+            </option>
+          )}
         </select>
       </div>
     );
   };
 
   const globeMarkers = destinations
-    .map((dest, index) => {
+    .map((dest) => {
       const coords =
         dest.longitude != null && dest.latitude != null
           ? ([dest.longitude, dest.latitude] as [number, number])
@@ -901,11 +1318,15 @@ export default function TripWorkspace() {
         id: dest.id,
         lng: coords[0],
         lat: coords[1],
-        title: `${index + 1}. ${dest.name} (${dest.country || ''})`,
+        title: dest.name,
+        country: dest.country || getCountryName(dest.countryId),
       };
     })
     .filter(
-      (m): m is { id: string; lng: number; lat: number; title: string } => m !== null,
+      (
+        m,
+      ): m is { id: string; lng: number; lat: number; title: string; country: string } =>
+        m !== null,
     );
 
   const orderedDestinations = useMemo(
@@ -1031,6 +1452,7 @@ export default function TripWorkspace() {
             className="workspace-add-destination-trigger"
             onClick={() => {
               setSelectedCountryForNew(countryId);
+              setSelectedMapboxPlace(null);
               setHighlightedIndex(-1);
               window.setTimeout(() => {
                 document.getElementById('workspace-dest-input')?.focus();
@@ -1065,29 +1487,35 @@ export default function TripWorkspace() {
             value={newDestInput}
             onChange={(event) => {
               setNewDestInput(event.target.value);
+              setSelectedMapboxPlace(null);
+              setMapboxSuggestions([]);
+              setMapboxSearchError('');
               setShowSuggestions(true);
               setHighlightedIndex(-1);
             }}
             onFocus={() => {
               setSelectedCountryForNew(countryId);
+              if (getCountryId(selectedMapboxPlace?.country) !== countryId) {
+                setSelectedMapboxPlace(null);
+              }
               if (newDestInput.trim()) setShowSuggestions(true);
             }}
             onKeyDown={(event) => {
-              if (!showSuggestions || inRouteSuggestions.length === 0) return;
+              if (!showSuggestions || mapboxSuggestions.length === 0) return;
               if (event.key === 'ArrowDown') {
                 event.preventDefault();
                 setHighlightedIndex((previous) =>
-                  previous < inRouteSuggestions.length - 1 ? previous + 1 : 0,
+                  previous < mapboxSuggestions.length - 1 ? previous + 1 : 0,
                 );
               } else if (event.key === 'ArrowUp') {
                 event.preventDefault();
                 setHighlightedIndex((previous) =>
-                  previous > 0 ? previous - 1 : inRouteSuggestions.length - 1,
+                  previous > 0 ? previous - 1 : mapboxSuggestions.length - 1,
                 );
               } else if (event.key === 'Enter') {
-                if (highlightedIndex >= 0 && inRouteSuggestions[highlightedIndex]) {
+                if (highlightedIndex >= 0 && mapboxSuggestions[highlightedIndex]) {
                   event.preventDefault();
-                  handleSelectSuggestion(inRouteSuggestions[highlightedIndex]);
+                  handleSelectSuggestion(mapboxSuggestions[highlightedIndex]);
                 }
               } else if (event.key === 'Escape') {
                 setShowSuggestions(false);
@@ -1098,7 +1526,7 @@ export default function TripWorkspace() {
             autoComplete="off"
           />
 
-          {showSuggestions && newDestInput.trim() && (
+          {showSuggestions && newDestInput.trim().length >= 2 && !selectedMapboxPlace && (
             <AnchoredPopover
               anchorRef={searchContainerRef}
               onClose={() => setShowSuggestions(false)}
@@ -1108,42 +1536,42 @@ export default function TripWorkspace() {
               className="workspace-dest-dropdown"
               role="listbox"
             >
-              {inRouteSuggestions.length > 0 ? (
-                inRouteSuggestions.map((place, index) => (
-                  <div
-                    key={`${place.name}-${place.country}`}
+              {mapboxSearchLoading ? (
+                <div className="workspace-dest-empty-state">
+                  Searching destinations...
+                </div>
+              ) : mapboxSearchError ? (
+                <div className="workspace-dest-empty-state">{mapboxSearchError}</div>
+              ) : mapboxSuggestions.length > 0 ? (
+                mapboxSuggestions.map((place, index) => (
+                  <button
+                    key={place.featureId}
+                    type="button"
                     role="option"
-                    tabIndex={0}
                     aria-selected={index === highlightedIndex}
-                    className={`workspace-dest-option flex items-center justify-between p-2 rounded-lg cursor-pointer ${index === highlightedIndex ? 'highlighted' : ''}`}
+                    className={`workspace-dest-option flex w-full items-center justify-between p-2 rounded-lg text-left ${index === highlightedIndex ? 'highlighted' : ''}`}
                     onMouseEnter={() => setHighlightedIndex(index)}
-                    onMouseDown={(event) => {
-                      event.preventDefault();
-                      handleSelectSuggestion(place);
-                    }}
                     onClick={() => handleSelectSuggestion(place)}
                   >
-                    <div className="workspace-dest-option-main flex items-center gap-2">
+                    <span className="workspace-dest-option-main flex min-w-0 items-center gap-2">
                       <MapPin size={13} aria-hidden="true" />
-                      <span className="workspace-dest-option-name">{place.name}</span>
-                      <span className="workspace-dest-option-country">
-                        {place.country}
+                      <span className="min-w-0">
+                        <span className="workspace-dest-option-name block truncate">
+                          {place.name}
+                        </span>
+                        <span className="workspace-dest-option-country block truncate">
+                          {place.region && place.region !== place.name
+                            ? `${place.region}, ${place.country}`
+                            : place.country}
+                        </span>
                       </span>
-                    </div>
-                    <span className="workspace-dest-option-action">Add +</span>
-                  </div>
+                    </span>
+                    <span className="workspace-dest-option-action">Select</span>
+                  </button>
                 ))
               ) : (
                 <div className="workspace-dest-empty-state">
-                  <div className="workspace-dest-empty-title">
-                    No places found in {countryName}.
-                  </div>
-                  {otherRouteSuggestions.length > 0 && (
-                    <div>Choose another country in your route to search there.</div>
-                  )}
-                  {outOfRouteSuggestions.length > 0 && (
-                    <div>Add another country to search destinations there.</div>
-                  )}
+                  No matching destinations found.
                 </div>
               )}
             </AnchoredPopover>
@@ -1160,7 +1588,10 @@ export default function TripWorkspace() {
           </span>
           <button
             type="submit"
-            disabled={totalAllocatedDays >= tripDurationDays && destinations.length > 0}
+            disabled={
+              !selectedMapboxPlace ||
+              (totalAllocatedDays >= tripDurationDays && destinations.length > 0)
+            }
             className="workspace-add-btn"
             title="Add Destination"
           >
@@ -1248,6 +1679,17 @@ export default function TripWorkspace() {
           </div>
         </div>
         <div className="workspace-header-actions">
+          <button
+            type="button"
+            className="pill-tab"
+            onClick={() => setIsExportItineraryOpen(true)}
+            aria-label="Export itinerary PDF"
+            title="Export itinerary PDF"
+          >
+            <Download size={14} aria-hidden="true" />
+            <span className="hidden sm:inline">Export Itinerary PDF</span>
+            <span className="sm:hidden">Export PDF</span>
+          </button>
           <div className="workspace-pill-date">
             {formatUserDateRange(trip.startDate, trip.endDate)}
           </div>
@@ -1335,6 +1777,12 @@ export default function TripWorkspace() {
                           <div
                             className="workspace-country-heading cursor-pointer select-none"
                             onClick={() => {
+                              if (
+                                getCountryId(selectedMapboxPlace?.country) !==
+                                group.countryId
+                              ) {
+                                setSelectedMapboxPlace(null);
+                              }
                               setSelectedCountryForNew(group.countryId);
                               setHighlightedIndex(-1);
                               toggleCountryCollapse(group.countryId);
@@ -1580,21 +2028,38 @@ export default function TripWorkspace() {
                                       {renderFieldSelector(
                                         dest.id,
                                         'accommodation',
-                                        dest.accommodation,
-                                        ACCOMMODATION_OPTIONS,
+                                        dest.accommodation || undefined,
+                                        [],
                                         'Select accom...',
+                                        dest.accommodationId,
                                       )}
                                     </div>
 
-                                    {/* Activities Dropdown with Custom Add Button */}
                                     <div className="workspace-col-activities">
-                                      {renderFieldSelector(
-                                        dest.id,
-                                        'activities',
-                                        dest.activities,
-                                        ACTIVITIES_OPTIONS,
-                                        'Select activity...',
-                                      )}
+                                      <DestinationActivitySuggestions
+                                        key={
+                                          String(dest.id) +
+                                          ':' +
+                                          dest.name +
+                                          ':' +
+                                          dest.countryId
+                                        }
+                                        area={dest.name}
+                                        country={
+                                          dest.country || getCountryName(dest.countryId)
+                                        }
+                                        fallbackOptions={
+                                          activityOptionsByCountry[dest.countryId] || []
+                                        }
+                                        value={dest.activities}
+                                        onChange={(value) =>
+                                          handleUpdateDestination(
+                                            dest.id,
+                                            'activities',
+                                            value,
+                                          )
+                                        }
+                                      />
                                     </div>
 
                                     <div className="workspace-col-transportation">
@@ -1894,60 +2359,30 @@ export default function TripWorkspace() {
                       >
                         Stay
                       </label>
-                      <select
-                        id={`mobile-stay-${dest.id}`}
-                        value={dest.accommodation || ''}
-                        onChange={(e) =>
-                          handleUpdateDestination(
-                            dest.id,
-                            'accommodation',
-                            e.target.value,
-                          )
-                        }
-                        className="w-full h-[34px] bg-[#FCF9F6] border border-[rgba(71,43,20,0.08)] rounded-[9px] px-3 font-['Poppins'] font-normal text-[10px] text-[#2F1B0C] appearance-none focus:outline-none focus:border-stone-400"
-                      >
-                        <option value="">Select accommodation</option>
-                        {ACCOMMODATION_OPTIONS.map((opt) => (
-                          <option key={opt} value={opt}>
-                            {opt}
-                          </option>
-                        ))}
-                        {dest.accommodation &&
-                          !ACCOMMODATION_OPTIONS.includes(dest.accommodation) && (
-                            <option value={dest.accommodation}>
-                              {dest.accommodation}
-                            </option>
-                          )}
-                      </select>
+                      {renderFieldSelector(
+                        dest.id,
+                        'accommodation',
+                        dest.accommodation || undefined,
+                        [],
+                        'Select accommodation',
+                        dest.accommodationId,
+                      )}
                     </div>
 
-                    {/* Activity Field */}
                     <div className="flex flex-col">
-                      <label
-                        htmlFor={`mobile-act-${dest.id}`}
-                        className="font-['Poppins'] font-semibold text-[9px] text-[#73665C] mb-1"
-                      >
-                        Activity
+                      <label className="font-['Poppins'] font-semibold text-[9px] text-[#73665C] mb-1">
+                        Activities
                       </label>
-                      <select
-                        id={`mobile-act-${dest.id}`}
-                        value={dest.activities || ''}
-                        onChange={(e) =>
-                          handleUpdateDestination(dest.id, 'activities', e.target.value)
+                      <DestinationActivitySuggestions
+                        key={String(dest.id) + ':' + dest.name + ':' + dest.countryId}
+                        area={dest.name}
+                        country={dest.country || getCountryName(dest.countryId)}
+                        fallbackOptions={activityOptionsByCountry[dest.countryId] || []}
+                        value={dest.activities}
+                        onChange={(value) =>
+                          handleUpdateDestination(dest.id, 'activities', value)
                         }
-                        className="w-full h-[34px] bg-[#FCF9F6] border border-[rgba(71,43,20,0.08)] rounded-[9px] px-3 font-['Poppins'] font-normal text-[10px] text-[#2F1B0C] appearance-none focus:outline-none focus:border-stone-400"
-                      >
-                        <option value="">Select activity</option>
-                        {ACTIVITIES_OPTIONS.map((opt) => (
-                          <option key={opt} value={opt}>
-                            {opt}
-                          </option>
-                        ))}
-                        {dest.activities &&
-                          !ACTIVITIES_OPTIONS.includes(dest.activities) && (
-                            <option value={dest.activities}>{dest.activities}</option>
-                          )}
-                      </select>
+                      />
                     </div>
 
                     {/* Transit Field */}
@@ -2139,7 +2574,11 @@ export default function TripWorkspace() {
                 <select
                   id="mobile-dest-country-select"
                   value={mobileAddDestCountryId}
-                  onChange={(e) => setMobileAddDestCountryId(e.target.value as CountryId)}
+                  onChange={(e) => {
+                    setMobileAddDestCountryId(e.target.value as CountryId);
+                    setSelectedMobileMapboxPlace(null);
+                    setMobileMapboxSuggestions([]);
+                  }}
                   className="w-full border border-stone-300 rounded-lg p-2 text-xs font-medium text-[#2F1B0C] bg-white"
                 >
                   {availableCountries.map((c) => (
@@ -2160,10 +2599,52 @@ export default function TripWorkspace() {
                   id="mobile-dest-name-input"
                   type="text"
                   value={mobileDestName}
-                  onChange={(e) => setMobileDestName(e.target.value)}
+                  onChange={(e) => {
+                    setMobileDestName(e.target.value);
+                    setSelectedMobileMapboxPlace(null);
+                    setMobileMapboxSuggestions([]);
+                    setMobileMapboxError('');
+                  }}
                   placeholder="e.g. Barcelona, Sagrada Família"
                   className="w-full border border-stone-300 rounded-lg p-2 text-xs text-[#2F1B0C] font-medium focus:outline-none focus:border-stone-500"
                 />
+                {mobileDestName.trim().length >= 2 && !selectedMobileMapboxPlace && (
+                  <div className="mt-2 max-h-44 overflow-y-auto rounded-lg border border-stone-200 bg-white p-1">
+                    {mobileMapboxLoading ? (
+                      <p className="p-2 text-xs text-stone-500">
+                        Searching destinations...
+                      </p>
+                    ) : mobileMapboxError ? (
+                      <p className="p-2 text-xs text-rose-700">{mobileMapboxError}</p>
+                    ) : mobileMapboxSuggestions.length ? (
+                      mobileMapboxSuggestions.map((place) => (
+                        <button
+                          key={place.featureId}
+                          type="button"
+                          onClick={() => {
+                            setSelectedMobileMapboxPlace(place);
+                            setMobileDestName(place.name);
+                            setMobileMapboxSuggestions([]);
+                          }}
+                          className="block w-full rounded-md p-2 text-left hover:bg-amber-50"
+                        >
+                          <span className="block text-xs font-semibold text-[#2F1B0C]">
+                            {place.name}
+                          </span>
+                          <span className="block truncate text-[10px] text-stone-500">
+                            {place.region && place.region !== place.name
+                              ? `${place.region}, ${place.country}`
+                              : place.country}
+                          </span>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="p-2 text-xs text-stone-500">
+                        No matching destinations found.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="flex justify-end gap-2 mt-2">
                 <button
@@ -2175,7 +2656,7 @@ export default function TripWorkspace() {
                 </button>
                 <button
                   type="submit"
-                  disabled={!mobileDestName.trim()}
+                  disabled={!selectedMobileMapboxPlace}
                   className="px-4 py-1.5 rounded-lg bg-[#E9724C] text-xs font-semibold text-white disabled:opacity-50"
                 >
                   Add Destination
@@ -2409,6 +2890,13 @@ export default function TripWorkspace() {
             </div>
           </div>
         </div>
+      )}
+      {tripId && (
+        <ExportItineraryModal
+          isOpen={isExportItineraryOpen}
+          onClose={() => setIsExportItineraryOpen(false)}
+          tripId={tripId}
+        />
       )}
     </div>
   );

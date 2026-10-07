@@ -11,3 +11,9 @@ export type { Trip, TripStatus, TripApiPayload, TripApiResponse } from './trip';
 export type { Destination, Category, CountryProfile } from './destination';
 export type { Booking, BookingStatus, Activity, BookingCreatePayload } from './booking';
 export type { ActivityEvent, ActivityAction, ActivityLogFilter } from './activity';
+export type {
+  UserSessionRecord,
+  UserSessionAction,
+  UserActivityRecord,
+  PageResult,
+} from './activity';

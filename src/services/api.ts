@@ -11,6 +11,14 @@ import type {
   UserPreferences,
 } from '../types';
 import type { Destination, Category, CountryProfile } from '../types/destination';
+import type { Accommodation } from '../types/accommodation';
+
+export interface ActivityCatalogItem extends Activity {
+  destination?: string;
+  destination_country?: string | null;
+  category?: string;
+  category_type?: string;
+}
 import type { Trip, TripApiPayload, TripApiResponse, TripStatus } from '../types/trip';
 import type {
   Booking,
@@ -23,9 +31,13 @@ import { mockAuthApi } from './mockAuthApi';
 import { COUNTRIES } from '../constants/countries';
 import { getTripExtras } from '../lib/tripExtras';
 import { getExploreDestinationImage } from './exploreService';
-import { computeSessionMetrics } from '../lib/sessionTracker';
 import { sanitizePublicProfile } from '../lib/publicProfile';
 import type { TravelerSearchResult } from '../lib/travelerSearch';
+import type {
+  UserActivityRecord,
+  UserSessionAction,
+  UserSessionRecord,
+} from '../types/activity';
 
 /**
  * Resolves the base URL for API requests.
@@ -153,6 +165,7 @@ if (useMockAuth) {
 export const authApi = useMockAuth ? mockAuthApi : realAuthApi;
 
 function mapTripFromApi(raw: TripApiResponse): Trip {
+  const countryRoute = Array.isArray(raw.country_route) ? raw.country_route : [];
   return {
     id: raw.id,
     name: raw.title,
@@ -164,8 +177,9 @@ function mapTripFromApi(raw: TripApiResponse): Trip {
     visibility: raw.visibility || 'private',
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
-    countries: [],
-    countryRoute: [],
+    countries: countryRoute.map((country) => country.name),
+    countryRoute,
+    countryRoutePersisted: Array.isArray(raw.country_route),
     travelType: '',
     nights: 0,
   };
@@ -258,7 +272,8 @@ export const destinationsApi = {
     country?: string;
     parent_destination_id?: number | string | null;
     days?: number;
-    accommodation?: string;
+    accommodation_id?: number | null;
+    accommodation?: string | null;
     activities?: string;
     transportation?: string;
   }): Promise<Destination> => {
@@ -281,6 +296,23 @@ export const destinationsApi = {
   delete: async (id: string | number): Promise<{ message: string }> => {
     const response = await api.delete<{ message: string }>(`/destinations/${id}`);
     return response.data;
+  },
+};
+
+export const accommodationsApi = {
+  getByLocation: async (
+    country: string,
+    area: string,
+    signal?: AbortSignal,
+  ): Promise<Accommodation[]> => {
+    const response = await api.get<
+      { accommodations?: Accommodation[]; data?: Accommodation[] } | Accommodation[]
+    >('/accommodations', {
+      params: { country, area },
+      signal,
+    });
+    if (Array.isArray(response.data)) return response.data;
+    return response.data.accommodations || response.data.data || [];
   },
 };
 
@@ -371,6 +403,16 @@ export const budgetApi = {
 };
 
 export const activitiesApi = {
+  getByDestination: async (
+    destination: string,
+    country: string,
+    signal?: AbortSignal,
+  ): Promise<ActivityCatalogItem[]> => {
+    const response = await api.get<
+      { activities?: ActivityCatalogItem[] } | ActivityCatalogItem[]
+    >('/activities', { params: { destination, country }, signal });
+    return Array.isArray(response.data) ? response.data : response.data.activities || [];
+  },
   getAll: async (params?: {
     destination_id?: number | string;
     category_id?: number | string;
@@ -955,36 +997,34 @@ export const adminApi = {
         }),
       };
 
-      // F. Real Dynamic Session Metrics (Strictly Customer-only)
-      const customerUsers = rawUsers.filter(
-        (u) =>
-          u.role?.toLowerCase() === 'customer' ||
-          !['admin', 'staff'].includes(u.role?.toLowerCase() || ''),
+      // Session analytics are sourced from server-recorded session rows only.
+      const sessionResponse = await api
+        .get<{
+          average_duration_seconds?: number | null;
+          previous_average_duration_seconds?: number | null;
+        }>(`/sessions/metrics?period=${period}`)
+        .catch(() => null);
+      const currentDuration = Math.max(
+        0,
+        Number(sessionResponse?.data.average_duration_seconds) || 0,
       );
-      const customerUserIds = new Set(customerUsers.map((u) => u.id));
-
-      const customerTrips = rawTrips.filter((t) => {
-        const uId = (t as unknown as { user_id?: number }).user_id;
-        return uId == null || customerUserIds.has(uId);
-      });
-
-      const customerBookings = rawBookings.filter((b) => {
-        const uId = (b as unknown as { user_id?: number }).user_id;
-        return uId == null || customerUserIds.has(uId);
-      });
-
-      const sessionMetrics: SessionMetricsReport = computeSessionMetrics(period, {
-        customerTrips: customerTrips.map((t) => ({
-          created_at: t.createdAt,
-          user_id: (t as unknown as { user_id?: number }).user_id,
-        })),
-        customerBookings: customerBookings.map((b) => ({
-          submitted_at: b.submitted_at || b.created_at,
-          user_id: (b as unknown as { user_id?: number }).user_id,
-        })),
-        customerUserIds,
-        totalCustomersCount: customerUsers.length,
-      });
+      const previousDuration = Math.max(
+        0,
+        Number(sessionResponse?.data.previous_average_duration_seconds) || 0,
+      );
+      const changePct = previousDuration
+        ? Math.abs(((currentDuration - previousDuration) / previousDuration) * 100)
+        : 0;
+      const sessionMetrics: SessionMetricsReport = {
+        avgDurationFormatted: `${String(Math.floor(currentDuration / 60)).padStart(2, '0')}m ${String(Math.floor(currentDuration % 60)).padStart(2, '0')}s`,
+        avgDurationSeconds: currentDuration,
+        changePct: Number(changePct.toFixed(1)),
+        isPositive: currentDuration >= previousDuration,
+        fillPercentage:
+          currentDuration > 0
+            ? Math.min(100, Math.max(5, Math.round((currentDuration / 900) * 100)))
+            : 0,
+      };
 
       return {
         period,
@@ -1043,8 +1083,10 @@ export const adminApi = {
     });
     return res.data;
   },
-  deleteUser: async (userId: number): Promise<{ message: string }> => {
-    const res = await api.delete<{ message: string }>(`/users/${userId}`);
+  deleteUser: async (userId: number, reason?: string): Promise<{ message: string }> => {
+    const res = await api.delete<{ message: string }>(`/users/${userId}`, {
+      data: { reason },
+    });
     return res.data;
   },
   getCategories: async (): Promise<AdminCategory[]> => {
@@ -1141,6 +1183,62 @@ export const adminApi = {
       data: { reason },
     });
     return res.data;
+  },
+};
+
+export const adminUserActivityApi = {
+  getSessions: async (page = 1, limit = 50) => {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    const response = await api.get<{
+      sessions: UserSessionRecord[];
+      pagination: { page: number; limit: number; total: number };
+    }>(`/sessions?${params.toString()}`);
+    return response.data;
+  },
+  getSessionActions: async (sessionId: number, page = 1, limit = 100) => {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    const response = await api.get<{
+      session: { session_id: number };
+      actions: UserSessionAction[];
+      pagination: { page: number; limit: number; total: number };
+    }>(`/sessions/${sessionId}/actions?${params.toString()}`);
+    return response.data;
+  },
+  getActivity: async (page = 1, limit = 50) => {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    const response = await api.get<{
+      activities: UserActivityRecord[];
+      pagination: { page: number; limit: number; total: number };
+    }>(`/activity?${params.toString()}`);
+    return response.data;
+  },
+  getSessionMetrics: async (period: '30d' | '90d' | '1y' = '30d') => {
+    const response = await api.get<{
+      active_visitors: number;
+      logged_in_visitors: number;
+      guest_visitors: number;
+      total_sessions: number;
+      completed_sessions: number;
+      average_duration_seconds: number | null;
+      previous_completed_sessions: number;
+      previous_average_duration_seconds: number | null;
+    }>(`/sessions/metrics?period=${period}`);
+    return response.data;
+  },
+};
+
+export const visitSessionsApi = {
+  start: async (visitorId: string) => {
+    const response = await api.post<{
+      session: { session_id: number; user_id: number | null; last_seen_at: string };
+    }>('/sessions/start', { visitor_id: visitorId });
+    return response.data.session;
+  },
+  heartbeat: async (visitorId: string, sessionId: number) => {
+    const response = await api.post<{
+      session: { session_id: number; user_id: number | null; last_seen_at: string };
+    }>('/sessions/heartbeat', { visitor_id: visitorId, session_id: sessionId });
+    return response.data.session;
   },
 };
 

@@ -11370,6 +11370,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 
 .booking-modal-card {
   position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 500px;
   background-color: #ffffff;
@@ -11419,6 +11420,8 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 
 .booking-modal-close-btn {
   position: absolute;
+  z-index: 2;
+  pointer-events: auto;
   top: 24px;
   right: 28px;
   width: 28px;
@@ -11441,6 +11444,29 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
   background-color: #f3ede2;
   color: #1a0f07;
   transform: scale(1.05);
+}
+
+.booking-modal-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 10px 14px;
+  border: 1px solid rgba(233, 114, 76, 0.35);
+  border-radius: 12px;
+  color: #78350f;
+  background: #fff9f2;
+  font-size: 11px;
+}
+
+.booking-modal-error > button {
+  display: inline-flex;
+  margin-left: auto;
+  padding: 2px;
+  border: 0;
+  color: #92400e;
+  background: transparent;
+  cursor: pointer;
 }
 
 /* Tabs switcher - Shared segmented container with sliding active pill */
@@ -11802,6 +11828,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 }
 
 .bookings-table {
+  --bookings-table-columns: 150px 185px minmax(220px, 1fr) 150px 130px;
   width: 100%;
   border-collapse: collapse;
   text-align: left;
@@ -11809,7 +11836,8 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 
 .bookings-table-header-row {
   display: grid;
-  grid-template-columns: 1.2fr 1.5fr 1.6fr 1.6fr 1.1fr;
+  grid-template-columns: var(--bookings-table-columns);
+  align-items: center;
   padding: 16px 12px;
   border-bottom: 1px solid rgba(64, 28, 2, 0.1);
   font-family: 'SF Pro Rounded', sans-serif;
@@ -11827,7 +11855,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 
 .bookings-table-row {
   display: grid;
-  grid-template-columns: 1.2fr 1.5fr 1.6fr 1.6fr 1.1fr;
+  grid-template-columns: var(--bookings-table-columns);
   align-items: center;
   padding: 14px 12px;
   border-bottom: 1px solid rgba(64, 28, 2, 0.08);
@@ -11844,6 +11872,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 .bookings-cell-date {
   font-weight: 600;
   color: #1e293b;
+  white-space: nowrap;
 }
 
 .bookings-cell-destination {
@@ -11863,6 +11892,56 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 .bookings-cell-budget {
   font-weight: 700;
   color: #1d7433;
+  white-space: nowrap;
+}
+
+.bookings-cell-status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.bookings-table-header-row > th,
+.bookings-table-row > td {
+  min-width: 0;
+}
+
+.booking-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 25px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.booking-status-badge--pending {
+  color: #9a5b08;
+  background: #fff5df;
+  border-color: #f2d69f;
+}
+
+.booking-status-badge--confirmed {
+  color: #287344;
+  background: #eaf5ed;
+  border-color: #c4e1cc;
+}
+
+.booking-status-badge--completed {
+  color: #496477;
+  background: #edf2f5;
+  border-color: #d3dfe6;
+}
+
+.booking-status-badge--cancelled {
+  color: #a93743;
+  background: #fcedee;
+  border-color: #edc6ca;
 }
 
 .bookings-table-empty {
@@ -11962,6 +12041,11 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
 }
 
 @media (min-width: 1025px) and (max-width: 1600px) {
+  .bookings-table {
+    --bookings-table-columns: minmax(95px, 0.85fr) minmax(110px, 1fr)
+      minmax(145px, 1.35fr) minmax(95px, 0.85fr) minmax(100px, 0.9fr);
+  }
+
   .bookings-page-wrapper {
     padding: 0;
     align-items: flex-start;
@@ -13764,6 +13848,7 @@ img:not(.header-logo-img):not(.footer-logo-img):not(.earth-img):not(
    ========================================================================== */
 
 .lakbye-map-marker-container {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;

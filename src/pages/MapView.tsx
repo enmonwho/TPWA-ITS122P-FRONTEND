@@ -7,8 +7,6 @@ import { tripsApi, destinationsApi } from '../services/api';
 import { mergeTripsWithExtras } from '../lib/tripExtras';
 import { formatUserDate, formatUserDateRange } from '../lib/formatters';
 import { getMapboxStaticThumb } from '../services/exploreService';
-import { getCoordinatesForName } from '../constants/coordinates';
-import { getCountryId, getCountryOption } from '../lib/countries';
 import type { Trip } from '../types/trip';
 import type { Destination } from '../types/destination';
 import {
@@ -26,18 +24,6 @@ import {
 
 export interface TripWithDestinations extends Trip {
   destinations: Destination[];
-}
-
-function getCountryMapCoordinates(countryName: string): [number, number] | null {
-  const country = getCountryOption(countryName);
-  const names = [country?.name, ...(country?.aliases || []), countryName].filter(
-    (name): name is string => Boolean(name),
-  );
-  for (const name of names) {
-    const coordinates = getCoordinatesForName(name);
-    if (coordinates) return coordinates;
-  }
-  return null;
 }
 
 interface GeocodeFeature {
@@ -105,34 +91,9 @@ export default function MapView() {
       mergedTrips.map(async (trip) => {
         try {
           const dests = await destinationsApi.getByTripId(trip.id);
-          const destinationsWithCoordinates = (dests || []).map((destination) => {
-            const hasCoordinates =
-              destination.latitude != null &&
-              destination.longitude != null &&
-              Number.isFinite(Number(destination.latitude)) &&
-              Number.isFinite(Number(destination.longitude));
-            if (hasCoordinates) return destination;
-
-            const countryRouteEntry = trip.countryRoute.find(
-              (country) =>
-                getCountryId(country.name) === getCountryId(destination.country || ''),
-            );
-            const coordinates =
-              getCoordinatesForName(destination.location_name) ||
-              getCountryMapCoordinates(
-                destination.country || countryRouteEntry?.name || '',
-              );
-            return coordinates
-              ? {
-                  ...destination,
-                  longitude: coordinates[0],
-                  latitude: coordinates[1],
-                }
-              : destination;
-          });
           return {
             ...trip,
-            destinations: destinationsWithCoordinates,
+            destinations: dests || [],
           };
         } catch {
           return {
@@ -484,53 +445,6 @@ export default function MapView() {
 
   // Mapbox Globe Markers: Derived dynamically based on current mode
   const globeMarkers = useMemo<MarkerData[]>(() => {
-    const makeCountryMarkers = (tripList: TripWithDestinations[]) =>
-      tripList.flatMap((trip) =>
-        (trip.countryRoute || [])
-          .filter((country) => {
-            const hasDestination = trip.destinations.some(
-              (destination) =>
-                getCountryId(destination.country || '') === country.countryId,
-            );
-            if (hasDestination) return false;
-            if (activeViewMode === 'world-tracker') {
-              if (worldFilter === 'visited' && trip.status !== 'completed') return false;
-              if (worldFilter === 'upcoming' && trip.status === 'completed') return false;
-              if (
-                searchQuery.trim() &&
-                !country.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-                !trip.name.toLowerCase().includes(searchQuery.toLowerCase())
-              ) {
-                return false;
-              }
-            }
-            return true;
-          })
-          .flatMap((country) => {
-            const coordinates = getCountryMapCoordinates(country.name);
-            if (!coordinates) return [];
-            const dateStr =
-              trip.startDate && trip.endDate
-                ? formatUserDateRange(trip.startDate, trip.endDate)
-                : '';
-            return [
-              {
-                id: `country:${trip.id}:${country.countryId}`,
-                lat: coordinates[1],
-                lng: coordinates[0],
-                title: country.name,
-                color: trip.status === 'completed' ? '#10b981' : '#e9724c',
-                tripName: trip.name,
-                tripDates: dateStr,
-                status: trip.status === 'completed' ? 'completed' : 'upcoming',
-                thumbnailUrl:
-                  trip.cover_photo ||
-                  getMapboxStaticThumb(coordinates[0], coordinates[1], 200, 160, 5),
-              },
-            ];
-          }),
-      );
-
     if (activeViewMode === 'world-tracker') {
       // In World Tracker mode, show aggregate pins across all trips with visited/upcoming distinction
       const destinationMarkers = filteredWorldItems.map((item) => {
@@ -544,6 +458,8 @@ export default function MapView() {
           lat: Number(item.destination.latitude),
           lng: Number(item.destination.longitude),
           title: item.destination.location_name,
+          country: item.destination.country,
+          countryCode: item.destination.country_code || undefined,
           color: item.isVisited ? '#10b981' : '#e9724c',
           tripName: item.trip.name,
           tripDates: dateStr,
@@ -560,7 +476,7 @@ export default function MapView() {
             ),
         };
       });
-      return [...destinationMarkers, ...makeCountryMarkers(trips)];
+      return destinationMarkers;
     }
 
     // In My Trips mode:
@@ -586,6 +502,8 @@ export default function MapView() {
           lat: Number(d.latitude),
           lng: Number(d.longitude),
           title: d.location_name,
+          country: d.country,
+          countryCode: d.country_code || undefined,
           color: activeTrip.status === 'completed' ? '#10b981' : '#e9724c',
           tripName: activeTrip.name,
           tripDates: dateStr,
@@ -601,7 +519,7 @@ export default function MapView() {
               'outdoors-v12',
             ),
         }));
-      return [...destinationMarkers, ...makeCountryMarkers([activeTrip])];
+      return destinationMarkers;
     }
 
     // When viewing trip list without active selection, show all trip destinations
@@ -610,6 +528,8 @@ export default function MapView() {
       lat: Number(item.destination.latitude),
       lng: Number(item.destination.longitude),
       title: item.destination.location_name,
+      country: item.destination.country,
+      countryCode: item.destination.country_code || undefined,
       color: item.isVisited ? '#10b981' : '#e9724c',
       tripName: item.trip.name,
       tripDates: formatUserDateRange(item.trip.startDate, item.trip.endDate),
@@ -625,13 +545,12 @@ export default function MapView() {
           'outdoors-v12',
         ),
     }));
-    return [...destinationMarkers, ...makeCountryMarkers(trips)];
+    return destinationMarkers;
   }, [
     activeViewMode,
     filteredWorldItems,
     activeTrip,
     allDestinationsWithTrip,
-    trips,
     searchQuery,
     worldFilter,
   ]);
@@ -642,15 +561,7 @@ export default function MapView() {
       const found = allDestinationsWithTrip.find(
         (item) => String(item.destination.id) === String(markerId),
       );
-      if (!found) {
-        const countryMarker = globeMarkers.find((marker) => marker.id === markerId);
-        if (countryMarker) {
-          setSelectedDestinationItem(null);
-          setIsDetailDrawerOpen(false);
-          setFocusView([countryMarker.lng, countryMarker.lat]);
-        }
-        return;
-      }
+      if (!found) return;
       if (found) {
         setSelectedDestinationItem(found);
         setIsDetailDrawerOpen(true);
@@ -660,7 +571,7 @@ export default function MapView() {
         ]);
       }
     },
-    [allDestinationsWithTrip, globeMarkers],
+    [allDestinationsWithTrip],
   );
 
   // Filtered trips list for My Trips overview

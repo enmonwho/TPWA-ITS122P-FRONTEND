@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   countBookingStatuses,
   filterBookings,
+  isAccommodationBooking,
   normalizeBookingStatus,
 } from './bookingFilters';
 
@@ -33,5 +34,16 @@ describe('booking filters and counts', () => {
       completed: 1,
       cancelled: 0,
     });
+  });
+
+  it('counts accommodation bookings while excluding legacy activity records', () => {
+    expect(isAccommodationBooking({ custom_type: 'hotel', activity_id: null })).toBe(
+      true,
+    );
+    expect(isAccommodationBooking({ accommodation_id: 51 })).toBe(true);
+    expect(isAccommodationBooking({ custom_title: 'Beach Tour', activity_id: 7 })).toBe(
+      false,
+    );
+    expect(isAccommodationBooking({ custom_title: 'Apartment stay' })).toBe(true);
   });
 });

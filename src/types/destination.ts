@@ -6,9 +6,11 @@ export interface Destination {
   longitude?: number;
   order_sequence?: number;
   country?: string;
+  country_code?: string | null;
   parent_destination_id?: number | string | null;
   days?: number;
-  accommodation?: string;
+  accommodation_id?: number | null;
+  accommodation?: string | null;
   activities?: string;
   transportation?: string;
 }

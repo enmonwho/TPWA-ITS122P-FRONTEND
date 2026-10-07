@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { authApi } from '../services/api';
 import { STORAGE_KEYS } from '../lib/constants';
+import { getOrCreateVisitorId } from '../lib/visitSession';
 import type {
   User,
   UserPreferences,
@@ -157,7 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (payload: LoginPayload): Promise<AuthResponse> => {
-    const data = await authApi.login(payload);
+    const data = await authApi.login({ ...payload, visitor_id: getOrCreateVisitorId() });
     if (data.token) {
       localStorage.setItem(STORAGE_KEYS.TOKEN, data.token);
     }
@@ -168,7 +169,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (payload: RegisterPayload): Promise<AuthResponse> => {
-    const data = await authApi.register(payload);
+    const data = await authApi.register({
+      ...payload,
+      visitor_id: getOrCreateVisitorId(),
+    });
     if (data.token) {
       localStorage.setItem(STORAGE_KEYS.TOKEN, data.token);
     }

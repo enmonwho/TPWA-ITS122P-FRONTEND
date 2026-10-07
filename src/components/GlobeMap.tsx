@@ -11,12 +11,52 @@ export interface MarkerData {
   lng: number;
   lat: number;
   title: string;
+  country?: string;
+  countryCode?: string;
   color?: string;
   tripName?: string;
   tripDates?: string;
   status?: string;
   category?: string;
   thumbnailUrl?: string;
+}
+
+const COUNTRY_CODE_FALLBACKS: Record<string, string> = {
+  'south korea': 'KR',
+  korea: 'KR',
+  'republic of korea': 'KR',
+  japan: 'JP',
+  taiwan: 'TW',
+  singapore: 'SG',
+  philippines: 'PH',
+  brunei: 'BN',
+  'cook islands': 'CK',
+  indonesia: 'ID',
+  thailand: 'TH',
+  vietnam: 'VN',
+  malaysia: 'MY',
+  china: 'CN',
+  india: 'IN',
+  australia: 'AU',
+  'new zealand': 'NZ',
+  'united states': 'US',
+  usa: 'US',
+  canada: 'CA',
+  'united kingdom': 'GB',
+  france: 'FR',
+  italy: 'IT',
+  spain: 'ES',
+  germany: 'DE',
+};
+
+function countryFlag(countryCode?: string, countryName?: string): string {
+  const normalized = (countryCode || '').trim().split('-')[0].toUpperCase();
+  const fallback = COUNTRY_CODE_FALLBACKS[(countryName || '').trim().toLowerCase()];
+  const code = /^[A-Z]{2}$/.test(normalized) ? normalized : fallback;
+  if (!code) return '';
+  return String.fromCodePoint(
+    ...[...code].map((letter) => 127397 + letter.charCodeAt(0)),
+  );
 }
 
 export interface GlobeMapProps {
@@ -116,6 +156,7 @@ export default function GlobeMap({
     markers.forEach((marker) => {
       const isActive = activeMarkerId === marker.id;
       const markerColor = marker.color || (isActive ? '#C5283D' : '#E9724C');
+      const flag = countryFlag(marker.countryCode, marker.country);
       const thumbUrl =
         marker.thumbnailUrl ||
         getMapboxStaticThumb(marker.lng, marker.lat, 200, 160, 9, 'outdoors-v12');
@@ -141,6 +182,7 @@ export default function GlobeMap({
             </svg>
           </div>
         </div>
+        ${flag ? `<span aria-hidden="true" style="position:absolute;right:-5px;top:-3px;background:#fff;border-radius:999px;padding:1px 2px;font-size:12px;line-height:1;box-shadow:0 1px 4px rgba(0,0,0,.24)">${flag}</span>` : ''}
         <div class="lakbye-map-marker-pin" style="border-top-color: ${markerColor};"></div>
       `;
 
@@ -169,6 +211,7 @@ export default function GlobeMap({
           </div>
           <div class="lakbye-hover-popup-body">
             <div class="lakbye-hover-popup-title">${marker.title}</div>
+            ${marker.country ? `<div class="lakbye-hover-popup-trip">${marker.country}</div>` : ''}
             ${marker.tripName ? `<div class="lakbye-hover-popup-trip">${marker.tripName}${marker.tripDates ? ` • ${marker.tripDates}` : ''}</div>` : ''}
             <div class="lakbye-hover-popup-coords">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>

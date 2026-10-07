@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { X, Printer, Download, MapPin, Calendar, CheckCircle2 } from 'lucide-react';
-import { tripsApi, budgetApi } from '../services/api';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { tripsApi, destinationsApi, budgetApi } from '../services/api';
 import { mergeTripWithExtras } from '../lib/tripExtras';
 import { formatUserDate } from '../lib/formatters';
 import type { Trip } from '../types/trip';
@@ -35,6 +37,7 @@ export default function ExportItineraryModal({
     expenses: [],
   });
   const [loading, setLoading] = useState(false);
+  const [exportError, setExportError] = useState('');
 
   useEffect(() => {
     if (!isOpen || !tripId) return;
@@ -49,36 +52,23 @@ export default function ExportItineraryModal({
         const merged = mergeTripWithExtras(apiTrip);
         setTrip(merged);
 
-        // Load destinations from localStorage
-        const savedDestStr = localStorage.getItem(`lakbye_workspace_dests_${tripId}`);
-        let dests: WorkspaceDestination[] = [];
-        if (savedDestStr) {
-          try {
-            dests = JSON.parse(savedDestStr);
-          } catch {
-            dests = [];
-          }
-        }
-        if (dests.length === 0 && merged.countries) {
-          dests = merged.countries.map((c, i) => {
-            const count = Math.max(
-              1,
-              Math.floor(merged.nights / (merged.countries.length || 1)),
-            );
-            return {
-              id: `dest-${i + 1}`,
-              name: c,
-              countryId: getCountryId(c) || 'philippines',
-              country: c,
-              order: i,
-              days: count,
-              nights: count,
-              accommodation: 'Hotel / Resort',
-              activities: 'Sightseeing & Culture',
-              transportation: 'Flight / Train',
-            };
-          });
-        }
+        const serverDestinations = await destinationsApi.getByTripIdStrict(tripId);
+        const dests: WorkspaceDestination[] = serverDestinations
+          .slice()
+          .sort((a, b) => Number(a.order_sequence || 0) - Number(b.order_sequence || 0))
+          .map((destination, index) => ({
+            id: String(destination.id),
+            name: destination.location_name,
+            countryId: getCountryId(destination.country) || '',
+            country: destination.country || '',
+            order: Number(destination.order_sequence) || index,
+            days: Number(destination.days) || 1,
+            nights: Number(destination.days) || 1,
+            accommodation: destination.accommodation || '',
+            accommodationId: destination.accommodation_id ?? null,
+            activities: destination.activities || '',
+            transportation: destination.transportation || '',
+          }));
         setDestinations(dests);
 
         // Load budget data
@@ -114,8 +104,112 @@ export default function ExportItineraryModal({
 
   if (!isOpen) return null;
 
-  const handlePrint = () => {
-    window.print();
+  const handleDownloadPdf = () => {
+    if (!trip) return;
+    setExportError('');
+    try {
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const orange: [number, number, number] = [233, 114, 76];
+      const ink: [number, number, number] = [47, 27, 12];
+      doc.setFillColor(...orange);
+      doc.rect(0, 0, doc.internal.pageSize.getWidth(), 8, 'F');
+      doc.setTextColor(...ink);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(21);
+      doc.text('LakBye', 14, 21);
+      doc.setFontSize(16);
+      const titleLines = doc.splitTextToSize(trip.name, 269) as string[];
+      doc.text(titleLines, 14, 31);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(110, 96, 84);
+      let metadataY = 31 + titleLines.length * 7;
+      const dateLabel =
+        trip.startDate && trip.endDate
+          ? `${formatUserDate(trip.startDate)} - ${formatUserDate(trip.endDate)}`
+          : 'Dates not set';
+      doc.text(`Travel dates: ${dateLabel}`, 14, metadataY);
+      metadataY += 6;
+      if (trip.countries?.length) {
+        const countryLines = doc.splitTextToSize(
+          `Countries: ${trip.countries.join(', ')}`,
+          269,
+        );
+        doc.text(countryLines, 14, metadataY);
+        metadataY += countryLines.length * 5;
+      }
+
+      let dayCursor = 1;
+      const rows = destinations.map((destination, index) => {
+        const days = Math.max(1, Number(destination.days || destination.nights) || 1);
+        const dayLabel =
+          days === 1 ? `Day ${dayCursor}` : `Days ${dayCursor}-${dayCursor + days - 1}`;
+        dayCursor += days;
+        return [
+          String(index + 1),
+          destination.country || '—',
+          destination.name,
+          dayLabel,
+          destination.accommodation || '—',
+          destination.activities || '—',
+          destination.transportation || '—',
+        ];
+      });
+
+      let pageNumber = 0;
+      autoTable(doc, {
+        startY: metadataY + 4,
+        head: [
+          [
+            '#',
+            'Country',
+            'Destination',
+            'Days',
+            'Accommodation',
+            'Activities',
+            'Transportation',
+          ],
+        ],
+        body: rows,
+        theme: 'striped',
+        margin: { left: 14, right: 14, bottom: 15 },
+        styles: {
+          font: 'helvetica',
+          fontSize: 8,
+          cellPadding: 2.5,
+          overflow: 'linebreak',
+        },
+        headStyles: { fillColor: orange, textColor: [255, 255, 255], fontStyle: 'bold' },
+        bodyStyles: { textColor: ink },
+        columnStyles: {
+          0: { cellWidth: 9, halign: 'center' },
+          1: { cellWidth: 29 },
+          2: { cellWidth: 35, fontStyle: 'bold' },
+          3: { cellWidth: 20, halign: 'center' },
+          4: { cellWidth: 45 },
+          5: { cellWidth: 54 },
+          6: { cellWidth: 54 },
+        },
+        didDrawPage: () => {
+          pageNumber += 1;
+          doc.setFontSize(8);
+          doc.setTextColor(130, 116, 104);
+          doc.text(
+            `LakBye itinerary  ·  Page ${pageNumber}`,
+            14,
+            doc.internal.pageSize.getHeight() - 7,
+          );
+        },
+      });
+
+      const safeTripName = trip.name
+        .trim()
+        .replace(/[^a-zA-Z0-9_-]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+      doc.save(`LakBye_${safeTripName || 'Trip'}_Itinerary.pdf`);
+    } catch {
+      setExportError('Unable to export the itinerary PDF. Please try again.');
+    }
   };
 
   const totalSpent = budget.expenses.reduce(
@@ -146,9 +240,14 @@ export default function ExportItineraryModal({
             </h2>
           </div>
           <div className="flex items-center gap-3">
-            <button type="button" onClick={handlePrint} className="export-print-btn">
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              className="export-print-btn"
+              disabled={loading || !trip}
+            >
               <Download className="w-4 h-4" />
-              <span>Print / Save as PDF</span>
+              <span>Download PDF</span>
             </button>
             <button
               type="button"
@@ -163,6 +262,11 @@ export default function ExportItineraryModal({
 
         {/* Printable Itinerary Document Sheet */}
         <div className="export-itinerary-scrollable">
+          {exportError && (
+            <p role="alert" className="mx-6 mt-4 text-sm text-rose-700">
+              {exportError}
+            </p>
+          )}
           {loading ? (
             <div className="flex flex-col items-center justify-center p-16 text-stone-500 gap-3">
               <div className="w-8 h-8 border-3 border-amber-600 border-t-transparent rounded-full animate-spin" />

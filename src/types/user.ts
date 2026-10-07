@@ -34,11 +34,13 @@ export interface RegisterPayload {
   full_name: string;
   email: string;
   password: string;
+  visitor_id?: string;
 }
 
 export interface LoginPayload {
   email: string;
   password: string;
+  visitor_id?: string;
 }
 
 export interface AuthResponse {

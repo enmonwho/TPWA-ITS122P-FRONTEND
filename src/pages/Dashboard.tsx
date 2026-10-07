@@ -24,8 +24,10 @@ import createTripBtnIcon from '../assets/create-trip-button.svg';
 import browseDestIcon from '../assets/browse-destination.svg';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../lib/constants';
-import { tripsApi, journalsApi, preferencesApi } from '../services/api';
+import { tripsApi, journalsApi, preferencesApi, bookingsApi } from '../services/api';
 import { mergeTripsWithExtras, mergeTripWithExtras } from '../lib/tripExtras';
+import { reconcileTripBookings } from '../lib/bookingExtras';
+import { isAccommodationBooking } from '../lib/bookingFilters';
 import { formatUserCurrency, formatUserDateRange } from '../lib/formatters';
 import { normalizeCountryRoute } from '../lib/countries';
 import AnchoredPopover from '../components/AnchoredPopover';
@@ -35,6 +37,7 @@ export default function Dashboard() {
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [accommodationBookingCount, setAccommodationBookingCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('all');
@@ -148,6 +151,39 @@ export default function Dashboard() {
     };
   }, [user]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const loadAccommodationBookings = async () => {
+      await Promise.resolve();
+      if (!user?.id || trips.length === 0) {
+        if (!cancelled) setAccommodationBookingCount(0);
+        return;
+      }
+
+      const results = await Promise.all(
+        trips.map(async (trip) => {
+          const backendBookings = await bookingsApi
+            .getAll(undefined, trip.id)
+            .catch(() => []);
+          return reconcileTripBookings(backendBookings, trip.id).filter(
+            isAccommodationBooking,
+          );
+        }),
+      );
+      const uniqueBookingIds = new Set(
+        results.flatMap((bookings, index) =>
+          bookings.map((booking) => `${trips[index].id}:${booking.id}`),
+        ),
+      );
+      if (!cancelled) setAccommodationBookingCount(uniqueBookingIds.size);
+    };
+
+    void loadAccommodationBookings();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, trips]);
+
   const getDisplayStatus = (trip: Trip): string => {
     if (trip.status === 'cancelled') return 'past';
 
@@ -207,7 +243,7 @@ export default function Dashboard() {
     new Set(trips.flatMap((t) => t.countries || [])),
   ).length;
 
-  const totalBookings = trips.length;
+  const totalBookings = accommodationBookingCount;
 
   const nextTrip = trips
     .filter((t) => getDisplayStatus(t) === 'upcoming')

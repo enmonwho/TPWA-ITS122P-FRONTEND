@@ -12,6 +12,8 @@ export interface Booking {
   activity_id?: number | null;
   trip_id?: number;
   destination_id?: number;
+  accommodation_id?: number | string;
+  accommodation_name?: string;
   status: BookingStatus;
   total_price?: number | string;
   cost?: number | string;
@@ -48,6 +50,7 @@ export interface BookingCreatePayload {
   activity_id?: number | null;
   trip_id?: number;
   destination_id?: number;
+  accommodation_id?: number | string;
   booking_date?: string;
   total_price?: number;
   cost?: number;

@@ -15,10 +15,12 @@ export interface Trip {
   createdAt?: string;
   updatedAt?: string;
 
-  /** @local — not persisted to backend yet */
+  /** Derived display names for the persisted country route. */
   countries: string[];
-  /** Canonical, explicitly ordered route persisted in trip extras. */
+  /** Canonical, explicitly ordered route; server-persisted when supported. */
   countryRoute: CountryRouteEntry[];
+  /** True when countryRoute came from the Trips API rather than local extras. */
+  countryRoutePersisted?: boolean;
   /** @local — not persisted to backend yet */
   travelType: string;
 
@@ -36,6 +38,7 @@ export interface TripApiPayload {
   status?: TripStatus;
   cover_photo?: string | null;
   visibility?: string;
+  country_route?: CountryRouteEntry[];
 }
 
 export interface TripApiResponse {
@@ -48,6 +51,7 @@ export interface TripApiResponse {
   status: TripStatus;
   cover_photo?: string | null;
   visibility?: string;
+  country_route?: CountryRouteEntry[] | null;
   created_at: string;
   updated_at: string;
   destinations?: unknown[];

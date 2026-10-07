@@ -28,6 +28,8 @@ import {
   PawPrint,
 } from 'lucide-react';
 import { tripsApi, destinationsApi, activitiesApi } from '../services/api';
+import { saveTripExtras } from '../lib/tripExtras';
+import { getCountryOption, normalizeCountryRoute } from '../lib/countries';
 import {
   fetchExploreCountries,
   TOP_ISLANDS,
@@ -92,6 +94,7 @@ export default function Explore() {
 
   const [tripName, setTripName] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
+  const [selectedTripCountry, setSelectedTripCountry] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [travelType, setTravelType] = useState('Solo');
@@ -325,6 +328,18 @@ export default function Explore() {
 
   const handleStartTripFromCountry = (targetName: string) => {
     setSelectedLocation(targetName);
+    const matchingPlace = [...countries, ...islands].find(
+      (place) => place.name.trim().toLowerCase() === targetName.trim().toLowerCase(),
+    );
+    const placeCountry =
+      getCountryOption(matchingPlace?.country || '')?.name ||
+      getCountryOption(matchingPlace?.region || '')?.name ||
+      '';
+    const detailCountry =
+      getCountryOption(selectedDetailPlace?.country || '')?.name || '';
+    setSelectedTripCountry(
+      getCountryOption(targetName)?.name || placeCountry || detailCountry,
+    );
     setTripName(`${targetName} Adventure`);
     setStartDate('');
     setEndDate('');
@@ -337,6 +352,12 @@ export default function Explore() {
     setSelectedLocation(place.name);
 
     if (openPlanModal) {
+      setSelectedTripCountry(
+        getCountryOption(place.country || '')?.name ||
+          getCountryOption(place.region || '')?.name ||
+          getCountryOption(place.name)?.name ||
+          '',
+      );
       setTripName(`${place.name} Adventure`);
       setStartDate('');
       setEndDate('');
@@ -348,6 +369,7 @@ export default function Explore() {
     setIsStartTripOpen(false);
     setTripName('');
     setSelectedLocation('');
+    setSelectedTripCountry('');
     setStartDate('');
     setEndDate('');
   };
@@ -393,13 +415,22 @@ export default function Explore() {
 
     setSubmitting(true);
     try {
+      const countryName =
+        getCountryOption(selectedTripCountry)?.name ||
+        getCountryOption(selectedLocation)?.name ||
+        '';
+      const countryRoute = countryName ? normalizeCountryRoute([countryName]) : [];
       const newTrip = await tripsApi.createTrip({
         title: tripName,
         start_date: startDate,
         end_date: endDate,
         total_budget: 15000,
         status: 'planning',
+        country_route: countryRoute,
       });
+      if (countryName) {
+        saveTripExtras(newTrip.id, { countryRoute });
+      }
       handleCloseModal();
       navigate(`/trip/${newTrip.id}`);
     } catch (err) {

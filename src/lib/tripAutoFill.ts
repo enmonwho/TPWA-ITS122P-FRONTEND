@@ -1,18 +1,5 @@
 import { getCoordinatesForName } from '../constants/coordinates';
-
-export const ACCOMMODATION_OPTIONS = [
-  'Hotel (Standard / 3-4★)',
-  'Luxury Hotel & Resort (5★)',
-  'Boutique Hotel',
-  'Resort & Spa',
-  'Vacation Rental / Airbnb',
-  'Hostel / Capsule Hotel',
-  'Bed & Breakfast (B&B)',
-  'Villa & Beachfront Suite',
-  'Eco Lodge / Glamping',
-  'Guesthouse / Homestay',
-  'Apartment / Aparthotel',
-];
+import { getCountryId } from './countries';
 
 export const ACTIVITIES_OPTIONS = [
   'Sightseeing & Iconic Landmarks',
@@ -46,7 +33,7 @@ export interface AutoFillRecommendation {
   name: string;
   country?: string;
   nights: number;
-  accommodation: string;
+  accommodation?: string;
   activities: string;
   transportation: string;
   latitude?: number;
@@ -63,354 +50,325 @@ const CITY_RECOMMENDATIONS: Record<
   tokyo: {
     country: 'Japan',
     nights: 4,
-    accommodation: 'Boutique Hotel',
     activities: 'Sightseeing & Iconic Landmarks',
     transportation: 'High-Speed Bullet Train / Shinkansen',
   },
   kyoto: {
     country: 'Japan',
     nights: 3,
-    accommodation: 'Guesthouse / Homestay',
     activities: 'Cultural & Historical Walking Tour',
     transportation: 'Express Train / Intercity Rail',
   },
   osaka: {
     country: 'Japan',
     nights: 3,
-    accommodation: 'Hotel (Standard / 3-4★)',
     activities: 'Food Tour & Local Street Food',
     transportation: 'Subway & Metro Transit',
   },
   paris: {
     country: 'France',
     nights: 4,
-    accommodation: 'Boutique Hotel',
     activities: 'Museums, Art & Architecture',
     transportation: 'Subway & Metro Transit',
   },
   nice: {
     country: 'France',
     nights: 3,
-    accommodation: 'Resort & Spa',
     activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Express Train / Intercity Rail',
   },
   rome: {
     country: 'Italy',
     nights: 3,
-    accommodation: 'Bed & Breakfast (B&B)',
     activities: 'Cultural & Historical Walking Tour',
     transportation: 'Subway & Metro Transit',
   },
   florence: {
     country: 'Italy',
     nights: 3,
-    accommodation: 'Boutique Hotel',
     activities: 'Museums, Art & Architecture',
     transportation: 'Express Train / Intercity Rail',
   },
   venice: {
     country: 'Italy',
     nights: 2,
-    accommodation: 'Boutique Hotel',
     activities: 'Photography & Sunset Cruise',
     transportation: 'Ferry / Passenger Boat',
   },
   london: {
     country: 'United Kingdom',
     nights: 4,
-    accommodation: 'Hotel (Standard / 3-4★)',
     activities: 'Sightseeing & Iconic Landmarks',
     transportation: 'Subway & Metro Transit',
   },
   edinburgh: {
     country: 'United Kingdom',
     nights: 3,
-    accommodation: 'Bed & Breakfast (B&B)',
     activities: 'Cultural & Historical Walking Tour',
     transportation: 'Express Train / Intercity Rail',
   },
   'new york': {
     country: 'United States',
     nights: 4,
-    accommodation: 'Hotel (Standard / 3-4★)',
     activities: 'Sightseeing & Iconic Landmarks',
     transportation: 'Subway & Metro Transit',
   },
   'san francisco': {
     country: 'United States',
     nights: 3,
-    accommodation: 'Boutique Hotel',
     activities: 'Sightseeing & Iconic Landmarks',
     transportation: 'Subway & Metro Transit',
   },
   'los angeles': {
     country: 'United States',
     nights: 4,
-    accommodation: 'Hotel (Standard / 3-4★)',
     activities: 'Adventure & Theme Parks',
     transportation: 'Rental Car / Road Trip',
   },
   manila: {
     country: 'Philippines',
     nights: 2,
-    accommodation: 'Hotel (Standard / 3-4★)',
     activities: 'Food Tour & Local Street Food',
     transportation: 'Private Transfer / Taxi / Grab',
   },
   cebu: {
     country: 'Philippines',
     nights: 3,
-    accommodation: 'Resort & Spa',
     activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Ferry / Passenger Boat',
   },
   boracay: {
     country: 'Philippines',
     nights: 4,
-    accommodation: 'Villa & Beachfront Suite',
     activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Ferry / Passenger Boat',
   },
   palawan: {
     country: 'Philippines',
     nights: 4,
-    accommodation: 'Eco Lodge / Glamping',
     activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Ferry / Passenger Boat',
   },
   'el nido': {
     country: 'Philippines',
     nights: 4,
-    accommodation: 'Eco Lodge / Glamping',
     activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Ferry / Passenger Boat',
   },
   coron: {
     country: 'Philippines',
     nights: 3,
-    accommodation: 'Resort & Spa',
     activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Ferry / Passenger Boat',
   },
   siargao: {
     country: 'Philippines',
     nights: 4,
-    accommodation: 'Villa & Beachfront Suite',
     activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Bicycle / Scooter Rental',
   },
   baguio: {
     country: 'Philippines',
     nights: 2,
-    accommodation: 'Bed & Breakfast (B&B)',
     activities: 'Mountain Hiking & Nature Trekking',
     transportation: 'Scenic Coach / Bus',
   },
   bohol: {
     country: 'Philippines',
     nights: 3,
-    accommodation: 'Resort & Spa',
     activities: 'Wildlife Safari & Marine Encounter',
     transportation: 'Rental Car / Road Trip',
   },
   tarlac: {
     country: 'Philippines',
     nights: 2,
-    accommodation: 'Hotel (Standard / 3-4★)',
     activities: 'Cultural & Historical Walking Tour',
     transportation: 'Scenic Coach / Bus',
   },
   'la union': {
     country: 'Philippines',
     nights: 3,
-    accommodation: 'Villa & Beachfront Suite',
     activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Scenic Coach / Bus',
   },
   'san juan': {
     country: 'Philippines',
     nights: 3,
-    accommodation: 'Villa & Beachfront Suite',
     activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Scenic Coach / Bus',
   },
   tagaytay: {
     country: 'Philippines',
     nights: 2,
-    accommodation: 'Bed & Breakfast (B&B)',
     activities: 'Sightseeing & Iconic Landmarks',
     transportation: 'Rental Car / Road Trip',
   },
   batanes: {
     country: 'Philippines',
     nights: 4,
-    accommodation: 'Bed & Breakfast (B&B)',
     activities: 'Photography & Sunset Cruise',
     transportation: 'Bicycle / Scooter Rental',
   },
   davao: {
     country: 'Philippines',
     nights: 3,
-    accommodation: 'Hotel (Standard / 3-4★)',
     activities: 'Wildlife Safari & Marine Encounter',
     transportation: 'Private Transfer / Taxi / Grab',
   },
   iloilo: {
     country: 'Philippines',
     nights: 3,
-    accommodation: 'Hotel (Standard / 3-4★)',
     activities: 'Food Tour & Local Street Food',
     transportation: 'Private Transfer / Taxi / Grab',
   },
   bacolod: {
     country: 'Philippines',
     nights: 2,
-    accommodation: 'Hotel (Standard / 3-4★)',
     activities: 'Food Tour & Local Street Food',
     transportation: 'Private Transfer / Taxi / Grab',
   },
   vigan: {
     country: 'Philippines',
     nights: 2,
-    accommodation: 'Boutique Hotel',
     activities: 'Cultural & Historical Walking Tour',
     transportation: 'Scenic Coach / Bus',
   },
   sagada: {
     country: 'Philippines',
     nights: 3,
-    accommodation: 'Bed & Breakfast (B&B)',
     activities: 'Mountain Hiking & Nature Trekking',
     transportation: 'Scenic Coach / Bus',
   },
   bali: {
     country: 'Indonesia',
     nights: 4,
-    accommodation: 'Resort & Spa',
     activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Private Transfer / Taxi / Grab',
   },
   bangkok: {
     country: 'Thailand',
     nights: 3,
-    accommodation: 'Boutique Hotel',
     activities: 'Food Tour & Local Street Food',
     transportation: 'Subway & Metro Transit',
   },
   phuket: {
     country: 'Thailand',
     nights: 4,
-    accommodation: 'Resort & Spa',
     activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'Private Transfer / Taxi / Grab',
   },
   'chiang mai': {
     country: 'Thailand',
     nights: 3,
-    accommodation: 'Guesthouse / Homestay',
     activities: 'Cultural & Historical Walking Tour',
     transportation: 'Bicycle / Scooter Rental',
   },
   singapore: {
     country: 'Singapore',
     nights: 3,
-    accommodation: 'Luxury Hotel & Resort (5★)',
     activities: 'Sightseeing & Iconic Landmarks',
     transportation: 'Subway & Metro Transit',
   },
   seoul: {
     country: 'South Korea',
     nights: 4,
-    accommodation: 'Boutique Hotel',
     activities: 'Shopping & Night Markets',
     transportation: 'Subway & Metro Transit',
   },
   busan: {
     country: 'South Korea',
     nights: 3,
-    accommodation: 'Hotel (Standard / 3-4★)',
     activities: 'Beach, Island Hopping & Water Sports',
     transportation: 'High-Speed Bullet Train / Shinkansen',
   },
   sydney: {
     country: 'Australia',
     nights: 4,
-    accommodation: 'Hotel (Standard / 3-4★)',
     activities: 'Sightseeing & Iconic Landmarks',
     transportation: 'Subway & Metro Transit',
   },
   melbourne: {
     country: 'Australia',
     nights: 3,
-    accommodation: 'Boutique Hotel',
     activities: 'Food Tour & Local Street Food',
     transportation: 'Subway & Metro Transit',
   },
   barcelona: {
     country: 'Spain',
     nights: 4,
-    accommodation: 'Boutique Hotel',
     activities: 'Museums, Art & Architecture',
     transportation: 'Subway & Metro Transit',
   },
   madrid: {
     country: 'Spain',
     nights: 3,
-    accommodation: 'Hotel (Standard / 3-4★)',
     activities: 'Museums, Art & Architecture',
     transportation: 'High-Speed Bullet Train / Shinkansen',
   },
   amsterdam: {
     country: 'Netherlands',
     nights: 3,
-    accommodation: 'Boutique Hotel',
     activities: 'Museums, Art & Architecture',
     transportation: 'Bicycle / Scooter Rental',
   },
   berlin: {
     country: 'Germany',
     nights: 3,
-    accommodation: 'Hotel (Standard / 3-4★)',
     activities: 'Cultural & Historical Walking Tour',
     transportation: 'Subway & Metro Transit',
   },
   zurich: {
     country: 'Switzerland',
     nights: 3,
-    accommodation: 'Boutique Hotel',
     activities: 'Sightseeing & Iconic Landmarks',
     transportation: 'Scenic Coach / Bus',
   },
   interlaken: {
     country: 'Switzerland',
     nights: 3,
-    accommodation: 'Eco Lodge / Glamping',
     activities: 'Mountain Hiking & Nature Trekking',
     transportation: 'Scenic Coach / Bus',
   },
   dubai: {
     country: 'United Arab Emirates',
     nights: 3,
-    accommodation: 'Luxury Hotel & Resort (5★)',
     activities: 'Sightseeing & Iconic Landmarks',
     transportation: 'Private Transfer / Taxi / Grab',
   },
   cairo: {
     country: 'Egypt',
     nights: 3,
-    accommodation: 'Hotel (Standard / 3-4★)',
     activities: 'Cultural & Historical Walking Tour',
     transportation: 'Private Transfer / Taxi / Grab',
   },
   reykjavik: {
     country: 'Iceland',
     nights: 4,
-    accommodation: 'Eco Lodge / Glamping',
     activities: 'Mountain Hiking & Nature Trekking',
     transportation: 'Rental Car / Road Trip',
   },
 };
+
+/** Country-scoped activity categories already present in the curated city data. */
+export function getCuratedActivityOptionsByCountry(): Record<string, string[]> {
+  const options = new Map<string, Set<string>>();
+  Object.values(CITY_RECOMMENDATIONS).forEach((recommendation) => {
+    const countryId = recommendation.country
+      ? getCountryId(recommendation.country)
+      : null;
+    if (!countryId || !recommendation.activities) return;
+    const countryOptions = options.get(countryId) || new Set<string>();
+    countryOptions.add(recommendation.activities);
+    options.set(countryId, countryOptions);
+  });
+
+  return Object.fromEntries(
+    Array.from(options, ([countryId, countryOptions]) => [
+      countryId,
+      Array.from(countryOptions).sort((left, right) => left.localeCompare(right)),
+    ]),
+  );
+}
 
 /**
  * Top curated highlight stops per country for full itinerary generation.
@@ -657,7 +615,7 @@ export function getAutoFillRecommendations(
         name: cleanName,
         country: rec.country || countryHint,
         nights: rec.nights,
-        accommodation: rec.accommodation,
+        accommodation: '',
         activities: rec.activities,
         transportation: rec.transportation,
         latitude: coords ? coords[1] : undefined,
@@ -679,7 +637,7 @@ export function getAutoFillRecommendations(
       name: cleanName,
       country: countryHint,
       nights: 3,
-      accommodation: 'Resort & Spa',
+      accommodation: '',
       activities: 'Beach, Island Hopping & Water Sports',
       transportation: 'Ferry / Passenger Boat',
       latitude: coords ? coords[1] : undefined,
@@ -699,7 +657,7 @@ export function getAutoFillRecommendations(
       name: cleanName,
       country: countryHint,
       nights: 3,
-      accommodation: 'Eco Lodge / Glamping',
+      accommodation: '',
       activities: 'Mountain Hiking & Nature Trekking',
       transportation: 'Rental Car / Road Trip',
       latitude: coords ? coords[1] : undefined,
@@ -712,7 +670,7 @@ export function getAutoFillRecommendations(
     name: cleanName,
     country: countryHint,
     nights: 3,
-    accommodation: 'Boutique Hotel',
+    accommodation: '',
     activities: 'Sightseeing & Iconic Landmarks',
     transportation: 'Express Train / Intercity Rail',
     latitude: coords ? coords[1] : undefined,

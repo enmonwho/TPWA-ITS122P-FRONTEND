@@ -8,6 +8,20 @@ export interface FilterableBooking {
   status: BookingStatus;
 }
 
+export function isAccommodationBooking(booking: {
+  custom_type?: string | null;
+  custom_title?: string | null;
+  activity_id?: number | null;
+  accommodation_id?: number | string | null;
+}): boolean {
+  return (
+    Boolean(booking.accommodation_id) ||
+    booking.custom_type?.toLowerCase() === 'hotel' ||
+    (!booking.activity_id &&
+      /hotel|stay|resort|accommodation/i.test(booking.custom_title || ''))
+  );
+}
+
 export function normalizeBookingStatus(status?: string | null): BookingStatus {
   switch ((status || '').trim().toLowerCase()) {
     case 'confirmed':

@@ -19,6 +19,8 @@ export const ROUTES = {
 export const STORAGE_KEYS = {
   TOKEN: 'token',
   USER: 'user',
+  VISITOR_ID: 'lakbye_visitor_id',
+  VISIT_SESSION_ID: 'lakbye_visit_session_id',
   MOCK_USERS: 'lakbye_mock_users',
   MOCK_SESSION: 'lakbye_mock_session',
   MOCK_PREFS: (userId: string | number) => `lakbye_mock_prefs_${userId}`,

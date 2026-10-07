@@ -138,10 +138,15 @@ export function mergeTripsWithExtras(trips: Trip[]): Trip[] {
   return trips.map((trip) => {
     const extras = getTripExtras(trip.id);
     const derived = computeDerived(trip);
+    const serverRoute = normalizeCountryRoute(trip.countryRoute || []);
+    const countryRoute =
+      trip.countryRoutePersisted || serverRoute.length
+        ? serverRoute
+        : extras.countryRoute;
     return {
       ...trip,
-      countries: extras.countries,
-      countryRoute: extras.countryRoute,
+      countries: countryRoute.map((country) => country.name),
+      countryRoute,
       travelType: extras.travelType,
       cover_photo: trip.cover_photo || extras.coverPhoto || null,
       nights: derived.nights,

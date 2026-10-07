@@ -1,6 +1,46 @@
-/**
- * Activity tracking types reserved for a future backend implementation.
- */
+/** Backend-backed Admin session and activity records. */
+
+export interface UserSessionRecord {
+  session_id: number;
+  user_id: number | null;
+  full_name: string | null;
+  username: string | null;
+  email: string | null;
+  role: string | null;
+  visitor_id: string | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  session_start: string;
+  last_seen_at: string;
+  session_end: string | null;
+  duration_seconds: number | null;
+  is_open: boolean;
+  is_active: boolean;
+  action_count: number;
+}
+
+export interface UserSessionAction {
+  id: number;
+  user_id: number | null;
+  session_id: number;
+  action: string;
+  entity_type: string | null;
+  entity_id: number | null;
+  details: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface UserActivityRecord extends UserSessionAction {
+  full_name: string | null;
+  username: string | null;
+}
+
+export interface PageResult<T> {
+  items: T[];
+  page: number;
+  limit: number;
+  total: number;
+}
 
 /**
  * Predefined activity action types.
@@ -36,7 +76,7 @@ export interface ActivityEvent {
   metadata?: Record<string, unknown>;
   /** Unix timestamp in milliseconds */
   timestamp: number;
-  /** Session ID from sessionTracker (links events to a session) */
+  /** Server-issued session ID linking events to a session. */
   sessionId?: string;
   /** Client IP address (best-effort, may be undefined) */
   ip?: string;

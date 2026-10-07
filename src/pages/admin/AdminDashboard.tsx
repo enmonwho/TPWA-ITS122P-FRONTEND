@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   Trash2,
   AlertCircle,
+  Activity as ActivityIcon,
 } from 'lucide-react';
 import lakbyeLogo from '../../assets/lakbye-logo.png';
 import { adminApi, tripsApi } from '../../services/api';
@@ -32,14 +33,15 @@ import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { STORAGE_KEYS } from '../../lib/constants';
 import '../../styles/Admin.css';
+import AdminUserActivity from './AdminUserActivity';
 
-type Tab = 'systems' | 'users' | 'categories' | 'master';
+type Tab = 'systems' | 'users' | 'categories' | 'master' | 'activity';
 
 export default function AdminDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get('tab');
   const activeTab: Tab =
-    rawTab && ['systems', 'users', 'categories', 'master'].includes(rawTab)
+    rawTab && ['systems', 'users', 'categories', 'master', 'activity'].includes(rawTab)
       ? (rawTab as Tab)
       : 'systems';
 
@@ -119,6 +121,13 @@ export default function AdminDashboard() {
           >
             <Database size={16} /> Master Records
           </button>
+          <button
+            type="button"
+            className={`admin-nav-item ${activeTab === 'activity' ? 'active' : ''}`}
+            onClick={() => setActiveTab('activity')}
+          >
+            <ActivityIcon size={16} /> User Activity
+          </button>
         </nav>
 
         <div className="admin-divider mt-auto" />
@@ -134,6 +143,7 @@ export default function AdminDashboard() {
         {activeTab === 'users' && <UserManagementTab />}
         {activeTab === 'categories' && <CategoriesActivitiesTab />}
         {activeTab === 'master' && <MasterRecordsTab />}
+        {activeTab === 'activity' && <AdminUserActivity />}
       </main>
     </div>
   );
@@ -1690,7 +1700,7 @@ function MasterRecordsTab() {
     if (!foundUser) return;
     setIsExecutingUserDelete(true);
     try {
-      await adminApi.deleteUser(foundUser.id);
+      await adminApi.deleteUser(foundUser.id, userDeleteReason);
       setFoundUser(null);
       setIsDeletingUser(false);
       setUserDeleteReason('');

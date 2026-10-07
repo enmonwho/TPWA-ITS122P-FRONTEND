@@ -5,7 +5,6 @@ import {
   Plus,
   Calendar,
   ArrowUpRight,
-  Ticket,
   Bed,
   CheckCircle2,
   CloudOff,
@@ -18,25 +17,21 @@ import CreateTripModal from '../components/CreateTripModal';
 import {
   tripsApi,
   destinationsApi,
-  budgetApi,
-  activitiesApi,
   bookingsApi,
-  type ExpenseApiResponse,
+  accommodationsApi,
 } from '../services/api';
 import { mergeTripsWithExtras } from '../lib/tripExtras';
-import {
-  reconcileTripBookings,
-  saveBookingExtra,
-  saveTripCustomBooking,
-} from '../lib/bookingExtras';
+import { reconcileTripBookings, saveBookingExtra } from '../lib/bookingExtras';
 import { formatUserDate, formatUserDateRange } from '../lib/formatters';
 import type { Trip } from '../types/trip';
 import type { Destination } from '../types/destination';
-import type { Activity, Booking, BookingStatus } from '../types/booking';
+import type { Accommodation } from '../types/accommodation';
+import type { Booking, BookingStatus } from '../types/booking';
 import {
   countBookingStatuses,
   countBookingTypes,
   filterBookings,
+  isAccommodationBooking,
   normalizeBookingStatus,
   type BookingStatusFilter,
 } from '../lib/bookingFilters';
@@ -46,11 +41,10 @@ interface BookingLedgerItem {
   id: string;
   date: string;
   destination: string;
-  activities: string;
   accommodation: string;
-  budget: string;
+  cost: string;
   status: BookingStatus;
-  type: 'hotel' | 'activity';
+  type: 'hotel';
 }
 
 async function withRetry<T>(fn: () => Promise<T>, delayMs = 800): Promise<T> {
@@ -65,10 +59,20 @@ async function withRetry<T>(fn: () => Promise<T>, delayMs = 800): Promise<T> {
 
 function renderStatusBadge(status: BookingStatus) {
   const norm = (status || 'pending').toLowerCase();
+  const statusMeaning = {
+    pending:
+      'Your accommodation request is waiting for LakBye staff to complete the booking.',
+    confirmed: 'Your accommodation has been booked and confirmed.',
+    cancelled: 'This booking request was cancelled.',
+    completed: 'This accommodation booking is completed.',
+  }[norm as BookingStatus];
   switch (norm) {
     case 'confirmed':
       return (
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 shrink-0">
+        <span
+          className="booking-status-badge booking-status-badge--confirmed"
+          title={statusMeaning}
+        >
           <span
             className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"
             aria-hidden="true"
@@ -78,7 +82,10 @@ function renderStatusBadge(status: BookingStatus) {
       );
     case 'pending':
       return (
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-orange-600 shrink-0">
+        <span
+          className="booking-status-badge booking-status-badge--pending"
+          title={statusMeaning}
+        >
           <span
             className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0"
             aria-hidden="true"
@@ -88,7 +95,10 @@ function renderStatusBadge(status: BookingStatus) {
       );
     case 'completed':
       return (
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-stone-500 shrink-0">
+        <span
+          className="booking-status-badge booking-status-badge--completed"
+          title={statusMeaning}
+        >
           <span
             className="w-1.5 h-1.5 rounded-full bg-stone-400 shrink-0"
             aria-hidden="true"
@@ -98,7 +108,10 @@ function renderStatusBadge(status: BookingStatus) {
       );
     case 'cancelled':
       return (
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-rose-600 shrink-0">
+        <span
+          className="booking-status-badge booking-status-badge--cancelled"
+          title={statusMeaning}
+        >
           <span
             className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"
             aria-hidden="true"
@@ -108,7 +121,7 @@ function renderStatusBadge(status: BookingStatus) {
       );
     default:
       return (
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-stone-500 shrink-0">
+        <span className="booking-status-badge booking-status-badge--completed">
           <span
             className="w-1.5 h-1.5 rounded-full bg-stone-400 shrink-0"
             aria-hidden="true"
@@ -130,38 +143,32 @@ export default function Bookings() {
 
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [tripDestinations, setTripDestinations] = useState<Destination[]>([]);
-  const [allDestinations, setAllDestinations] = useState<Destination[]>([]);
-  const [tripExpenses, setTripExpenses] = useState<ExpenseApiResponse[]>([]);
-  const [catalogActivities, setCatalogActivities] = useState<Activity[]>([]);
   const [userBookings, setUserBookings] = useState<Booking[]>([]);
+  const [plannedAccommodationInventory, setPlannedAccommodationInventory] = useState<{
+    key: string;
+    byDestination: Record<string, { items: Accommodation[]; error: boolean }>;
+  } | null>(null);
 
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
 
   // Booking filters & modes
-  const [bookingTypeFilter, setBookingTypeFilter] = useState<
-    'all' | 'activity' | 'hotel'
-  >('all');
+  const [bookingTypeFilter, setBookingTypeFilter] = useState<'all' | 'hotel'>('all');
   const [bookingStatusFilter, setBookingStatusFilter] =
     useState<BookingStatusFilter>('all');
-  const [isBookActivityOpen, setIsBookActivityOpen] = useState(false);
-  const [bookingMode, setBookingMode] = useState<'catalog' | 'custom'>('catalog');
-  const [customType, setCustomType] = useState<'activity' | 'hotel'>('activity');
-  const [customTitle, setCustomTitle] = useState('');
-  const [customLocation, setCustomLocation] = useState('');
+  const [isAccommodationModalOpen, setIsAccommodationModalOpen] = useState(false);
+  const [bookingPlanLoading, setBookingPlanLoading] = useState(false);
+  const [bookingPlanRefreshFailed, setBookingPlanRefreshFailed] = useState(false);
   const [selectedPlannedDestinationId, setSelectedPlannedDestinationId] = useState('');
-  const [customCost, setCustomCost] = useState('');
   const [customNotes, setCustomNotes] = useState('');
-  const [selectedActivityId, setSelectedActivityId] = useState<number | ''>('');
   const [bookingDate, setBookingDate] = useState('');
-  const [bookingTime, setBookingTime] = useState('09:00 AM');
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
   const [bookingSuccessMsg, setBookingSuccessMsg] = useState<string | null>(null);
   const [bookingErrorMsg, setBookingErrorMsg] = useState<string | null>(null);
   const bookingSubmitLockRef = useRef(false);
 
   useModalBehavior(
-    isBookActivityOpen,
-    () => setIsBookActivityOpen(false),
+    isAccommodationModalOpen,
+    () => setIsAccommodationModalOpen(false),
     bookingSubmitting,
   );
 
@@ -300,33 +307,93 @@ export default function Bookings() {
     return filteredTrips.find((t) => t.id === selectedTripId) || filteredTrips[0] || null;
   }, [filteredTrips, selectedTripId]);
 
-  const tripCatalogActivities = useMemo(() => {
-    const destinationIds = new Set(
-      tripDestinations.map((destination) => String(destination.id)),
-    );
-    return catalogActivities.filter(
-      (activity) =>
-        activity.destination_id != null &&
-        destinationIds.has(String(activity.destination_id)),
-    );
-  }, [catalogActivities, tripDestinations]);
-
-  const plannedActivities = useMemo(
-    () =>
-      tripDestinations
-        .filter((destination) => destination.activities?.trim())
-        .map((destination) => ({
-          destinationId: String(destination.id),
-          destinationName: destination.location_name,
-          activity: destination.activities!.trim(),
-        })),
-    [tripDestinations],
-  );
-
   const plannedAccommodations = useMemo(
-    () => tripDestinations.filter((destination) => destination.accommodation?.trim()),
+    () =>
+      tripDestinations.filter(
+        (destination) =>
+          destination.accommodation_id != null || destination.accommodation?.trim(),
+      ),
     [tripDestinations],
   );
+
+  const plannedAccommodationLookupKey = useMemo(
+    () =>
+      JSON.stringify(
+        plannedAccommodations.map((destination) => ({
+          id: String(destination.id),
+          country: destination.country || selectedTrip?.countries?.[0] || '',
+          area: destination.location_name,
+          plannedName: destination.accommodation || '',
+          accommodationId: destination.accommodation_id ?? null,
+        })),
+      ),
+    [plannedAccommodations, selectedTrip],
+  );
+
+  useEffect(() => {
+    const rows = JSON.parse(plannedAccommodationLookupKey) as Array<{
+      id: string;
+      country: string;
+      area: string;
+      plannedName: string;
+      accommodationId: number | null;
+    }>;
+    const controller = new AbortController();
+    void Promise.all(
+      rows.map(async (row) => {
+        try {
+          const items = await accommodationsApi.getByLocation(
+            row.country,
+            row.area,
+            controller.signal,
+          );
+          return [
+            row.id,
+            {
+              items: items.filter(
+                (item) => item.active !== false && item.is_active !== false,
+              ),
+              error: false,
+            },
+          ] as const;
+        } catch {
+          return [row.id, { items: [], error: true }] as const;
+        }
+      }),
+    ).then((entries) => {
+      if (!controller.signal.aborted) {
+        setPlannedAccommodationInventory({
+          key: plannedAccommodationLookupKey,
+          byDestination: Object.fromEntries(entries),
+        });
+      }
+    });
+    return () => controller.abort();
+  }, [plannedAccommodationLookupKey]);
+
+  const selectedPlannedDestination =
+    plannedAccommodations.find(
+      (destination) => String(destination.id) === selectedPlannedDestinationId,
+    ) || null;
+  const currentPlannedInventory =
+    plannedAccommodationInventory?.key === plannedAccommodationLookupKey
+      ? plannedAccommodationInventory.byDestination
+      : null;
+  const selectedDestinationInventory = selectedPlannedDestination
+    ? currentPlannedInventory?.[String(selectedPlannedDestination.id)]
+    : undefined;
+  const selectedAccommodation =
+    selectedPlannedDestination && selectedDestinationInventory
+      ? selectedPlannedDestination.accommodation_id != null
+        ? selectedDestinationInventory.items.find(
+            (item) =>
+              String(item.id) === String(selectedPlannedDestination.accommodation_id),
+          ) || null
+        : selectedDestinationInventory.items.find(
+            (item) =>
+              item.name.trim() === selectedPlannedDestination.accommodation?.trim(),
+          ) || null
+      : null;
 
   const scheduleDays = useMemo(() => {
     const baseDate = selectedTrip?.startDate
@@ -366,9 +433,6 @@ export default function Bookings() {
   useEffect(() => {
     if (!selectedTrip) {
       setTripDestinations([]);
-      setTripExpenses([]);
-      setCatalogActivities([]);
-      setAllDestinations([]);
       setUserBookings([]);
       return;
     }
@@ -378,35 +442,13 @@ export default function Bookings() {
     const fetchTripDetails = async () => {
       setDetailsLoading(true);
       setTripDestinations([]);
-      setTripExpenses([]);
-      setCatalogActivities([]);
-      setAllDestinations([]);
       setUserBookings([]);
       try {
-        const [destData, budgetData, allDestData] = await Promise.all([
-          destinationsApi.getByTripId(selectedTrip.id).catch(() => []),
-          budgetApi
-            .getBudget(selectedTrip.id)
-            .catch(() => ({ balance: 0, expenses: [] })),
-          destinationsApi.getAll().catch(() => []),
-        ]);
-
-        const activityLists = await Promise.all(
-          destData.map((destination) =>
-            activitiesApi.getAll({ destination_id: destination.id }).catch(() => []),
-          ),
-        );
-        const activitiesData = Array.from(
-          new Map(
-            activityLists.flat().map((activity) => [activity.id, activity]),
-          ).values(),
-        );
-
+        const destData = await destinationsApi
+          .getByTripId(selectedTrip.id)
+          .catch(() => []);
         if (!cancelled) {
           setTripDestinations(destData);
-          setTripExpenses(budgetData.expenses || []);
-          setCatalogActivities(activitiesData);
-          setAllDestinations(allDestData);
         }
 
         try {
@@ -441,92 +483,48 @@ export default function Bookings() {
   const ledgerItems = useMemo<BookingLedgerItem[]>(() => {
     if (!selectedTrip) return [];
 
-    // Strictly enforce trip isolation so activities do not bleed across trips (BUG-02 / SEC-06)
+    // Show accommodation reservations only; legacy activity records remain stored.
     const tripBookings = userBookings.filter(
-      (b) => String(b.trip_id) === String(selectedTrip.id),
+      (booking) =>
+        String(booking.trip_id) === String(selectedTrip.id) &&
+        isAccommodationBooking(booking),
     );
 
     if (tripBookings.length > 0) {
-      const destLookup = new Map<number, string>();
-      allDestinations.forEach((d) => {
-        if (d.id && d.location_name) destLookup.set(Number(d.id), d.location_name);
-      });
-      tripDestinations.forEach((d) => {
-        if (d.id && d.location_name) destLookup.set(Number(d.id), d.location_name);
-      });
-
-      const accommodationExpenses = tripExpenses.filter(
-        (e) => e.category?.toLowerCase() === 'accommodation',
-      );
-
-      return tripBookings.map((b, idx) => {
-        const activity = catalogActivities.find((a) => a.id === b.activity_id);
-        const isHotel =
-          b.custom_type?.toLowerCase() === 'hotel' ||
-          (!b.activity_id &&
-            (b.custom_title?.toLowerCase().includes('hotel') ||
-              b.custom_title?.toLowerCase().includes('stay') ||
-              b.custom_title?.toLowerCase().includes('resort')));
-
-        const actTitle = isHotel
-          ? '—'
-          : b.custom_title ||
-            b.activity_title ||
-            activity?.title ||
-            `Activity #${b.activity_id}`;
-
-        const destName =
-          b.custom_location ||
-          (activity?.destination_id && destLookup.get(activity.destination_id)) ||
-          (tripDestinations.length > 0 ? tripDestinations[0].location_name : null) ||
-          (selectedTrip.countries && selectedTrip.countries[0]) ||
+      return tripBookings.map((booking, idx) => {
+        const destinationName =
+          booking.custom_location ||
+          tripDestinations.find(
+            (destination) => String(destination.id) === String(booking.destination_id),
+          )?.location_name ||
+          selectedTrip.countries?.[0] ||
           selectedTrip.name;
+        const cost = booking.total_price ?? booking.cost;
 
-        const matchedAccom =
-          accommodationExpenses[idx % Math.max(accommodationExpenses.length, 1)];
-        let accomLabel = 'Confirmed Stay / Boutique Hotel';
-        if (isHotel) {
-          accomLabel = b.custom_title || 'Boutique Hotel / Stay';
-        } else if (matchedAccom) {
-          accomLabel = `${matchedAccom.name} (₱${Number(matchedAccom.cost).toLocaleString()})`;
-        }
-
-        let budgetStr = 'Included';
-        const costVal = b.total_price ?? b.cost ?? activity?.cost;
-        if (costVal !== undefined && costVal !== null && costVal !== '') {
-          budgetStr = `₱${Number(costVal).toLocaleString()}`;
-        }
-
-        const dateStr = b.booking_date
-          ? formatUserDate(b.booking_date)
-          : b.created_at
-            ? formatUserDate(b.created_at)
+        const date = booking.booking_date
+          ? formatUserDate(booking.booking_date)
+          : booking.created_at
+            ? formatUserDate(booking.created_at)
             : formatUserDate(selectedTrip.startDate) || 'Flexible';
 
-        const itemStatus = normalizeBookingStatus(b.status);
-
         return {
-          id: String(b.id || `${selectedTrip.id}-booking-${idx}`),
-          date: dateStr,
-          destination: destName,
-          activities: actTitle,
-          accommodation: accomLabel,
-          budget: budgetStr,
-          status: itemStatus,
-          type: (isHotel ? 'hotel' : 'activity') as 'hotel' | 'activity',
+          id: String(booking.id || `${selectedTrip.id}-booking-${idx}`),
+          date,
+          destination: destinationName,
+          accommodation:
+            booking.accommodation_name || booking.custom_title || 'Accommodation stay',
+          cost:
+            cost !== undefined && cost !== null && cost !== ''
+              ? `PHP ${Number(cost).toLocaleString()}`
+              : 'Not provided',
+          status: normalizeBookingStatus(booking.status),
+          type: 'hotel' as const,
         };
       });
     }
 
     return [];
-  }, [
-    selectedTrip,
-    tripDestinations,
-    tripExpenses,
-    userBookings,
-    catalogActivities,
-    allDestinations,
-  ]);
+  }, [selectedTrip, tripDestinations, userBookings]);
 
   const filteredLedgerItems = useMemo(() => {
     return filterBookings(ledgerItems, bookingTypeFilter, bookingStatusFilter);
@@ -551,37 +549,48 @@ export default function Bookings() {
       ),
     [ledgerItems, bookingTypeFilter],
   );
-
   const handleTripCreated = () => loadTrips();
 
-  const handleOpenBookModal = () => {
+  const handleOpenAccommodationModal = async () => {
     if (!selectedTrip) return;
     setBookingDate(selectedTrip.startDate || new Date().toISOString().split('T')[0]);
-    setBookingTime('09:00 AM');
-    setBookingMode('catalog');
-    setCustomType('activity');
-    setSelectedActivityId(tripCatalogActivities[0]?.id ?? '');
-    setCustomTitle('');
-    setCustomLocation(selectedTrip.countries?.[0] || '');
     setSelectedPlannedDestinationId('');
-    setCustomCost('');
     setCustomNotes('');
     setBookingSuccessMsg(null);
     setBookingErrorMsg(null);
-    setIsBookActivityOpen(true);
+    setIsAccommodationModalOpen(true);
+    setBookingPlanLoading(true);
+    setBookingPlanRefreshFailed(false);
+    try {
+      // Refresh at modal-open time so a recently saved Trip Planner selection
+      // is not hidden by the destination list loaded earlier on this page.
+      const freshDestinations = await destinationsApi.getByTripIdStrict(selectedTrip.id);
+      setTripDestinations(freshDestinations);
+      const firstPlannedStay =
+        freshDestinations.find((destination) => destination.accommodation_id != null) ||
+        freshDestinations.find((destination) => destination.accommodation?.trim());
+      setSelectedPlannedDestinationId(String(firstPlannedStay?.id || ''));
+    } catch {
+      setBookingPlanRefreshFailed(true);
+      setBookingErrorMsg(
+        'Unable to load the latest planned accommodations. Please try again.',
+      );
+    } finally {
+      setBookingPlanLoading(false);
+    }
   };
 
-  const handleBookActivitySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedTrip || bookingSubmitLockRef.current) return;
-
-    const isCustom = bookingMode === 'custom';
-    if (isCustom && !customTitle.trim()) {
-      setBookingErrorMsg('Please enter a title or hotel/activity name.');
+  const handleBookAccommodationSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (
+      !selectedTrip ||
+      bookingPlanLoading ||
+      bookingPlanRefreshFailed ||
+      bookingSubmitLockRef.current
+    )
       return;
-    }
-    if (!isCustom && !selectedActivityId) {
-      setBookingErrorMsg('Please select an activity from the catalog.');
+    if (!selectedPlannedDestination || !selectedAccommodation) {
+      setBookingErrorMsg('Select an available planned accommodation before submitting.');
       return;
     }
 
@@ -590,99 +599,64 @@ export default function Bookings() {
     setBookingSuccessMsg(null);
     setBookingErrorMsg(null);
 
-    const activity = !isCustom
-      ? catalogActivities.find((a) => a.id === Number(selectedActivityId))
-      : null;
-    const costNum = isCustom
-      ? customCost
-        ? parseFloat(customCost)
-        : undefined
-      : activity
-        ? Number(activity.cost)
-        : 0;
-
     try {
-      if (isCustom) {
-        const customBooking: Booking = {
-          id: Date.now(),
-          user_id: 0,
-          trip_id: Number(selectedTrip.id),
-          status: 'confirmed',
-          custom_title: customTitle.trim(),
-          custom_type: customType,
-          custom_location: customLocation.trim() || undefined,
-          ...(selectedPlannedDestinationId &&
-          Number.isFinite(Number(selectedPlannedDestinationId))
-            ? { destination_id: Number(selectedPlannedDestinationId) }
-            : {}),
-          cost: costNum,
-          total_price: costNum,
-          booking_date: bookingDate || undefined,
-          notes: customNotes.trim() || undefined,
-          created_at: new Date().toISOString(),
-        };
-
-        saveTripCustomBooking(selectedTrip.id, customBooking);
-
-        setUserBookings((prev) => [customBooking, ...prev]);
-        setSyncNotice(null);
-        setBookingErrorMsg(null);
-        setBookingSuccessMsg(
-          `${customType === 'hotel' ? 'Stay reservation' : 'Activity'} "${customTitle}" booked successfully!`,
+      const payload = {
+        trip_id: Number(selectedTrip.id),
+        destination_id: Number(selectedPlannedDestination.id),
+        accommodation_id: selectedAccommodation.id,
+        booking_date: bookingDate || undefined,
+        notes: customNotes.trim() || undefined,
+      };
+      const savedBooking = await withRetry(() => bookingsApi.create(payload));
+      const booking: Booking = {
+        ...savedBooking,
+        ...payload,
+        accommodation_name: savedBooking.accommodation_name || selectedAccommodation.name,
+        custom_title: savedBooking.custom_title || selectedAccommodation.name,
+        status: savedBooking.status || 'pending',
+        created_at: savedBooking.created_at || new Date().toISOString(),
+      };
+      saveBookingExtra(savedBooking.id, {
+        trip_id: Number(selectedTrip.id),
+        booking_date: bookingDate || undefined,
+        custom_title: selectedAccommodation.name,
+        custom_type: 'hotel',
+        custom_location: selectedPlannedDestination.location_name,
+        notes: customNotes.trim() || undefined,
+      });
+      setUserBookings((current) => [booking, ...current]);
+      setSyncNotice(null);
+      setBookingSuccessMsg(
+        `Accommodation request for "${selectedAccommodation.name}" submitted. Status: Pending.`,
+      );
+      window.setTimeout(() => {
+        setIsAccommodationModalOpen(false);
+        setBookingSuccessMsg(null);
+      }, 1200);
+    } catch (error) {
+      const apiError = error as {
+        response?: { data?: { code?: string; message?: string } };
+      };
+      const errorText =
+        `${apiError.response?.data?.code || ''} ${apiError.response?.data?.message || ''}`.toLowerCase();
+      if (errorText.includes('price') && errorText.includes('required')) {
+        setBookingErrorMsg(
+          'This accommodation cannot be booked yet because pricing is not configured.',
         );
-        setTimeout(() => {
-          setIsBookActivityOpen(false);
-          setBookingSuccessMsg(null);
-        }, 1500);
+      } else if (
+        errorText.includes('accommodation_not_found') ||
+        errorText.includes('accommodation_not_available') ||
+        errorText.includes('accommodation_location_mismatch') ||
+        (errorText.includes('location') && errorText.includes('mismatch'))
+      ) {
+        setBookingErrorMsg(
+          'This accommodation is no longer valid for the selected destination. Please choose another accommodation.',
+        );
       } else {
-        const payload = {
-          activity_id: Number(selectedActivityId),
-          trip_id: Number(selectedTrip.id),
-          booking_date: bookingDate || undefined,
-          total_price: costNum,
-          cost: costNum,
-        };
-
-        const newBooking = await withRetry(() => bookingsApi.create(payload));
-
-        saveBookingExtra(newBooking.id, {
-          trip_id: Number(selectedTrip.id),
-          booking_date: bookingDate || undefined,
-          booking_time: bookingTime || undefined,
-          activity_id: Number(selectedActivityId),
-          activity_title: activity?.title || `Activity #${selectedActivityId}`,
-          cost: costNum,
-          total_price: costNum,
-        });
-
-        const fullBooking: Booking = {
-          ...newBooking,
-          trip_id: Number(selectedTrip.id),
-          activity_id: Number(selectedActivityId),
-          activity_title: activity?.title || `Activity #${selectedActivityId}`,
-          custom_type: 'activity',
-          cost: costNum,
-          total_price: costNum,
-          booking_date: bookingDate || undefined,
-        };
-
-        setUserBookings((prev) => [fullBooking, ...prev]);
-        setSyncNotice(null);
-        setBookingErrorMsg(null);
-        setBookingSuccessMsg(
-          `Activity "${activity?.title || 'Selected Activity'}" booked successfully!`,
+        setBookingErrorMsg(
+          'Unable to save this accommodation booking. Please try again.',
         );
-        setTimeout(() => {
-          setIsBookActivityOpen(false);
-          setBookingSuccessMsg(null);
-        }, 1500);
       }
-    } catch (err) {
-      console.error('[DEBUG_BOOKINGS] booking submission FAILED:', err);
-      const errMsg =
-        'Unable to reach server — booking submission failed. Please try again.';
-      setBookingErrorMsg(errMsg);
-      setSyncNotice(errMsg);
     } finally {
       bookingSubmitLockRef.current = false;
       setBookingSubmitting(false);
@@ -839,7 +813,7 @@ export default function Bookings() {
                     <div className="flex items-center gap-3">
                       <button
                         type="button"
-                        onClick={handleOpenBookModal}
+                        onClick={handleOpenAccommodationModal}
                         className="bookings-open-workspace-btn"
                         style={{
                           color: '#e9724c',
@@ -847,8 +821,8 @@ export default function Bookings() {
                           background: 'rgba(233, 114, 76, 0.08)',
                         }}
                       >
-                        <Ticket className="w-4 h-4" />
-                        <span>Book Activity / Stay</span>
+                        <Bed className="w-4 h-4" />
+                        <span>Book Accommodation</span>
                       </button>
 
                       <button
@@ -880,7 +854,7 @@ export default function Bookings() {
                             {status === 'all'
                               ? `All statuses (${bookingStatusCounts.all})`
                               : status === 'confirmed'
-                                ? `Confirmed / processed (${bookingStatusCounts.confirmed})`
+                                ? `Confirmed (${bookingStatusCounts.confirmed})`
                                 : status === 'completed'
                                   ? `Used / completed (${bookingStatusCounts.completed})`
                                   : `Pending (${bookingStatusCounts.pending})`}
@@ -894,7 +868,7 @@ export default function Bookings() {
                       className="bookings-type-tabs"
                       aria-label="Reservation type filters"
                     >
-                      {(['all', 'activity', 'hotel'] as const).map((t) => (
+                      {(['all', 'hotel'] as const).map((t) => (
                         <button
                           key={t}
                           type="button"
@@ -903,9 +877,7 @@ export default function Bookings() {
                         >
                           {t === 'all'
                             ? `All Reservations (${bookingTypeCounts.all})`
-                            : t === 'activity'
-                              ? `Activities (${bookingTypeCounts.activity})`
-                              : `Hotels & Stays (${bookingTypeCounts.hotel})`}
+                            : `Accommodation (${bookingTypeCounts.hotel})`}
                         </button>
                       ))}
                     </div>
@@ -925,28 +897,17 @@ export default function Bookings() {
                           <tr className="bookings-table-header-row">
                             <th>Date</th>
                             <th>Destination</th>
-                            <th>Activities</th>
                             <th>Accommodation</th>
-                            <th>Total Budget</th>
+                            <th>Booking Cost</th>
+                            <th>Status</th>
                           </tr>
                         </thead>
                         <tbody className="bookings-table-body">
                           {filteredLedgerItems.map((item) => (
                             <tr key={item.id} className="bookings-table-row">
-                              <td className="bookings-cell-date">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span>{item.date}</span>
-                                  {renderStatusBadge(item.status)}
-                                </div>
-                              </td>
+                              <td className="bookings-cell-date">{item.date}</td>
                               <td className="bookings-cell-destination">
                                 <span>{item.destination}</span>
-                              </td>
-                              <td
-                                className="bookings-cell-activities"
-                                title={item.activities}
-                              >
-                                {item.activities}
                               </td>
                               <td
                                 className="bookings-cell-accommodation"
@@ -954,7 +915,10 @@ export default function Bookings() {
                               >
                                 {item.accommodation}
                               </td>
-                              <td className="bookings-cell-budget">{item.budget}</td>
+                              <td className="bookings-cell-budget">{item.cost}</td>
+                              <td className="bookings-cell-status">
+                                {renderStatusBadge(item.status)}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -964,15 +928,15 @@ export default function Bookings() {
                         className="bookings-table-empty"
                         style={{ padding: '48px 24px' }}
                       >
-                        <Ticket className="bookings-table-empty-icon" />
+                        <Bed className="bookings-table-empty-icon" />
                         <h3 className="bookings-table-empty-title">
                           {ledgerItems.length === 0
-                            ? 'No Booked Activities Yet'
+                            ? 'No Accommodation Bookings Yet'
                             : 'No reservations match this filter'}
                         </h3>
                         <p className="bookings-table-empty-desc">
                           {ledgerItems.length === 0
-                            ? `You haven't booked any activities for ${selectedTrip.name} yet. Click "Book Activity" above to add reservations!`
+                            ? 'Add a stay reservation from your trip plan.'
                             : 'Choose another reservation type or status to see matching records.'}
                         </p>
                       </div>
@@ -987,7 +951,7 @@ export default function Bookings() {
                   </h3>
                   <p className="bookings-table-empty-desc">
                     Choose a scheduled trip from the left sidebar or create a new trip to
-                    view its reservations, activities, and budget allocations.
+                    view its accommodation reservations.
                   </p>
                 </div>
               )}
@@ -1183,43 +1147,38 @@ export default function Bookings() {
         onTripCreated={handleTripCreated}
       />
 
-      {isBookActivityOpen && selectedTrip && (
+      {isAccommodationModalOpen && selectedTrip && (
         <div
           className="booking-modal-overlay"
           role="dialog"
           aria-modal="true"
-          aria-labelledby="book-activity-title"
+          aria-labelledby="add-accommodation-title"
         >
           <button
             type="button"
             className="modal-backdrop-dismiss"
-            onClick={() => !bookingSubmitting && setIsBookActivityOpen(false)}
-            aria-label="Close modal backdrop"
+            onClick={() => !bookingSubmitting && setIsAccommodationModalOpen(false)}
+            aria-label="Close accommodation booking dialog"
           />
           <div className="booking-modal-card">
-            {/* Close Button (Figma #808:177, #808:207) */}
             <button
               type="button"
               className="booking-modal-close-btn"
-              onClick={() => !bookingSubmitting && setIsBookActivityOpen(false)}
+              onClick={() => !bookingSubmitting && setIsAccommodationModalOpen(false)}
               aria-label="Close modal"
             >
-              ×
+              <X size={18} aria-hidden="true" />
             </button>
 
-            {/* Header (Figma #808:175, #808:176 & #808:205, #808:206) */}
             <div className="booking-modal-header">
-              <h3 id="book-activity-title" className="booking-modal-title">
-                Book an Activity
+              <h3 id="add-accommodation-title" className="booking-modal-title">
+                Add Accommodation Booking
               </h3>
               <p className="booking-modal-subtitle">
-                {bookingMode === 'catalog'
-                  ? 'Choose an activity from the catalog and reserve it for this trip.'
-                  : 'Add your own reservation or hotel stay to this trip.'}
+                Add a stay reservation to {selectedTrip.name}.
               </p>
             </div>
 
-            {/* Success Feedback */}
             {bookingSuccessMsg && (
               <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2 my-3">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -1227,42 +1186,13 @@ export default function Bookings() {
               </div>
             )}
 
-            {/* Error Feedback */}
             {bookingErrorMsg && (
-              <div
-                role="status"
-                aria-live="polite"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '10px',
-                  padding: '10px 14px',
-                  backgroundColor: '#FFF9F2',
-                  border: '1px solid rgba(233, 114, 76, 0.35)',
-                  borderRadius: '12px',
-                  color: '#78350F',
-                  fontSize: '11px',
-                  fontFamily: "'Poppins', sans-serif",
-                  fontWeight: 500,
-                  margin: '12px 0',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <CloudOff size={14} style={{ color: '#E9724C', flexShrink: 0 }} />
-                  <span>{bookingErrorMsg}</span>
-                </div>
+              <div role="alert" className="booking-modal-error">
+                <CloudOff size={14} aria-hidden="true" />
+                <span>{bookingErrorMsg}</span>
                 <button
                   type="button"
                   onClick={() => setBookingErrorMsg(null)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    padding: '2px',
-                    cursor: 'pointer',
-                    color: '#92400E',
-                    opacity: 0.7,
-                  }}
                   aria-label="Dismiss error"
                 >
                   <X size={13} />
@@ -1270,307 +1200,121 @@ export default function Bookings() {
               </div>
             )}
 
-            {/* Tabs Switcher (Figma #808:179 - #808:183 & #808:209 - #808:213) */}
-            <div className="booking-modal-tabs-wrapper">
-              <div
-                className="booking-modal-tabs"
-                role="tablist"
-                aria-label="Booking mode tabs"
-              >
-                <div
-                  className={`booking-modal-slider-pill ${bookingMode === 'custom' ? 'slide-right' : 'slide-left'}`}
-                  aria-hidden="true"
-                />
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={bookingMode === 'catalog'}
-                  onClick={() => {
-                    setBookingMode('catalog');
-                    setBookingErrorMsg(null);
-                  }}
-                  className={`booking-modal-tab-btn ${bookingMode === 'catalog' ? 'active' : ''}`}
-                >
-                  <Ticket size={14} className="shrink-0" />
-                  <span>Catalog Activity</span>
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={bookingMode === 'custom'}
-                  onClick={() => {
-                    setBookingMode('custom');
-                    setBookingErrorMsg(null);
-                  }}
-                  className={`booking-modal-tab-btn ${bookingMode === 'custom' ? 'active' : ''}`}
-                >
-                  <Bed size={14} className="shrink-0" />
-                  <span>Custom Reservation / Hotel</span>
-                </button>
-              </div>
-            </div>
-
-            <form onSubmit={handleBookActivitySubmit} className="booking-modal-form">
-              {bookingMode === 'catalog' ? (
+            <form onSubmit={handleBookAccommodationSubmit} className="booking-modal-form">
+              {bookingPlanLoading ? (
+                <p className="text-xs text-stone-500">
+                  Loading planned accommodations...
+                </p>
+              ) : plannedAccommodations.length > 0 ? (
                 <>
-                  {/* Select Activity (Figma #808:184, #808:185, #808:186) */}
                   <div className="booking-modal-field">
-                    <label htmlFor="activity-select" className="booking-modal-label">
-                      Select Activity
+                    <label
+                      htmlFor="planned-accommodation-select"
+                      className="booking-modal-label"
+                    >
+                      Planned Accommodation
                     </label>
                     <select
-                      id="activity-select"
+                      id="planned-accommodation-select"
                       className="booking-modal-select"
-                      value={selectedActivityId}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value.startsWith('planned:')) {
-                          const planItem = plannedActivities.find(
-                            (item) =>
-                              item.destinationId === value.slice('planned:'.length),
-                          );
-                          if (planItem) {
-                            setBookingMode('custom');
-                            setCustomType('activity');
-                            setCustomTitle(planItem.activity);
-                            setCustomLocation(planItem.destinationName);
-                            setSelectedPlannedDestinationId(planItem.destinationId);
-                            setCustomCost('');
-                            setSelectedActivityId('');
-                          }
-                          return;
-                        }
-                        setSelectedActivityId(value ? Number(value) : '');
+                      value={selectedPlannedDestinationId}
+                      onChange={(event) => {
+                        setSelectedPlannedDestinationId(event.target.value);
+                        setBookingDate(selectedTrip.startDate || '');
                       }}
-                      required={bookingMode === 'catalog'}
                     >
-                      <option value="" disabled>
-                        Select activity...
-                      </option>
-                      {plannedActivities.length > 0 && (
-                        <optgroup label="Planned in this trip">
-                          {plannedActivities.map((item) => (
-                            <option
-                              key={`planned-${item.destinationId}`}
-                              value={`planned:${item.destinationId}`}
-                            >
-                              {item.destinationName} — {item.activity}
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                      {tripCatalogActivities.map((act) => {
-                        const destination = tripDestinations.find(
-                          (item) => String(item.id) === String(act.destination_id),
-                        );
-                        return (
-                          <option key={act.id} value={act.id}>
-                            {destination?.location_name
-                              ? `${destination.location_name} — `
-                              : ''}
-                            {act.title} — ₱{Number(act.cost).toLocaleString()}
-                          </option>
-                        );
-                      })}
+                      <option value="">Select a planned accommodation</option>
+                      {plannedAccommodations.map((destination) => (
+                        <option key={destination.id} value={destination.id}>
+                          {destination.location_name} — {destination.accommodation}
+                          {destination.country ? `, ${destination.country}` : ''}
+                        </option>
+                      ))}
                     </select>
                   </div>
-
-                  {/* Booking Date (Figma #808:187, #808:188, #808:189) */}
-                  <div className="booking-modal-field">
-                    <label htmlFor="booking-date" className="booking-modal-label">
-                      Booking Date
-                    </label>
-                    <input
-                      id="booking-date"
-                      type="date"
-                      className="booking-modal-input"
-                      value={bookingDate}
-                      onChange={(e) => setBookingDate(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  {/* Booking Time (Figma #808:190, #808:191, #808:192) */}
-                  <div className="booking-modal-field">
-                    <label htmlFor="booking-time" className="booking-modal-label">
-                      Booking Time
-                    </label>
-                    <select
-                      id="booking-time"
-                      className="booking-modal-select"
-                      value={bookingTime}
-                      onChange={(e) => setBookingTime(e.target.value)}
-                    >
-                      <option value="" disabled>
-                        Select time
-                      </option>
-                      <option value="09:00 AM">09:00 AM (Morning)</option>
-                      <option value="10:30 AM">10:30 AM (Morning)</option>
-                      <option value="01:30 PM">01:30 PM (Afternoon)</option>
-                      <option value="03:00 PM">03:00 PM (Afternoon)</option>
-                      <option value="06:00 PM">06:00 PM (Evening)</option>
-                      <option value="Flexible / Anytime">Flexible / Anytime</option>
-                    </select>
-                  </div>
-
-                  {/* Helper text (Figma #808:193) */}
-                  <p className="booking-modal-helper-text">
-                    Reservation details will be added to the selected trip.
-                  </p>
-
-                  {/* Selected Trip Info Card (Figma #808:194 - #808:197) */}
-                  <div className="booking-modal-trip-card">
-                    <span className="booking-modal-trip-tag">Selected trip</span>
-                    <span className="booking-modal-trip-name">{selectedTrip.name}</span>
-                    <span className="booking-modal-trip-meta">
-                      {selectedTrip.countries && selectedTrip.countries.length > 0
-                        ? selectedTrip.countries.join(', ')
-                        : selectedTrip.name}{' '}
-                      · booking dates follow your preferred display format
-                    </span>
-                  </div>
+                  {plannedAccommodationInventory?.key !==
+                  plannedAccommodationLookupKey ? (
+                    <p className="text-xs text-stone-500">
+                      Loading planned accommodation details...
+                    </p>
+                  ) : selectedDestinationInventory?.error ? (
+                    <p role="alert" className="text-xs text-rose-700">
+                      Unable to load accommodations.
+                    </p>
+                  ) : selectedPlannedDestination &&
+                    selectedDestinationInventory &&
+                    !selectedAccommodation ? (
+                    <p role="alert" className="text-xs text-amber-800">
+                      This accommodation is no longer available.
+                      {selectedPlannedDestination.accommodation
+                        ? ` ${selectedPlannedDestination.accommodation}. Select another property in Trip Planner.`
+                        : ' Select another property in Trip Planner.'}
+                    </p>
+                  ) : selectedAccommodation && selectedPlannedDestination ? (
+                    <div className="booking-modal-trip-card">
+                      <span className="booking-modal-trip-tag">Selected property</span>
+                      <span className="booking-modal-trip-name">
+                        {selectedAccommodation.name}
+                      </span>
+                      <span className="booking-modal-trip-meta">
+                        {selectedAccommodation.address ||
+                          `${selectedAccommodation.area}, ${selectedAccommodation.country}`}
+                      </span>
+                      <span className="booking-modal-trip-meta font-semibold">
+                        PHP {Number(selectedAccommodation.price).toLocaleString()}
+                      </span>
+                    </div>
+                  ) : null}
                 </>
               ) : (
-                <>
-                  {customType === 'hotel' && plannedAccommodations.length > 0 && (
-                    <div className="booking-modal-field">
-                      <label
-                        htmlFor="planned-accommodation-select"
-                        className="booking-modal-label"
-                      >
-                        Use planned accommodation (optional)
-                      </label>
-                      <select
-                        id="planned-accommodation-select"
-                        className="booking-modal-select"
-                        value=""
-                        onChange={(event) => {
-                          const plannedStay = plannedAccommodations.find(
-                            (destination) =>
-                              String(destination.id) === event.target.value,
-                          );
-                          if (!plannedStay) return;
-                          setCustomTitle(plannedStay.accommodation || '');
-                          setCustomLocation(plannedStay.location_name);
-                          setSelectedPlannedDestinationId(String(plannedStay.id));
-                        }}
-                      >
-                        <option value="" disabled>
-                          Select a planned stay...
-                        </option>
-                        {plannedAccommodations.map((destination) => (
-                          <option key={destination.id} value={destination.id}>
-                            {destination.location_name} — {destination.accommodation}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {/* Reservation / Hotel Name (Figma #808:214, #808:215, #808:216) */}
-                  <div className="booking-modal-field">
-                    <label htmlFor="custom-title" className="booking-modal-label">
-                      Reservation / Hotel Name
-                    </label>
-                    <input
-                      id="custom-title"
-                      type="text"
-                      placeholder="Enter reservation or hotel name"
-                      className="booking-modal-input"
-                      value={customTitle}
-                      onChange={(e) => setCustomTitle(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  {/* Location (Figma #808:217, #808:218, #808:219) */}
-                  <div className="booking-modal-field">
-                    <label htmlFor="custom-location" className="booking-modal-label">
-                      Location
-                    </label>
-                    <input
-                      id="custom-location"
-                      type="text"
-                      placeholder="Enter city or place"
-                      className="booking-modal-input"
-                      value={customLocation}
-                      onChange={(e) => setCustomLocation(e.target.value)}
-                    />
-                  </div>
-
-                  {/* Booking Date (Figma #808:220, #808:221, #808:222) */}
-                  <div className="booking-modal-field">
-                    <label htmlFor="custom-date" className="booking-modal-label">
-                      Booking Date
-                    </label>
-                    <input
-                      id="custom-date"
-                      type="date"
-                      className="booking-modal-input"
-                      value={bookingDate}
-                      onChange={(e) => setBookingDate(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  {/* Type (Figma #808:223 - #808:227) */}
-                  <div className="booking-modal-field">
-                    <span id="custom-type-label" className="booking-modal-label">
-                      Type
-                    </span>
-                    <div
-                      className="booking-modal-type-group"
-                      role="group"
-                      aria-labelledby="custom-type-label"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCustomType('activity');
-                          setSelectedPlannedDestinationId('');
-                        }}
-                        className={`booking-modal-type-pill ${customType === 'activity' ? 'active' : ''}`}
-                      >
-                        <Ticket size={13} className="shrink-0" />
-                        <span>Reservation</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCustomType('hotel');
-                          setSelectedPlannedDestinationId('');
-                        }}
-                        className={`booking-modal-type-pill ${customType === 'hotel' ? 'active' : ''}`}
-                      >
-                        <Bed size={13} className="shrink-0" />
-                        <span>Hotel / Stay</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Notes (Figma #808:228, #808:229, #808:230) */}
-                  <div className="booking-modal-field">
-                    <label htmlFor="custom-notes" className="booking-modal-label">
-                      Notes
-                    </label>
-                    <input
-                      id="custom-notes"
-                      type="text"
-                      placeholder="Optional details"
-                      className="booking-modal-input"
-                      value={customNotes}
-                      onChange={(e) => setCustomNotes(e.target.value)}
-                    />
-                  </div>
-                </>
+                <div role="alert" className="booking-modal-error">
+                  Select an accommodation in Trip Planner before submitting a booking
+                  request.
+                </div>
               )}
 
-              {/* Action Buttons (Figma #808:198 - #808:201 & #808:231 - #808:234) */}
+              <div className="booking-modal-field">
+                <label htmlFor="accommodation-date" className="booking-modal-label">
+                  Booking Date
+                </label>
+                <input
+                  id="accommodation-date"
+                  type="date"
+                  className="booking-modal-input"
+                  value={bookingDate}
+                  onChange={(event) => setBookingDate(event.target.value)}
+                />
+              </div>
+
+              <div className="booking-modal-field">
+                <label htmlFor="accommodation-notes" className="booking-modal-label">
+                  Notes (optional)
+                </label>
+                <input
+                  id="accommodation-notes"
+                  type="text"
+                  placeholder="Optional details"
+                  className="booking-modal-input"
+                  value={customNotes}
+                  onChange={(event) => setCustomNotes(event.target.value)}
+                />
+              </div>
+
+              <div className="booking-modal-trip-card">
+                <span className="booking-modal-trip-tag">Selected trip</span>
+                <span className="booking-modal-trip-name">{selectedTrip.name}</span>
+                <span className="booking-modal-trip-meta">
+                  {selectedTrip.startDate && selectedTrip.endDate
+                    ? formatUserDateRange(selectedTrip.startDate, selectedTrip.endDate)
+                    : selectedTrip.countries?.join(', ') || selectedTrip.name}
+                </span>
+              </div>
+
               <div className="booking-modal-actions">
                 <button
                   type="button"
                   onClick={() => {
-                    setIsBookActivityOpen(false);
+                    setIsAccommodationModalOpen(false);
                     setBookingErrorMsg(null);
                   }}
                   className="booking-modal-cancel-btn"
@@ -1582,12 +1326,15 @@ export default function Bookings() {
                   type="submit"
                   disabled={
                     bookingSubmitting ||
-                    (bookingMode === 'catalog' && !selectedActivityId) ||
-                    (bookingMode === 'custom' && !customTitle.trim())
+                    bookingPlanLoading ||
+                    bookingPlanRefreshFailed ||
+                    !selectedAccommodation ||
+                    !selectedPlannedDestination ||
+                    plannedAccommodationInventory?.key !== plannedAccommodationLookupKey
                   }
                   className="booking-modal-submit-btn"
                 >
-                  {bookingSubmitting ? 'Confirming...' : 'Submit Reservation'}
+                  {bookingSubmitting ? 'Saving...' : 'Save Accommodation Booking'}
                 </button>
               </div>
             </form>
