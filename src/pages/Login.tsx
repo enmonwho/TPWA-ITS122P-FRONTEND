@@ -206,7 +206,7 @@ export default function Login() {
           <input
             type="email"
             value={email}
-            maxLength={20}
+            maxLength={50}
             {...noWhitespaceInputProps}
             onChange={(e) => {
               const nextEmail = e.target.value.trim();
