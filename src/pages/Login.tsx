@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePageLoader } from '../context/PageLoaderContext';
 import { ROUTES } from '../lib/constants';
 import { authApi, preferencesApi } from '../services/api';
+import { noWhitespaceInputProps } from '../lib/inputWhitespace';
 import {
   getLockoutState,
   recordFailedAttempt,
@@ -82,6 +83,15 @@ export default function Login() {
 
     if (lockoutState.isLocked) return;
 
+    if (/\s/.test(email.trim()) || /\s/.test(password)) {
+      setErrorMessage(
+        /\s/.test(password)
+          ? 'Password cannot contain whitespace.'
+          : 'Email cannot contain spaces.',
+      );
+      return;
+    }
+
     setErrorMessage('');
     setNeedsVerification(false);
     setResendSuccess('');
@@ -89,7 +99,7 @@ export default function Login() {
 
     try {
       // 1. Perform authentication attempt without full-screen loading page
-      const response = await login({ email, password });
+      const response = await login({ email: email.trim(), password });
 
       clearLockoutState();
 
@@ -196,9 +206,15 @@ export default function Login() {
           <input
             type="email"
             value={email}
-            maxLength={254}
+            maxLength={20}
+            {...noWhitespaceInputProps}
             onChange={(e) => {
-              setEmail(e.target.value);
+              const nextEmail = e.target.value.trim();
+              if (/\s/.test(nextEmail)) {
+                setErrorMessage('Email cannot contain spaces.');
+                return;
+              }
+              setEmail(nextEmail);
               if (errorMessage) setErrorMessage('');
             }}
             placeholder="Email address"
@@ -211,8 +227,13 @@ export default function Login() {
           <input
             type={showPassword ? 'text' : 'password'}
             value={password}
-            maxLength={128}
+            maxLength={16}
+            {...noWhitespaceInputProps}
             onChange={(e) => {
+              if (/\s/.test(e.target.value)) {
+                setErrorMessage('Password cannot contain whitespace.');
+                return;
+              }
               setPassword(e.target.value);
               if (errorMessage) setErrorMessage('');
             }}

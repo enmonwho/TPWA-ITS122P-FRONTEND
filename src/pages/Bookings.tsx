@@ -751,6 +751,7 @@ export default function Bookings() {
                   <img src={magnifierIcon} alt="Search" className="w-4 h-4 opacity-50" />
                   <input
                     type="text"
+                    maxLength={100}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search..."
@@ -1017,6 +1018,7 @@ export default function Bookings() {
             <img src={magnifierIcon} alt="Search" className="w-4 h-4 opacity-50" />
             <input
               type="text"
+              maxLength={100}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search active reservations..."
@@ -1339,6 +1341,7 @@ export default function Bookings() {
                 <input
                   id="accommodation-notes"
                   type="text"
+                  maxLength={100}
                   placeholder="Optional details"
                   className="booking-modal-input"
                   value={customNotes}

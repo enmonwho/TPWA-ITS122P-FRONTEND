@@ -718,6 +718,7 @@ function UserManagementTab() {
           <Search size={14} className="text-stone-400" />
           <input
             type="text"
+            maxLength={100}
             placeholder="Search..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -1117,6 +1118,7 @@ function TripsBookingsTab() {
           <Search size={14} className="shrink-0 text-stone-400" />
           <input
             type="search"
+            maxLength={100}
             placeholder="Search Trip ID, trip, owner, or destination..."
             value={tripSearch}
             onChange={(event) => setTripSearch(event.target.value)}
@@ -1510,6 +1512,7 @@ function MasterRecordsTab() {
               <Search size={14} className="text-stone-400" />
               <input
                 type="text"
+                maxLength={100}
                 placeholder="Search trip by Name, Destination, or ID..."
                 value={tripSearch}
                 onChange={(e) => {
@@ -1606,6 +1609,7 @@ function MasterRecordsTab() {
               <Search size={14} className="text-stone-400" />
               <input
                 type="text"
+                maxLength={100}
                 placeholder="Search user by Name, Email, or ID..."
                 value={userSearch}
                 onChange={(e) => {

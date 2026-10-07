@@ -118,6 +118,7 @@ export function CountryAutocomplete({
         <input
           ref={inputRef}
           type="text"
+          maxLength={100}
           className="modal-input"
           placeholder={
             value.length > 0

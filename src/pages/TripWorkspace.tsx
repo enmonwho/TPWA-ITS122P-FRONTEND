@@ -1181,6 +1181,7 @@ export default function TripWorkspace() {
         >
           <input
             type="text"
+            maxLength={100}
             value={currentValue || ''}
             onChange={(e) => handleUpdateDestination(destId, field, e.target.value)}
             onBlur={() => {
@@ -1466,6 +1467,7 @@ export default function TripWorkspace() {
           <input
             id="workspace-dest-input"
             type="text"
+            maxLength={100}
             value={newDestInput}
             onChange={(event) => {
               setNewDestInput(event.target.value);
@@ -1875,6 +1877,7 @@ export default function TripWorkspace() {
                                       <div className="workspace-route-destination-copy">
                                         <input
                                           type="text"
+                                          maxLength={100}
                                           value={dest.name || ''}
                                           data-destination-id={dest.id}
                                           onChange={handleRouteDestinationNameChange}
@@ -2576,6 +2579,7 @@ export default function TripWorkspace() {
                 <input
                   id="mobile-dest-name-input"
                   type="text"
+                  maxLength={100}
                   value={mobileDestName}
                   onChange={(e) => {
                     setMobileDestName(e.target.value);

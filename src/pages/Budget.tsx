@@ -1200,6 +1200,7 @@ export function Budget() {
                 <input
                   id="modal-expense-merchant"
                   type="text"
+                  maxLength={100}
                   required
                   placeholder="Name of shop, restaurant..."
                   className="budget-modal-gradient-input budget-modal-merchant-input"
@@ -1252,6 +1253,7 @@ export function Budget() {
                       <input
                         id={`modal-item-name-${index}`}
                         type="text"
+                        maxLength={100}
                         placeholder="Name"
                         className="budget-modal-gradient-input budget-modal-item-name"
                         value={item.name}

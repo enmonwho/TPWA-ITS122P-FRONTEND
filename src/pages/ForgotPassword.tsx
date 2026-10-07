@@ -5,6 +5,7 @@ import axios from 'axios';
 import { CheckCircle2, AlertCircle, ArrowLeft, ExternalLink, Mail } from 'lucide-react';
 import AuthLayout from '../components/AuthLayout';
 import { authApi } from '../services/api';
+import { noWhitespaceInputProps } from '../lib/inputWhitespace';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -21,6 +22,10 @@ export default function ForgotPassword() {
 
     if (!email.trim()) {
       setErrorMessage('Please enter your email address.');
+      return;
+    }
+    if (/\s/.test(email.trim())) {
+      setErrorMessage('Email cannot contain spaces.');
       return;
     }
 
@@ -128,8 +133,15 @@ export default function ForgotPassword() {
             <input
               type="email"
               value={email}
+              maxLength={20}
+              {...noWhitespaceInputProps}
               onChange={(e) => {
-                setEmail(e.target.value);
+                const nextEmail = e.target.value.trim();
+                if (/\s/.test(nextEmail)) {
+                  setErrorMessage('Email cannot contain spaces.');
+                  return;
+                }
+                setEmail(nextEmail);
                 if (errorMessage) setErrorMessage('');
               }}
               placeholder="Enter your email address"

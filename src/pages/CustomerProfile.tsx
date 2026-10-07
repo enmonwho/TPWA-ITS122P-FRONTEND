@@ -339,6 +339,7 @@ export default function CustomerProfile() {
                 <input
                   id="journalTitle"
                   type="text"
+                  maxLength={100}
                   value={newJournalTitle}
                   onChange={(e) => setNewJournalTitle(e.target.value)}
                   placeholder="e.g. My First Day in Tokyo"

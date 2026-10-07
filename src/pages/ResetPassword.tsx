@@ -7,6 +7,7 @@ import PasswordRequirements from '../components/PasswordRequirements';
 import { authApi } from '../services/api';
 import { Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
 import { analyzePassword } from '../lib/passwordValidation';
+import { noWhitespaceInputProps } from '../lib/inputWhitespace';
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -26,6 +27,11 @@ export default function ResetPassword() {
 
     if (!token) {
       setErrorMessage('Missing password reset token.');
+      return;
+    }
+
+    if (/\s/.test(password) || /\s/.test(confirmPassword)) {
+      setErrorMessage('Password cannot contain whitespace.');
       return;
     }
 
@@ -82,7 +88,15 @@ export default function ResetPassword() {
             <input
               type={showPassword ? 'text' : 'password'}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              maxLength={16}
+              {...noWhitespaceInputProps}
+              onChange={(e) => {
+                if (/\s/.test(e.target.value)) {
+                  setErrorMessage('Password cannot contain whitespace.');
+                  return;
+                }
+                setPassword(e.target.value);
+              }}
               placeholder="New password (min 8 chars)"
               required
               className="auth-input"
@@ -102,7 +116,15 @@ export default function ResetPassword() {
             <input
               type={showPassword ? 'text' : 'password'}
               value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
+              maxLength={16}
+              {...noWhitespaceInputProps}
+              onChange={(e) => {
+                if (/\s/.test(e.target.value)) {
+                  setErrorMessage('Password cannot contain whitespace.');
+                  return;
+                }
+                setConfirmPassword(e.target.value);
+              }}
               placeholder="Confirm new password"
               required
               className="auth-input"

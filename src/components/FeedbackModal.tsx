@@ -243,6 +243,7 @@ export default function FeedbackModal({
               <input
                 id="feedback-user-name"
                 type="text"
+                maxLength={50}
                 disabled
                 value={reviewerName}
                 style={{
@@ -283,6 +284,7 @@ export default function FeedbackModal({
                   ref={inputRef}
                   id="feedback-country-input"
                   type="text"
+                  maxLength={100}
                   placeholder="Select country visited..."
                   value={countryName || countrySearch}
                   autoComplete="off"
@@ -371,6 +373,7 @@ export default function FeedbackModal({
               <input
                 id="feedback-title-input"
                 type="text"
+                maxLength={100}
                 required
                 placeholder="Summarize your experience"
                 value={title}

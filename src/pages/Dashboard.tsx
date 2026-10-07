@@ -885,6 +885,7 @@ export default function Dashboard() {
                 <input
                   id="edit-trip-title"
                   type="text"
+                  maxLength={100}
                   required
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}

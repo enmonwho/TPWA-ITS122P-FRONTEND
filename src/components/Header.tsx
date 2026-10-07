@@ -273,6 +273,7 @@ export default function Header() {
                   <input
                     ref={searchInputRef}
                     type="text"
+                    maxLength={100}
                     aria-label="Find travelers"
                     placeholder="Find travelers"
                     value={searchQuery}

@@ -23,6 +23,7 @@ import PasswordRequirements from '../components/PasswordRequirements';
 import { ROUTES, STORAGE_KEYS } from '../lib/constants';
 import { userApi, preferencesApi } from '../services/api';
 import { analyzePassword } from '../lib/passwordValidation';
+import { noWhitespaceInputProps } from '../lib/inputWhitespace';
 import '../styles/ProfileSettings.css';
 
 interface StoredPreferences {
@@ -173,6 +174,14 @@ export default function ProfileSettings() {
 
     setSuccessMessage(null);
     setErrorMessage(null);
+
+    if (
+      [currentPassword, newPassword, confirmPassword].some((value) => /\s/.test(value))
+    ) {
+      setErrorMessage('Password cannot contain whitespace.');
+      setActiveTab('security');
+      return;
+    }
 
     if (newPassword) {
       if (!currentPassword) {
@@ -458,6 +467,7 @@ export default function ProfileSettings() {
                   id="fullName"
                   type="text"
                   value={fullName}
+                  maxLength={50}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="e.g. Juan Dela Cruz"
                   required
@@ -473,6 +483,7 @@ export default function ProfileSettings() {
                   id="username"
                   type="text"
                   value={username}
+                  maxLength={16}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="e.g. adiee"
                   required
@@ -491,6 +502,7 @@ export default function ProfileSettings() {
                   id="email"
                   type="email"
                   value={user?.email || ''}
+                  maxLength={20}
                   disabled
                   className="profile-field-input"
                 />
@@ -635,7 +647,15 @@ export default function ProfileSettings() {
                     id="currentPassword"
                     type={showCurrentPassword ? 'text' : 'password'}
                     value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    maxLength={16}
+                    {...noWhitespaceInputProps}
+                    onChange={(e) => {
+                      if (/\s/.test(e.target.value)) {
+                        setErrorMessage('Password cannot contain whitespace.');
+                        return;
+                      }
+                      setCurrentPassword(e.target.value);
+                    }}
                     placeholder="Enter current password"
                     className="profile-field-input"
                   />
@@ -659,7 +679,15 @@ export default function ProfileSettings() {
                     id="newPassword"
                     type={showPassword ? 'text' : 'password'}
                     value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
+                    maxLength={16}
+                    {...noWhitespaceInputProps}
+                    onChange={(e) => {
+                      if (/\s/.test(e.target.value)) {
+                        setErrorMessage('Password cannot contain whitespace.');
+                        return;
+                      }
+                      setNewPassword(e.target.value);
+                    }}
                     placeholder="Leave blank to keep unchanged"
                     className="profile-field-input"
                   />
@@ -684,7 +712,15 @@ export default function ProfileSettings() {
                     id="confirmPassword"
                     type={showPassword ? 'text' : 'password'}
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    maxLength={16}
+                    {...noWhitespaceInputProps}
+                    onChange={(e) => {
+                      if (/\s/.test(e.target.value)) {
+                        setErrorMessage('Password cannot contain whitespace.');
+                        return;
+                      }
+                      setConfirmPassword(e.target.value);
+                    }}
                     placeholder="Repeat new password"
                     className="profile-field-input"
                   />

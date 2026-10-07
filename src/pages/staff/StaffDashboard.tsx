@@ -671,6 +671,7 @@ export default function StaffDashboard() {
                 <Search size={14} className="staff-search-icon" />
                 <input
                   type="text"
+                  maxLength={100}
                   placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}

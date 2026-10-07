@@ -324,6 +324,7 @@ export function Settings() {
               <input
                 id="tripName"
                 type="text"
+                maxLength={100}
                 className="modal-input"
                 value={tripName}
                 onChange={(e) => setTripName(e.target.value)}

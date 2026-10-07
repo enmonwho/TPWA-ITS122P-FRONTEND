@@ -679,6 +679,7 @@ export default function MapView() {
                       />
                       <input
                         type="text"
+                        maxLength={100}
                         className="modal-input-gradient pl-11"
                         placeholder="Search landmark, city, or address..."
                         value={placeSearchInput}
@@ -759,6 +760,7 @@ export default function MapView() {
                       <input
                         id="manual-place-name"
                         type="text"
+                        maxLength={100}
                         required
                         className="modal-input-gradient"
                         placeholder="e.g. Louvre Museum"
@@ -773,6 +775,7 @@ export default function MapView() {
                       <input
                         id="manual-place-address"
                         type="text"
+                        maxLength={100}
                         className="modal-input-gradient"
                         placeholder="e.g. Rue de Rivoli"
                         value={placeAddress}
@@ -787,6 +790,7 @@ export default function MapView() {
                         <input
                           id="manual-place-city"
                           type="text"
+                          maxLength={100}
                           className="modal-input-gradient"
                           placeholder="e.g. Paris"
                           value={placeCity}
@@ -800,6 +804,7 @@ export default function MapView() {
                         <input
                           id="manual-place-country"
                           type="text"
+                          maxLength={100}
                           className="modal-input-gradient"
                           placeholder="e.g. France"
                           value={placeCountry}
@@ -895,6 +900,7 @@ export default function MapView() {
                   <img src={magnifierIcon} alt="" className="w-5 h-5 opacity-50" />
                   <input
                     type="text"
+                    maxLength={100}
                     className="w-full bg-transparent outline-none text-sm font-medium text-stone-800 placeholder-stone-400"
                     placeholder="Search place or trip..."
                     value={searchQuery}
@@ -980,6 +986,7 @@ export default function MapView() {
                   <img src={magnifierIcon} alt="" className="w-5 h-5 opacity-50" />
                   <input
                     type="text"
+                    maxLength={100}
                     className="w-full bg-transparent outline-none text-sm font-medium text-stone-800 placeholder-stone-400"
                     placeholder="Search trips..."
                     value={searchQuery}

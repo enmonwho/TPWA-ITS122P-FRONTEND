@@ -112,34 +112,71 @@ export default function DestinationActivitySuggestions({
       </div>
 
       <div className="flex min-w-0">
-        <select
-          aria-label={`Choose an activity for ${area}${country ? `, ${country}` : ''}`}
-          value=""
-          disabled={loading}
-          onChange={(event) => {
-            const name = event.target.value;
-            if (name === '__CUSTOM_ACTIVITY__') {
-              setIsCustomEntryOpen(true);
-            } else if (name) {
-              addActivity(name);
-            }
-          }}
-          className="min-w-0 flex-1 rounded-lg border border-amber-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-[#6B3F20] disabled:bg-stone-50 disabled:text-stone-400"
-        >
-          <option value="">{loading ? 'Loading activities…' : 'Select activity'}</option>
-          {suggestions.map((suggestion) => {
-            const alreadyAdded = selected.some(
-              (item) => item.toLocaleLowerCase() === suggestion.name.toLocaleLowerCase(),
-            );
-            return (
-              <option key={suggestion.id} value={suggestion.name} disabled={alreadyAdded}>
-                {suggestion.name}
-                {alreadyAdded ? ' · Added' : ''}
-              </option>
-            );
-          })}
-          <option value="__CUSTOM_ACTIVITY__">Add custom activity…</option>
-        </select>
+        {isCustomEntryOpen ? (
+          <form
+            className="flex min-w-0 flex-1"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const input = new FormData(event.currentTarget).get('activity');
+              if (typeof input === 'string' && input.trim()) {
+                addActivity(input.trim());
+                event.currentTarget.reset();
+                setIsCustomEntryOpen(false);
+              }
+            }}
+          >
+            <input
+              name="activity"
+              maxLength={100}
+              placeholder="Enter custom activity"
+              aria-label={`Enter a custom activity for ${area}`}
+              autoFocus
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  event.preventDefault();
+                  setIsCustomEntryOpen(false);
+                }
+              }}
+              className="min-w-0 flex-1 rounded-lg border border-amber-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-[#6B3F20] placeholder:font-normal placeholder:text-stone-400"
+            />
+          </form>
+        ) : (
+          <select
+            aria-label={`Choose an activity for ${area}${country ? `, ${country}` : ''}`}
+            value=""
+            disabled={loading}
+            onChange={(event) => {
+              const name = event.target.value;
+              if (name === '__CUSTOM_ACTIVITY__') {
+                setIsCustomEntryOpen(true);
+              } else if (name) {
+                addActivity(name);
+              }
+            }}
+            className="min-w-0 flex-1 rounded-lg border border-amber-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-[#6B3F20] disabled:bg-stone-50 disabled:text-stone-400"
+          >
+            <option value="">
+              {loading ? 'Loading activities…' : 'Select activity'}
+            </option>
+            {suggestions.map((suggestion) => {
+              const alreadyAdded = selected.some(
+                (item) =>
+                  item.toLocaleLowerCase() === suggestion.name.toLocaleLowerCase(),
+              );
+              return (
+                <option
+                  key={suggestion.id}
+                  value={suggestion.name}
+                  disabled={alreadyAdded}
+                >
+                  {suggestion.name}
+                  {alreadyAdded ? ' · Added' : ''}
+                </option>
+              );
+            })}
+            <option value="__CUSTOM_ACTIVITY__">+ Custom activity...</option>
+          </select>
+        )}
       </div>
 
       {unavailable ? (
@@ -151,43 +188,6 @@ export default function DestinationActivitySuggestions({
           No activities available for this destination.
         </p>
       ) : null}
-
-      {isCustomEntryOpen && (
-        <form
-          className="mt-1 flex min-w-0 gap-1"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const input = new FormData(event.currentTarget).get('activity');
-            if (typeof input === 'string' && input.trim()) {
-              addActivity(input.trim());
-              event.currentTarget.reset();
-              setIsCustomEntryOpen(false);
-            }
-          }}
-        >
-          <input
-            name="activity"
-            maxLength={160}
-            placeholder="Enter custom activity"
-            aria-label={`Enter a custom activity for ${area}`}
-            autoFocus
-            className="min-w-0 flex-1 rounded-lg border border-stone-200 px-2 py-1.5 text-[10px]"
-          />
-          <button
-            type="submit"
-            className="shrink-0 rounded-lg border border-stone-200 px-2 py-1.5 text-[10px] font-semibold text-stone-700"
-          >
-            Add
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsCustomEntryOpen(false)}
-            className="shrink-0 rounded-lg border border-stone-200 px-2 py-1.5 text-[10px] font-semibold text-stone-600"
-          >
-            Cancel
-          </button>
-        </form>
-      )}
     </div>
   );
 }

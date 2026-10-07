@@ -1098,6 +1098,7 @@ export default function TripPacking() {
                 <input
                   id="modal-item-name"
                   type="text"
+                  maxLength={100}
                   required
                   placeholder="e.g. Passport, Sneakers, Jacket..."
                   className="budget-modal-gradient-input"

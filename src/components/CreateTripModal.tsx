@@ -146,6 +146,7 @@ export default function CreateTripModal({
             <input
               id="tripName"
               type="text"
+              maxLength={100}
               className="modal-input"
               placeholder="Enter a trip name"
               value={tripName}

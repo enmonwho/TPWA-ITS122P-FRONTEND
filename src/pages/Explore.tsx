@@ -577,6 +577,7 @@ export default function Explore() {
                 <img src={magnifierIcon} alt="" className="w-5 h-5 opacity-50 shrink-0" />
                 <input
                   type="text"
+                  maxLength={100}
                   className="explore-search-input"
                   placeholder="Search destinations, islands, countries..."
                   value={searchQuery}
@@ -1362,6 +1363,7 @@ export default function Explore() {
             <img src={magnifierIcon} alt="Search" className="w-4 h-4 opacity-50" />
             <input
               type="text"
+              maxLength={100}
               className="explore-mobile-search-input"
               placeholder="Search destinations, islands, countries..."
               value={searchQuery}
@@ -1657,6 +1659,7 @@ export default function Explore() {
                 <input
                   id="explore-trip-name"
                   type="text"
+                  maxLength={100}
                   required
                   className="modal-input-gradient"
                   placeholder="e.g. Boracay Island Hopping"

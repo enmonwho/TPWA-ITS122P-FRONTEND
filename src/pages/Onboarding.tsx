@@ -321,6 +321,7 @@ export default function Onboarding() {
               className="onboarding-input"
               placeholder="Username"
               value={username}
+              maxLength={16}
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}

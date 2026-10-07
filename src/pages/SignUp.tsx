@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePageLoader } from '../context/PageLoaderContext';
 import { ROUTES } from '../lib/constants';
 import { analyzePassword } from '../lib/passwordValidation';
+import { noWhitespaceInputProps } from '../lib/inputWhitespace';
 
 export default function SignUp() {
   const location = useLocation();
@@ -69,6 +70,12 @@ export default function SignUp() {
 
     const trimmedFirstName = firstName.trim();
     const trimmedLastName = lastName.trim();
+    const trimmedEmail = email.trim();
+
+    if (/\s/.test(trimmedEmail)) {
+      setEmailError('Email cannot contain spaces.');
+      return;
+    }
 
     let hasNameError = false;
 
@@ -93,6 +100,15 @@ export default function SignUp() {
     }
 
     if (hasNameError) {
+      return;
+    }
+
+    if (/\s/.test(password)) {
+      setPasswordError('Password cannot contain whitespace.');
+      return;
+    }
+    if (/\s/.test(confirmPassword)) {
+      setConfirmPasswordError('Password cannot contain whitespace.');
       return;
     }
 
@@ -123,13 +139,13 @@ export default function SignUp() {
     try {
       await register({
         full_name: fullName,
-        email,
+        email: trimmedEmail,
         password,
       });
 
       await triggerTransition(async () => {
         navigate(ROUTES.VERIFY_EMAIL, {
-          state: { email },
+          state: { email: trimmedEmail },
         });
       }, 700);
     } catch (err: unknown) {
@@ -171,6 +187,7 @@ export default function SignUp() {
             <input
               type="text"
               value={firstName}
+              maxLength={50}
               onChange={(e) => {
                 const sanitized = sanitizeName(e.target.value);
 
@@ -197,6 +214,7 @@ export default function SignUp() {
             <input
               type="text"
               value={lastName}
+              maxLength={50}
               onChange={(e) => {
                 const sanitized = sanitizeName(e.target.value);
 
@@ -224,8 +242,15 @@ export default function SignUp() {
           <input
             type="email"
             value={email}
+            maxLength={20}
+            {...noWhitespaceInputProps}
             onChange={(e) => {
-              setEmail(e.target.value);
+              const nextEmail = e.target.value.trim();
+              if (/\s/.test(nextEmail)) {
+                setEmailError('Email cannot contain spaces.');
+                return;
+              }
+              setEmail(nextEmail);
 
               if (emailError) {
                 setEmailError('');
@@ -248,7 +273,13 @@ export default function SignUp() {
           <input
             type={showPassword ? 'text' : 'password'}
             value={password}
+            maxLength={16}
+            {...noWhitespaceInputProps}
             onChange={(e) => {
+              if (/\s/.test(e.target.value)) {
+                setPasswordError('Password cannot contain whitespace.');
+                return;
+              }
               setPassword(e.target.value);
 
               if (passwordError) {
@@ -315,7 +346,13 @@ export default function SignUp() {
           <input
             type={showConfirmPassword ? 'text' : 'password'}
             value={confirmPassword}
+            maxLength={16}
+            {...noWhitespaceInputProps}
             onChange={(e) => {
+              if (/\s/.test(e.target.value)) {
+                setConfirmPasswordError('Password cannot contain whitespace.');
+                return;
+              }
               setConfirmPassword(e.target.value);
 
               if (confirmPasswordError) {
