@@ -133,7 +133,7 @@ export default function ForgotPassword() {
             <input
               type="email"
               value={email}
-              maxLength={20}
+              maxLength={254}
               {...noWhitespaceInputProps}
               onChange={(e) => {
                 const nextEmail = e.target.value.trim();
@@ -143,6 +143,13 @@ export default function ForgotPassword() {
                 }
                 setEmail(nextEmail);
                 if (errorMessage) setErrorMessage('');
+              }}
+              onBlur={async () => {
+                if (!email.trim()) return;
+                const res = await authApi.validateFormat('email', email.trim());
+                if (!res.valid) {
+                  setErrorMessage(res.message || 'Invalid email address format.');
+                }
               }}
               placeholder="Enter your email address"
               required

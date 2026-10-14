@@ -43,6 +43,9 @@ export default function AdminUserActivity() {
   const [sessionActions, setSessionActions] = useState<
     Record<number, UserSessionAction[]>
   >({});
+  const [sessionFilter, setSessionFilter] = useState<'all' | 'registered' | 'guest'>(
+    'all',
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -190,9 +193,48 @@ export default function AdminUserActivity() {
       </div>
 
       <section className="admin-card-panel admin-activity-panel">
-        <div className="admin-panel-header">
-          <h2>Sessions</h2>
-          <span>{total.toLocaleString()} total</span>
+        <div className="admin-panel-header flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h2>Sessions</h2>
+            <span>{total.toLocaleString()} total</span>
+          </div>
+
+          {/* Segmented Visitor Filter (#1) */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
+                sessionFilter === 'all'
+                  ? 'bg-[#2F1B0C] text-white border-[#2F1B0C] shadow-xs'
+                  : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
+              }`}
+              onClick={() => setSessionFilter('all')}
+            >
+              All Sessions ({sessions.length})
+            </button>
+            <button
+              type="button"
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
+                sessionFilter === 'registered'
+                  ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                  : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
+              }`}
+              onClick={() => setSessionFilter('registered')}
+            >
+              Registered Users ({sessions.filter((s) => Boolean(s.user_id)).length})
+            </button>
+            <button
+              type="button"
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
+                sessionFilter === 'guest'
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                  : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
+              }`}
+              onClick={() => setSessionFilter('guest')}
+            >
+              Guest Visitors ({sessions.filter((s) => !s.user_id).length})
+            </button>
+          </div>
         </div>
         {loading ? (
           <p className="admin-activity-empty">Loading sessions…</p>
@@ -214,74 +256,80 @@ export default function AdminUserActivity() {
                 </tr>
               </thead>
               <tbody>
-                {sessions.map((session) => (
-                  <Fragment key={session.session_id}>
-                    <tr key={session.session_id}>
-                      <td>
-                        <button
-                          type="button"
-                          className="admin-activity-expand"
-                          onClick={() => void toggleSession(session.session_id)}
-                          aria-expanded={expandedSessionId === session.session_id}
-                        >
-                          {expandedSessionId === session.session_id ? (
-                            <ChevronDown size={15} />
-                          ) : (
-                            <ChevronRight size={15} />
-                          )}
-                          <span>{getSessionLabel(session)}</span>
-                        </button>
-                        {session.user_id && session.email && (
-                          <small className="admin-activity-visitor-detail">
-                            {session.email} · {session.role || 'user'}
-                          </small>
-                        )}
-                      </td>
-                      <td>{session.ip_address || '—'}</td>
-                      <td>{formatTimestamp(session.session_start)}</td>
-                      <td>{formatTimestamp(session.last_seen_at)}</td>
-                      <td>{formatTimestamp(session.session_end)}</td>
-                      <td>{formatDuration(session.duration_seconds)}</td>
-                      <td>
-                        <span
-                          className={`admin-session-status ${session.is_active ? 'is-active' : 'is-inactive'}`}
-                        >
-                          {session.is_active
-                            ? 'Active'
-                            : session.session_end
-                              ? 'Ended'
-                              : 'Inactive'}
-                        </span>
-                      </td>
-                      <td>{session.action_count}</td>
-                    </tr>
-                    {expandedSessionId === session.session_id && (
-                      <tr key={`${session.session_id}-actions`}>
-                        <td colSpan={8}>
-                          <div className="admin-activity-actions">
-                            <strong>Session actions</strong>
-                            {(sessionActions[session.session_id] || []).length === 0 ? (
-                              <p>No linked business actions recorded.</p>
+                {sessions
+                  .filter((session) => {
+                    if (sessionFilter === 'registered') return Boolean(session.user_id);
+                    if (sessionFilter === 'guest') return !session.user_id;
+                    return true;
+                  })
+                  .map((session) => (
+                    <Fragment key={session.session_id}>
+                      <tr key={session.session_id}>
+                        <td>
+                          <button
+                            type="button"
+                            className="admin-activity-expand"
+                            onClick={() => void toggleSession(session.session_id)}
+                            aria-expanded={expandedSessionId === session.session_id}
+                          >
+                            {expandedSessionId === session.session_id ? (
+                              <ChevronDown size={15} />
                             ) : (
-                              <ul>
-                                {sessionActions[session.session_id].map((action) => (
-                                  <li key={action.id}>
-                                    <span>{action.action.replaceAll('_', ' ')}</span>
-                                    <span>
-                                      {action.entity_type || 'event'}
-                                      {action.entity_id ? ` #${action.entity_id}` : ''}
-                                    </span>
-                                    <time>{formatTimestamp(action.created_at)}</time>
-                                  </li>
-                                ))}
-                              </ul>
+                              <ChevronRight size={15} />
                             )}
-                          </div>
+                            <span>{getSessionLabel(session)}</span>
+                          </button>
+                          {session.user_id && session.email && (
+                            <small className="admin-activity-visitor-detail">
+                              {session.email} · {session.role || 'user'}
+                            </small>
+                          )}
                         </td>
+                        <td>{session.ip_address || '—'}</td>
+                        <td>{formatTimestamp(session.session_start)}</td>
+                        <td>{formatTimestamp(session.last_seen_at)}</td>
+                        <td>{formatTimestamp(session.session_end)}</td>
+                        <td>{formatDuration(session.duration_seconds)}</td>
+                        <td>
+                          <span
+                            className={`admin-session-status ${session.is_active ? 'is-active' : 'is-inactive'}`}
+                          >
+                            {session.is_active
+                              ? 'Active'
+                              : session.session_end
+                                ? 'Ended'
+                                : 'Inactive'}
+                          </span>
+                        </td>
+                        <td>{session.action_count}</td>
                       </tr>
-                    )}
-                  </Fragment>
-                ))}
+                      {expandedSessionId === session.session_id && (
+                        <tr key={`${session.session_id}-actions`}>
+                          <td colSpan={8}>
+                            <div className="admin-activity-actions">
+                              <strong>Session actions</strong>
+                              {(sessionActions[session.session_id] || []).length === 0 ? (
+                                <p>No linked business actions recorded.</p>
+                              ) : (
+                                <ul>
+                                  {sessionActions[session.session_id].map((action) => (
+                                    <li key={action.id}>
+                                      <span>{action.action.replaceAll('_', ' ')}</span>
+                                      <span>
+                                        {action.entity_type || 'event'}
+                                        {action.entity_id ? ` #${action.entity_id}` : ''}
+                                      </span>
+                                      <time>{formatTimestamp(action.created_at)}</time>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  ))}
               </tbody>
             </table>
           </div>

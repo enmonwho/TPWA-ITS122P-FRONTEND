@@ -317,4 +317,28 @@ export const mockAuthApi = {
       message: 'Pending registration cancelled successfully (mock mode).',
     };
   },
+
+  validateFormat: async (
+    field: string,
+    value: string,
+  ): Promise<{ valid: boolean; message?: string }> => {
+    if (field === 'email') {
+      const emailRegex =
+        /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+      if (value.length > 254)
+        return {
+          valid: false,
+          message: 'Email address exceeds standard limit (254 chars).',
+        };
+      if (!emailRegex.test(value))
+        return { valid: false, message: 'Invalid email address format.' };
+      return { valid: true };
+    }
+    if (field === 'password') {
+      if (value.length < 8)
+        return { valid: false, message: 'Password must be at least 8 characters long.' };
+      return { valid: true };
+    }
+    return { valid: true };
+  },
 };

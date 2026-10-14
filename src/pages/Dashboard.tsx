@@ -15,9 +15,12 @@ import {
   Copy,
   Archive,
   X,
+  HelpCircle,
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import CreateTripModal from '../components/CreateTripModal';
+import TripTrashModal from '../components/TripTrashModal';
+import OnboardingTour from '../components/OnboardingTour';
 import planNowIcon from '../assets/plan-now.svg';
 import tripSchedIcon from '../assets/trip-sched.svg';
 import createTripBtnIcon from '../assets/create-trip-button.svg';
@@ -42,6 +45,8 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [isCreateTripModalOpen, setIsCreateTripModalOpen] = useState(false);
+  const [isTrashModalOpen, setIsTrashModalOpen] = useState(false);
+  const [isTourOpen, setIsTourOpen] = useState(false);
   const [journalCount, setJournalCount] = useState<number>(() => {
     if (!user?.id) return 0;
     try {
@@ -51,6 +56,15 @@ export default function Dashboard() {
       return 0;
     }
   });
+
+  const loadTrips = async () => {
+    try {
+      const apiTrips = await tripsApi.getTrips();
+      setTrips(mergeTripsWithExtras(apiTrips));
+    } catch (err) {
+      console.warn('Could not reload trips from API:', err);
+    }
+  };
 
   const userCurrency = user?.preferences?.currency || 'PHP';
 
@@ -587,13 +601,33 @@ export default function Dashboard() {
           <div className="dashboard-trips-section">
             <div className="dashboard-trips-header-row">
               <h2 className="dashboard-trips-title">My Journeys</h2>
-              <button
-                type="button"
-                className="dashboard-view-calendar-btn"
-                onClick={() => navigate('/dashboard/bookings')}
-              >
-                View Calendar
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-xs font-semibold hover:bg-amber-100 transition-colors shadow-sm cursor-pointer"
+                  onClick={() => setIsTourOpen(true)}
+                  title="Take a quick tour of LakBye features"
+                >
+                  <HelpCircle size={14} className="text-amber-600" />
+                  <span>Feature Tour</span>
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 bg-stone-50 text-stone-700 text-xs font-semibold hover:bg-stone-100 transition-colors shadow-sm cursor-pointer"
+                  onClick={() => setIsTrashModalOpen(true)}
+                  title="View deleted trips in Trash Bin"
+                >
+                  <Trash2 size={14} className="text-stone-500" />
+                  <span>Trash Bin</span>
+                </button>
+                <button
+                  type="button"
+                  className="dashboard-view-calendar-btn"
+                  onClick={() => navigate('/dashboard/bookings')}
+                >
+                  View Calendar
+                </button>
+              </div>
             </div>
 
             <div className="dashboard-trips-filters">
@@ -991,12 +1025,12 @@ export default function Dashboard() {
             </h3>
 
             <p className="text-xs text-stone-500 leading-relaxed mb-5 w-full max-w-[360px] text-center">
-              Are you sure you want to delete{' '}
+              Are you sure you want to move{' '}
               <span className="font-semibold text-stone-800">
                 &ldquo;{deletingTrip.name}&rdquo;
-              </span>
-              ? All associated itineraries, budget expenses, and packing checklists will
-              be permanently removed.
+              </span>{' '}
+              to the Trash Bin? It will be safely retained for 30 days before permanent
+              purging, and you can restore it anytime from your Trash Bin.
             </p>
 
             <div className="flex items-center gap-3 w-full justify-center">
@@ -1013,12 +1047,31 @@ export default function Dashboard() {
                 onClick={handleConfirmDelete}
                 className="flex-1 max-w-[140px] py-2.5 px-4 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-colors shadow-sm cursor-pointer disabled:opacity-50"
               >
-                {isDeleting ? 'Deleting...' : 'Delete'}
+                {isDeleting ? 'Moving to Trash...' : 'Move to Trash'}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Trash Bin Modal (#15, #23) */}
+      <TripTrashModal
+        isOpen={isTrashModalOpen}
+        onClose={() => setIsTrashModalOpen(false)}
+        onTripRestored={() => {
+          loadTrips();
+        }}
+      />
+
+      {/* Interactive Onboarding Tour (#26) */}
+      <OnboardingTour
+        isOpen={isTourOpen}
+        onClose={() => setIsTourOpen(false)}
+        onComplete={() => {
+          setIsTourOpen(false);
+          localStorage.setItem('lakbye_tour_completed', 'true');
+        }}
+      />
     </div>
   );
 }

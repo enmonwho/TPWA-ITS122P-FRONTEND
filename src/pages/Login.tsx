@@ -206,7 +206,7 @@ export default function Login() {
           <input
             type="email"
             value={email}
-            maxLength={50}
+            maxLength={254}
             {...noWhitespaceInputProps}
             onChange={(e) => {
               const nextEmail = e.target.value.trim();
@@ -216,6 +216,13 @@ export default function Login() {
               }
               setEmail(nextEmail);
               if (errorMessage) setErrorMessage('');
+            }}
+            onBlur={async () => {
+              if (!email.trim()) return;
+              const res = await authApi.validateFormat('email', email.trim());
+              if (!res.valid) {
+                setErrorMessage(res.message || 'Invalid email address format.');
+              }
             }}
             placeholder="Email address"
             required
@@ -229,6 +236,9 @@ export default function Login() {
             value={password}
             maxLength={16}
             {...noWhitespaceInputProps}
+            onCopy={(e) => e.preventDefault()}
+            onPaste={(e) => e.preventDefault()}
+            onCut={(e) => e.preventDefault()}
             onChange={(e) => {
               if (/\s/.test(e.target.value)) {
                 setErrorMessage('Password cannot contain whitespace.');

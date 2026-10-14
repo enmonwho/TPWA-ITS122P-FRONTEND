@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { authApi } from '../services/api';
 
 import AuthLayout from '../components/AuthLayout';
 import PasswordRequirements from '../components/PasswordRequirements';
@@ -242,7 +243,7 @@ export default function SignUp() {
           <input
             type="email"
             value={email}
-            maxLength={50}
+            maxLength={254}
             {...noWhitespaceInputProps}
             onChange={(e) => {
               const nextEmail = e.target.value.trim();
@@ -254,6 +255,13 @@ export default function SignUp() {
 
               if (emailError) {
                 setEmailError('');
+              }
+            }}
+            onBlur={async () => {
+              if (!email.trim()) return;
+              const res = await authApi.validateFormat('email', email.trim());
+              if (!res.valid) {
+                setEmailError(res.message || 'Invalid email address format.');
               }
             }}
             placeholder="Email address *"
@@ -275,6 +283,9 @@ export default function SignUp() {
             value={password}
             maxLength={16}
             {...noWhitespaceInputProps}
+            onCopy={(e) => e.preventDefault()}
+            onPaste={(e) => e.preventDefault()}
+            onCut={(e) => e.preventDefault()}
             onChange={(e) => {
               if (/\s/.test(e.target.value)) {
                 setPasswordError('Password cannot contain whitespace.');
@@ -288,6 +299,13 @@ export default function SignUp() {
 
               if (confirmPasswordError && e.target.value === confirmPassword) {
                 setConfirmPasswordError('');
+              }
+            }}
+            onBlur={async () => {
+              if (!password) return;
+              const res = await authApi.validateFormat('password', password);
+              if (!res.valid) {
+                setPasswordError(res.message || 'Password does not meet requirements.');
               }
             }}
             placeholder="Password *"
@@ -348,6 +366,9 @@ export default function SignUp() {
             value={confirmPassword}
             maxLength={16}
             {...noWhitespaceInputProps}
+            onCopy={(e) => e.preventDefault()}
+            onPaste={(e) => e.preventDefault()}
+            onCut={(e) => e.preventDefault()}
             onChange={(e) => {
               if (/\s/.test(e.target.value)) {
                 setConfirmPasswordError('Password cannot contain whitespace.');
@@ -357,6 +378,11 @@ export default function SignUp() {
 
               if (confirmPasswordError) {
                 setConfirmPasswordError('');
+              }
+            }}
+            onBlur={() => {
+              if (confirmPassword && confirmPassword !== password) {
+                setConfirmPasswordError('Passwords do not match.');
               }
             }}
             placeholder="Confirm Password *"

@@ -16,12 +16,15 @@ import {
   Globe,
   Trash2,
   Download,
+  Users,
+  CheckCircle2,
 } from 'lucide-react';
 import routeIcon from '../assets/route.png';
 import dayByDayIcon from '../assets/day-by-day.png';
 import magnifierIcon from '../assets/magnifier.png';
 import { CountryAutocomplete, GlobeMap } from '../components';
 import ExportItineraryModal from '../components/ExportItineraryModal';
+import TripCollaboratorModal from '../components/TripCollaboratorModal';
 import DestinationActivitySuggestions from '../components/DestinationActivitySuggestions';
 import AnchoredPopover from '../components/AnchoredPopover';
 import { getCoordinatesForName } from '../constants/coordinates';
@@ -131,6 +134,18 @@ export default function TripWorkspace() {
 
   const [trip, setTrip] = useState<Trip | null>(null);
   const [isExportItineraryOpen, setIsExportItineraryOpen] = useState(false);
+  const [isCompanionModalOpen, setIsCompanionModalOpen] = useState(false);
+  const [savedToastVisible, setSavedToastVisible] = useState(false);
+  const savedToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const notifyChangesSaved = useCallback(() => {
+    setSavedToastVisible(true);
+    if (savedToastTimeoutRef.current) clearTimeout(savedToastTimeoutRef.current);
+    savedToastTimeoutRef.current = setTimeout(() => {
+      setSavedToastVisible(false);
+    }, 2800);
+  }, []);
+
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -278,6 +293,7 @@ export default function TripWorkspace() {
       // Keep the legacy local mirror used by Budget and export while syncing the
       // canonical destination records consumed by Bookings and Map.
       const syncPromise = enqueueWorkspaceDestinationSync(tripId, ordered);
+      notifyChangesSaved();
       // Keep older fire-and-forget workspace edits from producing unhandled
       // rejections; callers that need persistence confirmation can await it.
       void syncPromise.catch((error) => {
@@ -285,7 +301,7 @@ export default function TripWorkspace() {
       });
       return syncPromise;
     },
-    [tripId, persistCountryRoute],
+    [tripId, persistCountryRoute, notifyChangesSaved],
   );
 
   useEffect(() => {
@@ -1042,20 +1058,23 @@ export default function TripWorkspace() {
       setActiveDestinationId(updated.length > 0 ? updated[0].id : null);
   };
 
-  const moveDestination = (id: string, direction: 'up' | 'down') => {
-    const idx = destinations.findIndex((d) => d.id === id);
-    if (idx === -1) return;
-    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (targetIdx < 0 || targetIdx >= destinations.length) return;
+  const moveDestination = useCallback(
+    (id: string, direction: 'up' | 'down') => {
+      const idx = destinations.findIndex((d) => d.id === id);
+      if (idx === -1) return;
+      const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+      if (targetIdx < 0 || targetIdx >= destinations.length) return;
 
-    const next = [...destinations];
-    const temp = next[idx];
-    next[idx] = next[targetIdx];
-    next[targetIdx] = temp;
-    const reordered = next.map((destination, order) => ({ ...destination, order }));
-    setDestinations(reordered);
-    persistDestinations(reordered, countryRoute);
-  };
+      const next = [...destinations];
+      const temp = next[idx];
+      next[idx] = next[targetIdx];
+      next[targetIdx] = temp;
+      const reordered = next.map((destination, order) => ({ ...destination, order }));
+      setDestinations(reordered);
+      persistDestinations(reordered, countryRoute);
+    },
+    [destinations, countryRoute, persistDestinations],
+  );
 
   const renderFieldSelector = (
     destId: string,
@@ -1662,7 +1681,26 @@ export default function TripWorkspace() {
             )}
           </div>
         </div>
-        <div className="workspace-header-actions">
+        <div className="workspace-header-actions flex items-center gap-2">
+          {savedToastVisible && (
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-700 text-xs font-semibold shadow-xs animate-in fade-in">
+              <CheckCircle2 size={13} className="text-emerald-600" />
+              <span>Changes have been saved</span>
+            </div>
+          )}
+
+          <button
+            type="button"
+            className="pill-tab"
+            onClick={() => setIsCompanionModalOpen(true)}
+            aria-label="Manage trip companions"
+            title="Manage trip companions"
+          >
+            <Users size={14} aria-hidden="true" />
+            <span className="hidden sm:inline">Companions</span>
+            <span className="sm:hidden">Buddies</span>
+          </button>
+
           <button
             type="button"
             className="pill-tab"
@@ -1897,6 +1935,7 @@ export default function TripWorkspace() {
                                           disabled={globalIndex === 0}
                                           onClick={(e) => {
                                             e.stopPropagation();
+                                            // eslint-disable-next-line react-hooks/refs
                                             moveDestination(dest.id, 'up');
                                           }}
                                           className="workspace-route-row-action"
@@ -2878,6 +2917,14 @@ export default function TripWorkspace() {
           isOpen={isExportItineraryOpen}
           onClose={() => setIsExportItineraryOpen(false)}
           tripId={tripId}
+        />
+      )}
+      {tripId && (
+        <TripCollaboratorModal
+          isOpen={isCompanionModalOpen}
+          onClose={() => setIsCompanionModalOpen(false)}
+          tripId={Number(tripId)}
+          tripTitle={trip.name}
         />
       )}
     </div>

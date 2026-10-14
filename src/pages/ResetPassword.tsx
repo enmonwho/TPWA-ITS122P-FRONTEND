@@ -90,12 +90,22 @@ export default function ResetPassword() {
               value={password}
               maxLength={16}
               {...noWhitespaceInputProps}
+              onCopy={(e) => e.preventDefault()}
+              onPaste={(e) => e.preventDefault()}
+              onCut={(e) => e.preventDefault()}
               onChange={(e) => {
                 if (/\s/.test(e.target.value)) {
                   setErrorMessage('Password cannot contain whitespace.');
                   return;
                 }
                 setPassword(e.target.value);
+              }}
+              onBlur={async () => {
+                if (!password) return;
+                const res = await authApi.validateFormat('password', password);
+                if (!res.valid) {
+                  setErrorMessage(res.message || 'Password does not meet requirements.');
+                }
               }}
               placeholder="New password (min 8 chars)"
               required
@@ -118,12 +128,20 @@ export default function ResetPassword() {
               value={confirmPassword}
               maxLength={16}
               {...noWhitespaceInputProps}
+              onCopy={(e) => e.preventDefault()}
+              onPaste={(e) => e.preventDefault()}
+              onCut={(e) => e.preventDefault()}
               onChange={(e) => {
                 if (/\s/.test(e.target.value)) {
                   setErrorMessage('Password cannot contain whitespace.');
                   return;
                 }
                 setConfirmPassword(e.target.value);
+              }}
+              onBlur={() => {
+                if (confirmPassword && confirmPassword !== password) {
+                  setErrorMessage('Passwords do not match.');
+                }
               }}
               placeholder="Confirm new password"
               required

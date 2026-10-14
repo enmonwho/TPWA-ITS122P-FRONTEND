@@ -8,6 +8,7 @@ import {
   Search,
   Loader2,
   User,
+  LifeBuoy,
 } from 'lucide-react';
 import lakByeImg from '../assets/lakbye-logo.png';
 import { useAuth } from '../context/AuthContext';
@@ -22,11 +23,13 @@ import {
 } from '../lib/travelerSearch';
 import { openPublicProfile } from '../lib/publicProfile';
 import PublicProfileModal from './PublicProfileModal';
+import ContactSupportModal from './ContactSupportModal';
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [isSupportOpen, setIsSupportOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Search State
@@ -454,6 +457,23 @@ export default function Header() {
                       <span>Settings</span>
                     </Link>
 
+                    <button
+                      type="button"
+                      className="header-dropdown-item cursor-pointer"
+                      role="menuitem"
+                      onClick={() => {
+                        setDropdownOpen(false);
+                        setIsSupportOpen(true);
+                      }}
+                      id="header-nav-support"
+                    >
+                      <LifeBuoy
+                        size={18}
+                        className="header-dropdown-icon text-amber-600"
+                      />
+                      <span>Contact Support (#24)</span>
+                    </button>
+
                     <div className="header-dropdown-divider" />
 
                     <button
@@ -472,6 +492,15 @@ export default function Header() {
             </>
           ) : (
             <>
+              <button
+                type="button"
+                onClick={() => setIsSupportOpen(true)}
+                className="text-xs font-semibold text-stone-600 hover:text-black px-2 py-1 cursor-pointer flex items-center gap-1"
+                id="header-public-support-btn"
+              >
+                <LifeBuoy size={14} className="text-amber-600" />
+                <span>Support</span>
+              </button>
               <Link
                 to="/login"
                 className="btn-login hover-underline"
@@ -500,6 +529,12 @@ export default function Header() {
         onClose={() => {
           setSelectedProfileUsername(null);
         }}
+      />
+
+      {/* Contact Support Modal (#24) */}
+      <ContactSupportModal
+        isOpen={isSupportOpen}
+        onClose={() => setIsSupportOpen(false)}
       />
     </header>
   );

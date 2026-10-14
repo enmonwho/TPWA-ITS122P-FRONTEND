@@ -58,7 +58,7 @@ const resolveBaseUrl = (): string => {
  * Centralized Axios instance for all API calls.
  * Reads VITE_API_URL from environment variables with fallback to hosted backend proxy.
  */
-const api = axios.create({
+export const api = axios.create({
   baseURL: resolveBaseUrl(),
   withCredentials: true,
   timeout: 60_000,
@@ -152,6 +152,24 @@ const realAuthApi = {
       email,
     });
     return response.data;
+  },
+
+  validateFormat: async (
+    field: string,
+    value: string,
+  ): Promise<{ valid: boolean; message?: string }> => {
+    try {
+      const response = await api.post<{ valid: boolean; message?: string }>(
+        '/auth/validate-format',
+        {
+          field,
+          value,
+        },
+      );
+      return response.data;
+    } catch {
+      return { valid: true };
+    }
   },
 };
 const useMockAuth = import.meta.env.VITE_USE_MOCK_AUTH === 'true';

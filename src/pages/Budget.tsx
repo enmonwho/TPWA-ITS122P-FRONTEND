@@ -510,6 +510,13 @@ export function Budget() {
         : convert(enteredCost, displayCurrency, 'PHP', fxRates);
     const roundedCostPhp = Math.round(costInPhp * 100) / 100;
 
+    if (roundedCostPhp > 50000000) {
+      setExpenseError(
+        'Single expense limit exceeded (max ₱50,000,000). Please enter a realistic amount.',
+      );
+      return;
+    }
+
     const totalItems =
       expenseItemRows.reduce((sum, r) => sum + (parseInt(r.quantity, 10) || 0), 0) || 1;
 

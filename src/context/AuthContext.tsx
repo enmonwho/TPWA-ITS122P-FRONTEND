@@ -11,6 +11,9 @@ import type {
   RegisterPayload,
   AuthResponse,
 } from '../types';
+import { useIdleTimeout } from '../hooks/useIdleTimeout';
+import { IdleTimeoutModal } from '../components/IdleTimeoutModal';
+import { GracefulLogoutModal } from '../components/GracefulLogoutModal';
 
 export interface AuthContextType {
   user: User | null;
@@ -182,13 +185,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data;
   };
 
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   const logout = async (): Promise<void> => {
+    setIsLoggingOut(true);
     try {
       await authApi.logout();
+    } catch (err) {
+      console.warn('Logout API error:', err);
     } finally {
-      localStorage.removeItem(STORAGE_KEYS.TOKEN);
-      localStorage.removeItem(STORAGE_KEYS.USER);
-      setUser(null);
+      setTimeout(() => {
+        localStorage.removeItem(STORAGE_KEYS.TOKEN);
+        localStorage.removeItem(STORAGE_KEYS.USER);
+        setUser(null);
+        setIsLoggingOut(false);
+        window.location.href = '/login';
+      }, 1200);
     }
   };
 
@@ -204,7 +216,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
+      <InactivityGuard user={user} onLogout={logout} />
+      <GracefulLogoutModal isOpen={isLoggingOut} />
     </AuthContext.Provider>
+  );
+}
+
+function InactivityGuard({
+  user,
+  onLogout,
+}: {
+  user: User | null;
+  onLogout: () => void;
+}) {
+  const { isIdleWarningOpen, remainingSeconds, stayLoggedIn, performLogout } =
+    useIdleTimeout({
+      idleTimeMs: 15 * 60 * 1000,
+      countdownSec: 60,
+      onLogout,
+    });
+
+  if (!user) return null;
+
+  return (
+    <IdleTimeoutModal
+      isOpen={isIdleWarningOpen}
+      remainingSeconds={remainingSeconds}
+      onStayLoggedIn={stayLoggedIn}
+      onLogout={performLogout}
+    />
   );
 }
 
